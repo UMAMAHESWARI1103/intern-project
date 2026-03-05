@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "65741963838",
+    "project_id": "godsconnect-871ed",
+    "storage_bucket": "godsconnect-871ed.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:65741963838:android:d6f2f0e4d665f6cd58476f",
+        "android_client_info": {
+          "package_name": "com.godsconnect.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB41jS1DkEHS5VlmKpshDapWNomtQ7eflM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
