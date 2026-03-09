@@ -30,6 +30,7 @@ class _AdminReportsAnalyticsPageState
   num _ordersRevenue    = 0;
   int _ecommerceCount   = 0;
   num _ecommerceRevenue = 0;
+  num _bookingsRevenue  = 0;
 
   @override
   void initState() {
@@ -53,10 +54,25 @@ class _AdminReportsAnalyticsPageState
         ApiService.getAdminEventRegistrations(),
         ApiService.getAdminOrders(),
         ApiService.getAdminProducts(),
+        ApiService.getAdminBookings(),
       ]);
 
       final orders   = results[3] as List<Map<String, dynamic>>;
       final products = results[4] as List<Map<String, dynamic>>;
+      final bookings = results[5] as List<Map<String, dynamic>>;
+
+      // Calculate bookings revenue — check every field name each booking type might use
+      num calcBookingsRevenue = 0;
+      for (final b in bookings) {
+        final amt = (b['totalAmount'] as num?) ??
+            (b['amount']      as num?) ??
+            (b['price']       as num?) ??
+            (b['totalPrice']  as num?) ??
+            (b['total']       as num?) ??
+            (b['paidAmount']  as num?) ??
+            (b['fee']         as num?) ?? 0;
+        calcBookingsRevenue += amt;
+      }
 
       // Calculate orders revenue from actual orders list
       num calcOrdersRevenue = 0;
@@ -85,9 +101,17 @@ class _AdminReportsAnalyticsPageState
           _ordersCount    = orders.length;
           _ecommerceCount = products.length;
 
-          // Prefer backend-reported revenue; fall back to calculated values
-          _ordersRevenue    = (reports['ordersRevenue']    as num?) ?? calcOrdersRevenue;
-          _ecommerceRevenue = (reports['ecommerceRevenue'] as num?) ?? calcEcommerceRevenue;
+          // Always use calculated bookings revenue (backend often returns 0)
+          // For orders/ecommerce, prefer backend value if non-zero, else use calculated
+          _bookingsRevenue  = calcBookingsRevenue > 0
+              ? calcBookingsRevenue
+              : ((reports['bookingsRevenue']  as num?) ?? 0);
+          _ordersRevenue    = calcOrdersRevenue > 0
+              ? calcOrdersRevenue
+              : ((reports['ordersRevenue']    as num?) ?? 0);
+          _ecommerceRevenue = calcEcommerceRevenue > 0
+              ? calcEcommerceRevenue
+              : ((reports['ecommerceRevenue'] as num?) ?? 0);
 
           _isLoading = false;
         });
@@ -105,11 +129,6 @@ class _AdminReportsAnalyticsPageState
     if (n >= 1000)   return '${(n / 1000).toStringAsFixed(1)}K';
     return n.toInt().toString();
   }
-
-  List<Map<String, dynamic>> _list(String key) =>
-      List<Map<String, dynamic>>.from(
-          (_reports[key] as List? ?? [])
-              .map((e) => Map<String, dynamic>.from(e as Map)));
 
   @override
   Widget build(BuildContext context) {
@@ -176,12 +195,11 @@ class _AdminReportsAnalyticsPageState
 
   // ── REVENUE TAB ───────────────────────────────────────────────────────────
   Widget _revenueTab() {
-    final bookings  = _n(_reports, 'bookingsRevenue');
+    final bookings  = _bookingsRevenue;
     final donations = _n(_reports, 'donationsRevenue');
     final ecommerce = _ecommerceRevenue;
     final orders    = _ordersRevenue;
     final growth    = (_reports['growth'] ?? '+0%').toString();
-    final donCats   = _list('donationsByCategory');
 
     // Recalculate total from real values if backend total is missing
     final total = (_reports['totalRevenue'] as num?) ??
@@ -249,54 +267,6 @@ class _AdminReportsAnalyticsPageState
       _revenueBar('E-Commerce', ecommerce, total, Colors.teal),
       const SizedBox(height: 10),
       _revenueBar('Orders',     orders,    total, Colors.indigo),
-
-      if (donCats.isNotEmpty) ...[
-        const SizedBox(height: 20),
-        _card(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-            const Text('Donations by Category',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: _textDark)),
-            const SizedBox(height: 14),
-            ...donCats.map((d) {
-              final color   = _categoryColor(d['category']?.toString() ?? '');
-              final amount  = _n(d, 'amount');
-              final percent = _n(d, 'percent');
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(children: [
-                  Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                    Row(children: [
-                      Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                              color: color, shape: BoxShape.circle)),
-                      const SizedBox(width: 8),
-                      Text(d['category']?.toString() ?? '',
-                          style: const TextStyle(
-                              fontSize: 13, color: _textDark)),
-                    ]),
-                    Text('₹${_fmt(amount)}  (${percent.toInt()}%)',
-                        style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: _textDark)),
-                  ]),
-                  const SizedBox(height: 6),
-                  _progressBar(percent.toDouble() / 100, color),
-                ]),
-              );
-            }),
-          ]),
-        ),
-      ],
     ]);
   }
 
@@ -469,13 +439,4 @@ class _AdminReportsAnalyticsPageState
           ),
         ]),
       );
-
-  Color _categoryColor(String cat) => switch (cat) {
-        'General'    => Colors.blue,
-        'Renovation' => Colors.brown,
-        'Annadhanam' => Colors.orange,
-        'Festival'   => Colors.purple,
-        'Cow Seva'   => Colors.green,
-        _            => Colors.grey,
-      };
 }
