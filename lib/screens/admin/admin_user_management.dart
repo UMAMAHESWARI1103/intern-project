@@ -22,7 +22,6 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   String _statusFilter = 'All';
   String _sortBy       = 'Newest';
 
-  // ── Replaced hardcoded list with DB data ──
   List<Map<String, dynamic>> _users = [];
   bool _isLoading = true;
   String? _error;
@@ -48,9 +47,31 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     }
   }
 
-  /// Normalize DB field names to match UI expectations
+  /// Normalize DB field names to match UI expectations.
+  /// Tries multiple common field name variants for bookings & donations.
   Map<String, dynamic> _normalizeUser(Map<String, dynamic> u) {
     final name = (u['name'] ?? '').toString();
+
+    // ── Bookings: try every common field name variant ──
+    final bookings = _parseInt(
+      u['bookingsCount'] ??
+      u['bookingCount'] ??
+      u['totalBookings'] ??
+      u['bookings'] ??
+      u['booking_count'] ??
+      u['noOfBookings'],
+    );
+
+    // ── Donations: try every common field name variant ──
+    final donations = _parseInt(
+      u['donationsCount'] ??
+      u['donationCount'] ??
+      u['totalDonations'] ??
+      u['donations'] ??
+      u['donation_count'] ??
+      u['noOfDonations'],
+    );
+
     return {
       'id':        u['_id'] ?? u['id'] ?? '',
       'name':      name,
@@ -60,10 +81,20 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
       'status':    u['isBlocked'] == true ? 'Blocked'
                    : (u['status'] ?? 'Active'),
       'joined':    _formatDate(u['createdAt'] ?? u['joined'] ?? ''),
-      'bookings':  u['bookingsCount'] ?? u['bookings'] ?? 0,
-      'donations': u['donationsCount'] ?? u['donations'] ?? 0,
+      'bookings':  bookings,
+      'donations': donations,
       'avatar':    name.isNotEmpty ? name[0].toUpperCase() : '?',
+      // Keep raw data so we can debug if needed
+      '_raw':      u,
     };
+  }
+
+  /// Safely parse any value (int, String, null) to int.
+  int _parseInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    return int.tryParse(v.toString()) ?? 0;
   }
 
   String _normalizeRole(String role) {
@@ -208,27 +239,30 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Row(children: [
-                        const Text('Status: ',
-                            style: TextStyle(fontSize: 12, color: _textGrey, fontWeight: FontWeight.w600)),
-                        ...['All', 'Active', 'Blocked', 'Inactive'].map((s) {
-                          final active = _statusFilter == s;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ChoiceChip(
-                              label: Text(s),
-                              selected: active,
-                              onSelected: (_) => setState(() => _statusFilter = s),
-                              selectedColor: _statusChipColor(s),
-                              labelStyle: TextStyle(
-                                  color: active ? Colors.white : _textGrey,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 11),
-                              backgroundColor: _accent,
-                            ),
-                          );
-                        }),
-                      ]),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(children: [
+                          const Text('Status: ',
+                              style: TextStyle(fontSize: 12, color: _textGrey, fontWeight: FontWeight.w600)),
+                          ...['All', 'Active', 'Blocked', 'Inactive'].map((s) {
+                            final active = _statusFilter == s;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(s),
+                                selected: active,
+                                onSelected: (_) => setState(() => _statusFilter = s),
+                                selectedColor: _statusChipColor(s),
+                                labelStyle: TextStyle(
+                                    color: active ? Colors.white : _textGrey,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11),
+                                backgroundColor: _accent,
+                              ),
+                            );
+                          }),
+                        ]),
+                      ),
                     ]),
                   ),
 
@@ -292,6 +326,8 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     final isInactive = u['status'] == 'Inactive';
     final roleColor  = _roleColor(u['role'].toString());
     final statusColor = isBlocked ? Colors.red : isInactive ? Colors.grey : Colors.green;
+    final bookings  = u['bookings'] as int;
+    final donations = u['donations'] as int;
 
     return Container(
       decoration: BoxDecoration(
@@ -393,9 +429,13 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           Row(children: [
             _roleBadge(u['role'].toString(), roleColor),
             const Spacer(),
-            _miniStat(Icons.book_online, '${u['bookings']}', Colors.blue),
-            const SizedBox(width: 12),
-            _miniStat(Icons.volunteer_activism, '${u['donations']}', Colors.purple),
+            // ── Only show bookings/donations if value > 0 ──
+            if (bookings > 0) ...[
+              _miniStat(Icons.book_online, '$bookings', Colors.blue),
+              const SizedBox(width: 12),
+            ],
+            if (donations > 0)
+              _miniStat(Icons.volunteer_activism, '$donations', Colors.purple),
           ]),
         ]),
       ),
@@ -411,10 +451,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
 
   void _handleAction(String action, Map<String, dynamic> u) {
     switch (action) {
-      case 'view':        _showDetail(u);    break;
-      case 'block':       _confirmBlock(u);  break;
-      case 'unblock':     _doToggleBlock(u); break;
-
+      case 'view':    _showDetail(u); break;
+      case 'block':   _confirmBlock(u); break;
+      case 'unblock': _doToggleBlock(u); break;
     }
   }
 
@@ -458,6 +497,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
 
   void _showDetail(Map<String, dynamic> u) {
     final roleColor = _roleColor(u['role'].toString());
+    final bookings  = u['bookings'] as int;
+    final donations = u['donations'] as int;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -465,8 +507,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
       builder: (_) => Container(
         decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(24))),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
         padding: EdgeInsets.fromLTRB(
             24, 16, 24, MediaQuery.of(context).padding.bottom + 24),
         child: SingleChildScrollView(
@@ -506,13 +547,28 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             const Divider(),
             const SizedBox(height: 12),
 
-            // Details — only personal info
-            _detailRow(Icons.email,              'Email',     u['email'].toString()),
-            _detailRow(Icons.phone,              'Phone',     u['phone'].toString()),
-            _detailRow(Icons.calendar_today,     'Joined',    u['joined'].toString()),
-            _detailRow(Icons.book_online,        'Bookings',  '${u['bookings']}'),
-            _detailRow(Icons.volunteer_activism, 'Donations', '${u['donations']}'),
-            _detailRow(Icons.circle,             'Status',    u['status'].toString()),
+            // Details
+            _detailRow(Icons.email,          'Email',   u['email'].toString()),
+            _detailRow(Icons.phone,          'Phone',   u['phone'].toString()),
+            _detailRow(Icons.calendar_today, 'Joined',  u['joined'].toString()),
+            _detailRow(Icons.circle,         'Status',  u['status'].toString()),
+
+            // ── Only show bookings/donations rows if value > 0 ──
+            if (bookings > 0)
+              _detailRow(Icons.book_online, 'Bookings', '$bookings'),
+            if (donations > 0)
+              _detailRow(Icons.volunteer_activism, 'Donations', '$donations'),
+
+            // If both are 0 show a friendly note
+            if (bookings == 0 && donations == 0) ...[
+              const SizedBox(height: 8),
+              const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.info_outline, size: 14, color: _textGrey),
+                SizedBox(width: 6),
+                Text('No bookings or donations yet',
+                    style: TextStyle(fontSize: 12, color: _textGrey)),
+              ]),
+            ],
 
             const SizedBox(height: 8),
           ]),

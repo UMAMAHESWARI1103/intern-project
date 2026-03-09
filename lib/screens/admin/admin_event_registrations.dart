@@ -71,13 +71,29 @@ class _AdminEventRegistrationsPageState
   String _regStatus(Map r) =>
       (r['status'] ?? 'Confirmed').toString();
 
+  /// Safely parses both ISO-8601 and JS-style date strings like
+  /// "Mon Mar 16 2026 13:02:25 GMT+0530 India Standard Time"
   String _shortDate(String raw) {
+    if (raw.isEmpty) return '';
+    // Try standard ISO parse first
     try {
       final d = DateTime.parse(raw);
       const months = ['Jan','Feb','Mar','Apr','May','Jun',
                       'Jul','Aug','Sep','Oct','Nov','Dec'];
       return '${d.day} ${months[d.month - 1]} ${d.year}';
-    } catch (_) { return raw; }
+    } catch (_) {}
+
+    // Fallback: handle JS-style "Mon Mar 16 2026 13:02:25 GMT+0530 ..."
+    try {
+      final parts = raw.trim().split(RegExp(r'\s+'));
+      // Expected: [DayName, MonthName, Day, Year, ...]
+      if (parts.length >= 4) {
+        return '${parts[2]} ${parts[1]} ${parts[3]}';
+      }
+    } catch (_) {}
+
+    // Last resort: just show first 11 chars to avoid overflow
+    return raw.length > 11 ? raw.substring(0, 11) : raw;
   }
 
   List<Map<String, dynamic>> get _filtered => _registrations.where((r) {
@@ -239,52 +255,82 @@ class _AdminEventRegistrationsPageState
             borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(14)),
           ),
-          child: Row(children: [
-            Container(
-              width: 38, height: 38,
-              decoration: BoxDecoration(
-                  color: _primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10)),
-              child: Center(child: Text(
-                category == 'Festival' ? '🪔' :
-                category == 'Pooja'    ? '🛕' :
-                category == 'Special'  ? '✨' :
-                category == 'Cultural' ? '🎭' : '🎪',
-                style: const TextStyle(fontSize: 20))),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(eventTitle,
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13, color: _textDark)),
-                const SizedBox(height: 2),
-                Row(children: [
-                  if (eventDate.isNotEmpty) ...[
-                    const Icon(Icons.calendar_today,
-                        size: 10, color: _textGrey),
-                    const SizedBox(width: 3),
-                    Text(_shortDate(eventDate),
-                        style: const TextStyle(
-                            fontSize: 11, color: _textGrey)),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Category icon
+              Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(
+                    color: _primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10)),
+                child: Center(child: Text(
+                  category == 'Festival' ? '🪔' :
+                  category == 'Pooja'    ? '🛕' :
+                  category == 'Special'  ? '✨' :
+                  category == 'Cultural' ? '🎭' : '🎪',
+                  style: const TextStyle(fontSize: 20))),
+              ),
+              const SizedBox(width: 10),
+
+              // Title + date/time — Expanded so it never overflows
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      eventTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: _textDark),
+                    ),
+                    const SizedBox(height: 3),
+                    // ── FIX: wrap date+time in its own Expanded row ──
+                    Row(
+                      children: [
+                        if (eventDate.isNotEmpty) ...[
+                          const Icon(Icons.calendar_today,
+                              size: 10, color: _textGrey),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              _shortDate(eventDate),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 11, color: _textGrey),
+                            ),
+                          ),
+                        ],
+                        if (eventTime.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.access_time,
+                              size: 10, color: _textGrey),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              eventTime,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 11, color: _textGrey),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
-                  if (eventTime.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    const Icon(Icons.access_time,
-                        size: 10, color: _textGrey),
-                    const SizedBox(width: 3),
-                    Text(eventTime,
-                        style: const TextStyle(
-                            fontSize: 11, color: _textGrey)),
-                  ],
-                ]),
-              ]),
-            ),
-            _statusBadge(status, statusColor),
-          ]),
+                ),
+              ),
+
+              const SizedBox(width: 8),
+              // ── Status badge stays fixed on the right ──
+              _statusBadge(status, statusColor),
+            ],
+          ),
         ),
 
         // ── Registrant details ───────────────────────────────────────────

@@ -129,12 +129,46 @@ router.get('/stats', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// USERS
+// USERS  ← only this section was updated
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/users', async (req, res) => {
   try {
     const users = await User.find({}, '-password').sort({ createdAt: -1 }).lean();
-    res.json({ success: true, users });
+
+    // ── Count donations per user email ──────────────────────────────────────
+    const donationAgg = await Donation.aggregate([
+      { $group: { _id: { $toLower: '$donorEmail' }, count: { $sum: 1 } } },
+    ]);
+    const donationMap = {};
+    donationAgg.forEach(d => { if (d._id) donationMap[d._id] = d.count; });
+
+    // ── Count bookings per user — checks all booking collections ───────────
+    // We match on userId field (stored as string or ObjectId)
+    const bookingColls = [_DarshanBooking, _HomamBooking, _MarriageBooking, _PrasadamOrder];
+    const bookingMap   = {};
+
+    await Promise.all(
+      bookingColls.map(async (Model) => {
+        // Try both 'userId' and 'user' field names
+        const agg = await Model.aggregate([
+          { $group: { _id: '$userId', count: { $sum: 1 } } },
+        ]);
+        agg.forEach(b => {
+          if (!b._id) return;
+          const key = b._id.toString();
+          bookingMap[key] = (bookingMap[key] || 0) + b.count;
+        });
+      })
+    );
+
+    // ── Attach counts to each user ──────────────────────────────────────────
+    const enriched = users.map(u => ({
+      ...u,
+      bookingsCount:  bookingMap[u._id?.toString()] ?? 0,
+      donationsCount: donationMap[u.email?.toLowerCase()] ?? 0,
+    }));
+
+    res.json({ success: true, users: enriched });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -413,7 +447,7 @@ router.get('/event-registrations', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRODUCTS (admin CRUD)  →  /api/admin/products
+// PRODUCTS (admin CRUD)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/products', async (req, res) => {
   try {
