@@ -25,7 +25,11 @@ class _AdminReportsAnalyticsPageState
 
   Map<String, dynamic> _stats   = {};
   Map<String, dynamic> _reports = {};
-  int _eventRegCount = 0;
+  int _eventRegCount    = 0;
+  int _ordersCount      = 0;
+  num _ordersRevenue    = 0;
+  int _ecommerceCount   = 0;
+  num _ecommerceRevenue = 0;
 
   @override
   void initState() {
@@ -47,13 +51,45 @@ class _AdminReportsAnalyticsPageState
         ApiService.getAdminStats(),
         ApiService.getAdminReports(),
         ApiService.getAdminEventRegistrations(),
+        ApiService.getAdminOrders(),
+        ApiService.getAdminProducts(),
       ]);
+
+      final orders   = results[3] as List<Map<String, dynamic>>;
+      final products = results[4] as List<Map<String, dynamic>>;
+
+      // Calculate orders revenue from actual orders list
+      num calcOrdersRevenue = 0;
+      for (final o in orders) {
+        calcOrdersRevenue += (o['totalAmount'] as num?) ??
+            (o['total'] as num?) ??
+            (o['amount'] as num?) ?? 0;
+      }
+
+      // Calculate ecommerce revenue from products (price * soldCount)
+      num calcEcommerceRevenue = 0;
+      for (final p in products) {
+        final price = (p['price'] as num?) ?? 0;
+        final sold  = (p['soldCount'] as num?) ??
+            (p['sold'] as num?) ??
+            (p['sales'] as num?) ?? 0;
+        calcEcommerceRevenue += price * sold;
+      }
+
       if (mounted) {
+        final reports = results[1] as Map<String, dynamic>;
         setState(() {
           _stats          = results[0] as Map<String, dynamic>;
-          _reports        = results[1] as Map<String, dynamic>;
+          _reports        = reports;
           _eventRegCount  = (results[2] as List).length;
-          _isLoading      = false;
+          _ordersCount    = orders.length;
+          _ecommerceCount = products.length;
+
+          // Prefer backend-reported revenue; fall back to calculated values
+          _ordersRevenue    = (reports['ordersRevenue']    as num?) ?? calcOrdersRevenue;
+          _ecommerceRevenue = (reports['ecommerceRevenue'] as num?) ?? calcEcommerceRevenue;
+
+          _isLoading = false;
         });
       }
     } catch (e) {
@@ -140,14 +176,16 @@ class _AdminReportsAnalyticsPageState
 
   // ── REVENUE TAB ───────────────────────────────────────────────────────────
   Widget _revenueTab() {
-    // ✅ backend reports: bookingsRevenue, donationsRevenue, ecommerceRevenue, ordersRevenue, totalRevenue, growth
-    final total     = _n(_reports, 'totalRevenue');
     final bookings  = _n(_reports, 'bookingsRevenue');
     final donations = _n(_reports, 'donationsRevenue');
-    final ecommerce = _n(_reports, 'ecommerceRevenue');
-    final orders    = _n(_reports, 'ordersRevenue');
+    final ecommerce = _ecommerceRevenue;
+    final orders    = _ordersRevenue;
     final growth    = (_reports['growth'] ?? '+0%').toString();
     final donCats   = _list('donationsByCategory');
+
+    // Recalculate total from real values if backend total is missing
+    final total = (_reports['totalRevenue'] as num?) ??
+        (bookings + donations + ecommerce + orders);
 
     return ListView(padding: const EdgeInsets.all(16), children: [
 
@@ -263,8 +301,7 @@ class _AdminReportsAnalyticsPageState
   }
 
   Widget _revenueBar(String label, num amount, num total, Color color) {
-    final pct =
-        total > 0 ? (amount / total).clamp(0.0, 1.0) : 0.0;
+    final pct = total > 0 ? (amount / total).clamp(0.0, 1.0) : 0.0;
     return _card(
       child: Column(children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -297,14 +334,15 @@ class _AdminReportsAnalyticsPageState
 
   // ── BOOKINGS TAB ──────────────────────────────────────────────────────────
   Widget _bookingsTab() {
-    // ✅ bookingBreakdown is inside _stats (from /admin/stats)
     final bd       = (_stats['bookingBreakdown'] as Map?) ?? {};
     final darshan  = _n(bd, 'darshan');
     final homam    = _n(bd, 'homam');
     final marriage = _n(bd, 'marriage');
     final prasadam = _n(bd, 'prasadam');
     final eventReg = _eventRegCount;
-    final total    = darshan + homam + marriage + prasadam + eventReg;
+    final orders   = _ordersCount;
+    final ecom     = _ecommerceCount;
+    final total    = darshan + homam + marriage + prasadam + eventReg + orders + ecom;
 
     return ListView(padding: const EdgeInsets.all(16), children: [
 
@@ -321,6 +359,8 @@ class _AdminReportsAnalyticsPageState
           _miniStat('Homam',      '${homam.toInt()}',    Icons.local_fire_department, Colors.red),
           _miniStat('Marriage',   '${marriage.toInt()}', Icons.favorite,              Colors.pink),
           _miniStat('Event Regs', '$eventReg',           Icons.app_registration,      Colors.green),
+          _miniStat('Orders',     '$orders',             Icons.shopping_bag,          Colors.indigo),
+          _miniStat('E-Commerce', '$ecom',               Icons.storefront,            Colors.teal),
         ],
       ),
       const SizedBox(height: 20),
@@ -340,6 +380,8 @@ class _AdminReportsAnalyticsPageState
           _bookTypeRow('💍 Marriage',   marriage, total, Colors.pink),
           _bookTypeRow('🍛 Prasadham',  prasadam, total, Colors.orange),
           _bookTypeRow('🎉 Event Regs', eventReg, total, Colors.green),
+          _bookTypeRow('🛍️ Orders',     orders,   total, Colors.indigo),
+          _bookTypeRow('🛒 E-Commerce', ecom,     total, Colors.teal),
         ]),
       ),
     ]);
@@ -350,7 +392,7 @@ class _AdminReportsAnalyticsPageState
         padding: const EdgeInsets.symmetric(vertical: 7),
         child: Row(children: [
           SizedBox(
-              width: 110,
+              width: 115,
               child: Text(label,
                   style:
                       const TextStyle(fontSize: 13, color: _textDark))),
