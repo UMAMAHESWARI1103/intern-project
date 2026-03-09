@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.godsconnect.app">
+
     <!-- Location permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
@@ -9,8 +10,7 @@
         android:usesCleartextTraffic="true"
         android:label="myapp"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:icon="@mipmap/ic_launcher">
 
         <activity
             android:name=".MainActivity"
@@ -22,7 +22,7 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
-            <!-- ✅ FIX: Resolves OnBackInvokedCallback warning in terminal -->
+            <!-- Resolves OnBackInvokedCallback warning in terminal -->
             <meta-data
                 android:name="android.window.PROPERTY_ACTIVITY_ENABLE_ON_BACK_INVOKED_CALLBACK"
                 android:value="true"/>
@@ -50,11 +50,11 @@
          https://developer.android.com/training/package-visibility and
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
-   <queries>
-  <intent>
-    <action android:name="android.intent.action.VIEW" />
-    <data android:scheme="google.navigation" />
-  </intent>
-</queries>
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="google.navigation"/>
+        </intent>
+    </queries>
 
 </manifest>
