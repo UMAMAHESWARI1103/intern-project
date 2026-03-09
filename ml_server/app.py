@@ -1,24 +1,3 @@
-"""
-Real ML Temple Recommendation Server
-=====================================
-Uses TWO ML algorithms combined:
-
-1. COLLABORATIVE FILTERING (KNN)
-   - Looks at donation patterns of similar users
-   - "Users who donated to Temple A also donated to Temple B"
-   - Uses: scikit-learn NearestNeighbors with cosine similarity
-
-2. CONTENT-BASED FILTERING (TF-IDF + Cosine Similarity)
-   - Looks at temple features (deity, location, festivals)
-   - "You donated to Murugan temples → suggest more Murugan temples"
-   - Uses: scikit-learn TfidfVectorizer + cosine_similarity
-
-HYBRID OUTPUT: Combines both scores → ranked final suggestions
-
-Place this at: myapp/ml_server/app.py
-Run with:      python app.py
-"""
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from sklearn.neighbors import NearestNeighbors
