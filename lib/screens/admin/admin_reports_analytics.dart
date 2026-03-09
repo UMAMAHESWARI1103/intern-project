@@ -199,11 +199,8 @@ class _AdminReportsAnalyticsPageState
     final donations = _n(_reports, 'donationsRevenue');
     final ecommerce = _ecommerceRevenue;
     final orders    = _ordersRevenue;
-    final growth    = (_reports['growth'] ?? '+0%').toString();
-
-    // Recalculate total from real values if backend total is missing
-    final total = (_reports['totalRevenue'] as num?) ??
-        (bookings + donations + ecommerce + orders);
+    // Always calculate total from real values
+    final total = bookings + donations + ecommerce + orders;
 
     return ListView(padding: const EdgeInsets.all(16), children: [
 
@@ -218,38 +215,19 @@ class _AdminReportsAnalyticsPageState
               end: Alignment.bottomRight),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Row(children: [
-          Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-              const Text('Total Revenue',
-                  style: TextStyle(color: Colors.white70, fontSize: 13)),
-              const SizedBox(height: 4),
-              Text('₹${_fmt(total)}',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text('Growth: $growth vs last month',
-                  style:
-                      const TextStyle(color: Colors.white70, fontSize: 12)),
-            ]),
-          ),
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10)),
-            child: Text(growth,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16)),
-          ),
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+          const Text('Total Revenue',
+              style: TextStyle(color: Colors.white70, fontSize: 13)),
+          const SizedBox(height: 6),
+          Text('₹${_fmt(total)}',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold)),
+        ],
+      ),
       ),
       const SizedBox(height: 20),
 
@@ -286,15 +264,11 @@ class _AdminReportsAnalyticsPageState
                 style: const TextStyle(
                     fontWeight: FontWeight.w600, color: _textDark)),
           ]),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('₹${_fmt(amount)}',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                    fontSize: 16)),
-            Text('${(pct * 100).toInt()}% of total',
-                style: const TextStyle(fontSize: 10, color: _textGrey)),
-          ]),
+          Text('₹${_fmt(amount)}',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                  fontSize: 16)),
         ]),
         const SizedBox(height: 10),
         _progressBar(pct.toDouble(), color),

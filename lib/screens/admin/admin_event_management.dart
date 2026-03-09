@@ -102,7 +102,7 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage> {
   }
 
   void _populateForm(Map<String, dynamic> e) {
-    _editingId = e['_id']?.toString();
+    _editingId = (e['_id'] ?? e['id'] ?? '').toString();
     _titleCtrl.text      = e['title']      ?? '';
     _descCtrl.text       = e['description'] ?? '';
     _locationCtrl.text   = e['location']   ?? '';
@@ -146,7 +146,15 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage> {
     }
   }
 
-  Future<void> _delete(String id) async {
+  String _resolveId(Map<String, dynamic> e) =>
+      (e['_id'] ?? e['id'] ?? '').toString();
+
+  Future<void> _delete(Map<String, dynamic> e) async {
+    final id = _resolveId(e);
+    if (id.isEmpty) {
+      _snack('Cannot delete: event ID not found', Colors.red);
+      return;
+    }
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -431,7 +439,7 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage> {
               icon: const Icon(Icons.delete_outline, size: 15),
               label: const Text('Delete', style: TextStyle(fontSize: 12)),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
-              onPressed: () => _delete(e['_id']?.toString() ?? ''),
+              onPressed: () => _delete(e),
             )),
           ]),
         ),
