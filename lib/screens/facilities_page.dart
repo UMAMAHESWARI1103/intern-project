@@ -5,8 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 // ─── UPDATE THIS to your backend IP/host ───────────────────────────────────
-const String _baseUrl = 'http://192.168.0.138:5000';// Android emulator → localhost
-// For real device on same WiFi, use your PC's LAN IP: 'http://192.168.x.x:5000'
+const String _baseUrl = 'http://10.95.142.70:5000';
 // ───────────────────────────────────────────────────────────────────────────
 
 class FacilitiesPage extends StatefulWidget {

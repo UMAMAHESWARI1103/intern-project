@@ -14,14 +14,31 @@ const templeSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+
+  // ── Morning session ──────────────────────────────────────
   openTime: {
     type: String,
     trim: true,
+    default: '6:00 AM',
   },
   closeTime: {
     type: String,
     trim: true,
+    default: '12:00 PM',
   },
+
+  // ── Evening session ──────────────────────────────────────
+  reopenTime: {
+    type: String,
+    trim: true,
+    default: '4:00 PM',
+  },
+  finalCloseTime: {
+    type: String,
+    trim: true,
+    default: '8:30 PM',
+  },
+
   deity: {
     type: String,
     trim: true,
@@ -48,13 +65,13 @@ const templeSchema = new mongoose.Schema({
     default: true,
   },
   lat: {
-  type: Number,
-  default: 0,
-},
-lon: {
-  type: Number,
-  default: 0,
-},
+    type: Number,
+    default: 0,
+  },
+  lon: {
+    type: Number,
+    default: 0,
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Temple', templeSchema);

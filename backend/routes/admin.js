@@ -40,20 +40,12 @@ const homamSchema    = new mongoose.Schema({}, { strict: false, collection: 'hom
 const marriageSchema = new mongoose.Schema({}, { strict: false, collection: 'marriageBookings' });
 const prasadamSchema = new mongoose.Schema({}, { strict: false, collection: 'prasadamOrders'   });
 const orderSchema    = new mongoose.Schema({}, { strict: false, collection: 'orders'           });
-const bannerSchema   = new mongoose.Schema({
-  imageUrl:  { type: String, required: true },
-  title:     { type: String, default: '' },
-  subtitle:  { type: String, default: '' },
-  isActive:  { type: Boolean, default: true },
-  createdAt: { type: Date,   default: Date.now },
-});
 
 const _DarshanBooking  = mongoose.models.DarshanBooking  || mongoose.model('DarshanBooking',  darshanSchema);
 const _HomamBooking    = mongoose.models.HomamBooking    || mongoose.model('HomamBooking',    homamSchema);
 const _MarriageBooking = mongoose.models.MarriageBooking || mongoose.model('MarriageBooking', marriageSchema);
 const _PrasadamOrder   = mongoose.models.PrasadamOrder   || mongoose.model('PrasadamOrder',   prasadamSchema);
 const Order            = mongoose.models.Order           || mongoose.model('Order',           orderSchema);
-const Banner           = mongoose.models.Banner          || mongoose.model('Banner',          bannerSchema);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AUTH MIDDLEWARE
@@ -321,38 +313,6 @@ router.get('/reports', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BANNERS
-// ─────────────────────────────────────────────────────────────────────────────
-router.get('/banners', async (req, res) => {
-  try {
-    const banners = await Banner.find({ isActive: true }).sort({ createdAt: -1 }).lean();
-    res.json({ success: true, banners });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-router.post('/banners', async (req, res) => {
-  try {
-    const { imageUrl, title, subtitle } = req.body;
-    if (!imageUrl) return res.status(400).json({ success: false, message: 'imageUrl required' });
-    const banner = await Banner.create({ imageUrl, title, subtitle });
-    res.json({ success: true, banner });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-router.delete('/banners/:id', async (req, res) => {
-  try {
-    await Banner.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Banner deleted' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // TEMPLES
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/temples', async (req, res) => {
@@ -455,8 +415,6 @@ router.get('/event-registrations', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // PRODUCTS (admin CRUD)  →  /api/admin/products
 // ─────────────────────────────────────────────────────────────────────────────
-
-// GET all products (admin — includes inactive)
 router.get('/products', async (req, res) => {
   try {
     const filter = {};
@@ -477,7 +435,6 @@ router.get('/products', async (req, res) => {
   }
 });
 
-// POST add product
 router.post('/products', async (req, res) => {
   try {
     const { name, category, price } = req.body;
@@ -502,7 +459,6 @@ router.post('/products', async (req, res) => {
   }
 });
 
-// PUT update product
 router.put('/products/:id', async (req, res) => {
   try {
     const updated = await Product.findByIdAndUpdate(
@@ -517,7 +473,6 @@ router.put('/products/:id', async (req, res) => {
   }
 });
 
-// DELETE product
 router.delete('/products/:id', async (req, res) => {
   try {
     await Product.findByIdAndDelete(req.params.id);

@@ -74,7 +74,7 @@ class _SplashScreenPageState extends State<SplashScreenPage>
             end: Alignment.bottomCenter,
             colors: [
               const Color(0xFFFF9933),
-              const Color(0xFFFF9933).withOpacity(0.8),
+              const Color(0xFFFF9933).withValues(alpha:0.8),
             ],
           ),
         ),
@@ -93,7 +93,7 @@ class _SplashScreenPageState extends State<SplashScreenPage>
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha:0.2),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),

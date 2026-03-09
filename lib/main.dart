@@ -39,6 +39,9 @@ class GodsConnectApp extends StatefulWidget {
   final bool initialDarkMode;
   const GodsConnectApp({super.key, this.initialDarkMode = false});
 
+  // FIX: suppress library_private_types_in_public_api — this pattern is
+  // intentional; _GodsConnectAppState must be accessible via findAncestorStateOfType.
+  // ignore: library_private_types_in_public_api
   static _GodsConnectAppState of(BuildContext context) =>
       context.findAncestorStateOfType<_GodsConnectAppState>()!;
 
@@ -62,7 +65,7 @@ class _GodsConnectAppState extends State<GodsConnectApp> {
       _themeMode = isDark ? ThemeMode.light : ThemeMode.dark;
     });
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('dark_mode', isDark); // isDark already updated above
+    await prefs.setBool('dark_mode', isDark);
   }
 
   @override

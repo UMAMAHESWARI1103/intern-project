@@ -3,37 +3,54 @@ import '../../services/api_service.dart';
 
 class AdminEventManagementPage extends StatefulWidget {
   const AdminEventManagementPage({super.key});
+
   @override
-  State<AdminEventManagementPage> createState() => _AdminEventManagementPageState();
+  State<AdminEventManagementPage> createState() =>
+      _AdminEventManagementPageState();
 }
 
-class _AdminEventManagementPageState extends State<AdminEventManagementPage>
-    with SingleTickerProviderStateMixin {
+class _AdminEventManagementPageState extends State<AdminEventManagementPage> {
   static const Color _primary  = Color(0xFFFF9933);
   static const Color _accent   = Color(0xFFFFE0B2);
   static const Color _bg       = Color(0xFFFFF8F0);
   static const Color _textDark = Color(0xFF3E1F00);
   static const Color _textGrey = Color(0xFF9E7A50);
 
-  late TabController _tabController;
-  final _searchCtrl = TextEditingController();
+  List<Map<String, dynamic>> _events  = [];
+  bool   _isLoading = true;
   String _filter    = 'All';
-
-  List<Map<String, dynamic>> _events = [];
-  bool _isLoading = true;
   String? _error;
+  final _searchCtrl = TextEditingController();
+
+  // ── Form state ────────────────────────────────────────────────────────────
+  final _titleCtrl       = TextEditingController();
+  final _descCtrl        = TextEditingController();
+  final _locationCtrl    = TextEditingController();
+  final _templeNameCtrl  = TextEditingController();
+  final _maxPaxCtrl      = TextEditingController();
+  final _priceCtrl       = TextEditingController();
+  final _timeCtrl        = TextEditingController();
+  DateTime? _pickedDate;
+  String    _category    = 'Festival';
+  bool      _isFree      = true;
+  String?   _editingId;
+
+  static const List<String> _categories = [
+    'Festival', 'Pooja', 'Special', 'Cultural', 'Other'
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _load();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _searchCtrl.dispose();
+    for (final c in [
+      _searchCtrl, _titleCtrl, _descCtrl, _locationCtrl,
+      _templeNameCtrl, _maxPaxCtrl, _priceCtrl, _timeCtrl,
+    ]) { c.dispose(); }
     super.dispose();
   }
 
@@ -52,12 +69,11 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage>
     }
   }
 
-  // ── Compute status from event date ───────────────────────────
   String _computeStatus(Map<String, dynamic> e) {
     final stored = e['status']?.toString() ?? '';
     if (stored.isNotEmpty) return stored;
     try {
-      final d = DateTime.parse(e['date']?.toString() ?? '');
+      final d   = DateTime.parse(e['date']?.toString() ?? '');
       final now = DateTime.now();
       if (d.isAfter(now)) return 'Upcoming';
       if (d.isAfter(now.subtract(const Duration(days: 1)))) return 'Ongoing';
@@ -66,14 +82,95 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage>
   }
 
   List<Map<String, dynamic>> get _filtered => _events.where((e) {
-    final q = _searchCtrl.text.toLowerCase();
-    final matchSearch = q.isEmpty ||
+    final q     = _searchCtrl.text.toLowerCase();
+    final match = q.isEmpty ||
         (e['title']      ?? '').toString().toLowerCase().contains(q) ||
         (e['templeName'] ?? '').toString().toLowerCase().contains(q);
-    final status = _computeStatus(e);
+    final status      = _computeStatus(e);
     final matchFilter = _filter == 'All' || status == _filter;
-    return matchSearch && matchFilter;
+    return match && matchFilter;
   }).toList();
+
+  void _clearForm() {
+    _editingId = null;
+    _titleCtrl.clear(); _descCtrl.clear(); _locationCtrl.clear();
+    _templeNameCtrl.clear(); _maxPaxCtrl.clear(); _priceCtrl.clear();
+    _timeCtrl.clear();
+    _pickedDate = null;
+    _category   = 'Festival';
+    _isFree     = true;
+  }
+
+  void _populateForm(Map<String, dynamic> e) {
+    _editingId = e['_id']?.toString();
+    _titleCtrl.text      = e['title']      ?? '';
+    _descCtrl.text       = e['description'] ?? '';
+    _locationCtrl.text   = e['location']   ?? '';
+    _templeNameCtrl.text = e['templeName'] ?? '';
+    _maxPaxCtrl.text     = (e['maxParticipants'] ?? '').toString();
+    _priceCtrl.text      = (e['registrationFee'] ?? '').toString();
+    _timeCtrl.text       = e['time'] ?? '';
+    _category            = e['category'] ?? 'Festival';
+    _isFree              = e['isFree'] == true || (e['registrationFee'] ?? 0) == 0;
+    try { _pickedDate = DateTime.parse(e['date'].toString()); } catch (_) {}
+  }
+
+  Future<void> _save() async {
+    if (_titleCtrl.text.trim().isEmpty) {
+      _snack('Title is required', Colors.red); return;
+    }
+    final payload = {
+      'title':           _titleCtrl.text.trim(),
+      'description':     _descCtrl.text.trim(),
+      'location':        _locationCtrl.text.trim(),
+      'templeName':      _templeNameCtrl.text.trim(),
+      'maxParticipants': int.tryParse(_maxPaxCtrl.text) ?? 0,
+      'registrationFee': _isFree ? 0 : (double.tryParse(_priceCtrl.text) ?? 0),
+      'isFree':          _isFree,
+      'category':        _category,
+      'time':            _timeCtrl.text.trim(),
+      if (_pickedDate != null) 'date': _pickedDate!.toIso8601String(),
+    };
+    try {
+      if (_editingId != null) {
+        await ApiService.updateEvent(_editingId!, payload);
+        _snack('Event updated', Colors.green);
+      } else {
+        await ApiService.addEvent(payload);
+        _snack('Event created', Colors.green);
+      }
+      _clearForm();
+      _load();
+    } catch (e) {
+      _snack('Error: $e', Colors.red);
+    }
+  }
+
+  Future<void> _delete(String id) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Event'),
+        content: const Text('Are you sure you want to delete this event?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red, foregroundColor: Colors.white),
+              child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ApiService.deleteEvent(id);
+      _snack('Event deleted', Colors.orange);
+      _load();
+    } catch (e) {
+      _snack('Error: $e', Colors.red);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,160 +179,164 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage>
       appBar: AppBar(
         backgroundColor: _primary,
         foregroundColor: Colors.white,
-        title: const Text('Event Management', style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [IconButton(icon: const Icon(Icons.add), onPressed: () => _openForm())],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [Tab(text: 'Events'), Tab(text: 'Analytics')],
+        title: const Text('Event Management',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: 'Add Event',
+            onPressed: () { _clearForm(); _showForm(); },
+          ),
+        ],
+      ),
+      body: Column(children: [
+        // ── Search + Filter bar ──────────────────────────────────────────
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.all(12),
+          child: Column(children: [
+            TextField(
+              controller: _searchCtrl,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: 'Search events or temples...',
+                prefixIcon: const Icon(Icons.search, color: _primary),
+                suffixIcon: _searchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () { _searchCtrl.clear(); setState(() {}); })
+                    : null,
+                filled: true, fillColor: _bg,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _accent)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _accent)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: ['All', 'Upcoming', 'Ongoing', 'Completed'].map((f) {
+                  final active = _filter == f;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(f), selected: active,
+                      onSelected: (_) => setState(() => _filter = f),
+                      selectedColor: _primary,
+                      labelStyle: TextStyle(
+                          color: active ? Colors.white : _textGrey,
+                          fontWeight: FontWeight.w600, fontSize: 12),
+                      backgroundColor: _accent,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ]),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: _primary, foregroundColor: Colors.white,
-        icon: const Icon(Icons.add), label: const Text('Add Event'),
-        onPressed: () => _openForm(),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [_eventsTab(), _analyticsTab()],
+
+        // ── Stats row ────────────────────────────────────────────────────
+        if (!_isLoading && _error == null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+            child: Row(children: [
+              _chip('Total',    '${_events.length}', Colors.blue),
+              const SizedBox(width: 8),
+              _chip('Upcoming',
+                  '${_events.where((e) => _computeStatus(e) == 'Upcoming').length}',
+                  Colors.orange),
+              const SizedBox(width: 8),
+              _chip('Ongoing',
+                  '${_events.where((e) => _computeStatus(e) == 'Ongoing').length}',
+                  Colors.green),
+              const SizedBox(width: 8),
+              _chip('Done',
+                  '${_events.where((e) => _computeStatus(e) == 'Completed').length}',
+                  Colors.grey),
+            ]),
+          ),
+
+        // ── List ─────────────────────────────────────────────────────────
+        Expanded(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: _primary))
+              : _error != null
+                  ? _errorView()
+                  : _filtered.isEmpty
+                      ? Center(child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('🎪', style: TextStyle(fontSize: 48)),
+                            const SizedBox(height: 12),
+                            Text(
+                              _events.isEmpty ? 'No events yet' : 'No events found',
+                              style: const TextStyle(color: _textGrey, fontSize: 15),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () { _clearForm(); _showForm(); },
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add First Event'),
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: _primary,
+                                  foregroundColor: Colors.white),
+                            ),
+                          ]))
+                      : RefreshIndicator(
+                          color: _primary,
+                          onRefresh: _load,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.all(12),
+                            itemCount: _filtered.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 10),
+                            itemBuilder: (_, i) => _eventCard(_filtered[i]),
+                          ),
+                        ),
+        ),
+      ]),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: _primary,
+        foregroundColor: Colors.white,
+        onPressed: () { _clearForm(); _showForm(); },
+        child: const Icon(Icons.add),
       ),
     );
   }
 
-  // ── Events Tab ───────────────────────────────────────────────
-  Widget _eventsTab() => Column(children: [
-    Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(12),
-      child: Column(children: [
-        TextField(
-          controller: _searchCtrl,
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: 'Search events or temples...',
-            prefixIcon: const Icon(Icons.search, color: _primary),
-            suffixIcon: _searchCtrl.text.isNotEmpty
-                ? IconButton(icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () { _searchCtrl.clear(); setState(() {}); })
-                : null,
-            filled: true, fillColor: _bg,
-            contentPadding: const EdgeInsets.symmetric(vertical: 10),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: _accent)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: _accent)),
-          ),
-        ),
-        const SizedBox(height: 10),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(children: ['All', 'Upcoming', 'Ongoing', 'Completed'].map((f) {
-            final active = _filter == f;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(f), selected: active,
-                onSelected: (_) => setState(() => _filter = f),
-                selectedColor: _primary,
-                labelStyle: TextStyle(
-                    color: active ? Colors.white : _textGrey,
-                    fontWeight: FontWeight.w600, fontSize: 12),
-                backgroundColor: _accent,
-              ),
-            );
-          }).toList()),
-        ),
-      ]),
-    ),
-
-    // Summary chips
-    if (!_isLoading && _error == null)
-      Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-        child: Row(children: [
-          _chip('Total',    '${_events.length}',                                                        Colors.blue),
-          const SizedBox(width: 8),
-          _chip('Upcoming', '${_events.where((e) => _computeStatus(e) == 'Upcoming').length}',          Colors.orange),
-          const SizedBox(width: 8),
-          _chip('Ongoing',  '${_events.where((e) => _computeStatus(e) == 'Ongoing').length}',           Colors.green),
-          const SizedBox(width: 8),
-          _chip('Done',     '${_events.where((e) => _computeStatus(e) == 'Completed').length}',         Colors.grey),
-        ]),
-      ),
-
-    Expanded(
-      child: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _primary))
-          : _error != null
-              ? _errorView()
-              : _filtered.isEmpty
-                  ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Text('🎪', style: TextStyle(fontSize: 48)),
-                      const SizedBox(height: 12),
-                      Text(_events.isEmpty ? 'No events added yet' : 'No events found',
-                          style: const TextStyle(color: _textGrey, fontSize: 15)),
-                      if (_events.isEmpty) ...[
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () => _openForm(),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add First Event'),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: _primary, foregroundColor: Colors.white),
-                        ),
-                      ],
-                    ]))
-                  : RefreshIndicator(
-                      color: _primary,
-                      onRefresh: _load,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) => _eventCard(_filtered[i]),
-                      ),
-                    ),
-    ),
-  ]);
-
-  Widget _chip(String label, String value, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3))),
-    child: Column(children: [
-      Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
-      Text(label, style: TextStyle(fontSize: 10, color: color)),
-    ]),
-  );
-
+  // ── Event card ───────────────────────────────────────────────────────────
   Widget _eventCard(Map<String, dynamic> e) {
-    final status       = _computeStatus(e);
-    final statusColor  = _statusColor(status);
-    final isFree       = e['isFree'] == true || (e['registrationFee'] ?? 0) == 0;
-    final registered   = (e['registeredCount'] as num?)?.toInt() ?? 0;
-    final maxP         = (e['maxParticipants']  as num?)?.toInt() ?? 0;
-    final progress     = maxP > 0 ? (registered / maxP).clamp(0.0, 1.0) : 0.0;
-    final title        = e['title']      ?? 'Event';
-    final templeName   = e['templeName'] ?? '';
-    final date         = e['date']       ?? '';
-    final time         = e['time']       ?? '';
+    final status      = _computeStatus(e);
+    final statusColor = _statusColor(status);
+    final isFree      = e['isFree'] == true || (e['registrationFee'] ?? 0) == 0;
+    final title       = e['title']      ?? 'Event';
+    final templeName  = e['templeName'] ?? '';
+    final date        = e['date']       ?? '';
+    final time        = e['time']       ?? '';
+    final registered  = (e['registeredCount'] as num?)?.toInt() ?? 0;
+    final maxP        = (e['maxParticipants']  as num?)?.toInt() ?? 0;
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(14),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _accent),
-        boxShadow: [BoxShadow(color: _primary.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(
+            color: _primary.withValues(alpha: 0.05),
+            blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Column(children: [
         Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // ── Icon ────────────────────────────────────────────────────
             Container(
-              width: 52, height: 52,
+              width: 46, height: 46,
               decoration: BoxDecoration(
                   color: _primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12)),
@@ -244,82 +345,138 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage>
                 (e['category'] == 'Pooja')    ? '🛕' :
                 (e['category'] == 'Special')  ? '✨' :
                 (e['category'] == 'Cultural') ? '🎭' : '🎪',
-                style: const TextStyle(fontSize: 26))),
+                style: const TextStyle(fontSize: 22))),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
+
+            // ── Content ─────────────────────────────────────────────────
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Expanded(child: Text(title,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _textDark))),
-                  _statusBadge(status, statusColor),
-                ]),
-                const SizedBox(height: 4),
-                if (templeName.isNotEmpty)
-                  Row(children: [
-                    const Icon(Icons.temple_hindu, size: 12, color: _textGrey),
-                    const SizedBox(width: 3),
-                    Expanded(child: Text(templeName,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: _textGrey, fontSize: 12))),
-                  ]),
-                const SizedBox(height: 2),
-                Row(children: [
-                  const Icon(Icons.calendar_today, size: 12, color: _textGrey),
-                  const SizedBox(width: 3),
-                  Text('$date${time.isNotEmpty ? '  •  $time' : ''}',
-                      style: const TextStyle(color: _textGrey, fontSize: 12)),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: isFree
-                          ? Colors.green.withValues(alpha: 0.12)
-                          : Colors.blue.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(isFree ? 'Free' : 'Paid',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold,
-                            color: isFree ? Colors.green : Colors.blue)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title + status badge
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13, color: _textDark)),
+                      ),
+                      const SizedBox(width: 6),
+                      _statusBadge(status, statusColor),
+                    ],
                   ),
-                ]),
-              ]),
-            ),
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: _textGrey, size: 20),
-              onSelected: (action) => _handleAction(action, e),
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit',
-                    child: Row(children: [Icon(Icons.edit_outlined, size: 18), SizedBox(width: 8), Text('Edit')])),
-                PopupMenuItem(value: 'delete',
-                    child: Row(children: [Icon(Icons.delete_outline, size: 18, color: Colors.red), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))])),
-              ],
+                  const SizedBox(height: 4),
+
+                  // Temple name
+                  if (templeName.isNotEmpty)
+                    Row(children: [
+                      const Icon(Icons.temple_hindu, size: 12, color: _textGrey),
+                      const SizedBox(width: 3),
+                      Expanded(child: Text(templeName,
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: _textGrey, fontSize: 12))),
+                    ]),
+                  const SizedBox(height: 4),
+
+                  // Date / time / free badge — use Wrap to prevent overflow
+                  Wrap(
+                    spacing: 6, runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (date.isNotEmpty)
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.calendar_today,
+                              size: 11, color: _textGrey),
+                          const SizedBox(width: 3),
+                          Text(_shortDate(date),
+                              style: const TextStyle(
+                                  color: _textGrey, fontSize: 11)),
+                        ]),
+                      if (time.isNotEmpty)
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.access_time,
+                              size: 11, color: _textGrey),
+                          const SizedBox(width: 3),
+                          Text(time,
+                              style: const TextStyle(
+                                  color: _textGrey, fontSize: 11)),
+                        ]),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isFree
+                              ? Colors.green.withValues(alpha: 0.12)
+                              : Colors.blue.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          isFree
+                              ? 'Free'
+                              : '₹${(e['registrationFee'] ?? 0).toStringAsFixed(0)}',
+                          style: TextStyle(
+                              fontSize: 10, fontWeight: FontWeight.bold,
+                              color: isFree ? Colors.green : Colors.blue),
+                        ),
+                      ),
+                      if (maxP > 0)
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.people, size: 11, color: _textGrey),
+                          const SizedBox(width: 3),
+                          Text('$registered/$maxP',
+                              style: const TextStyle(
+                                  color: _textGrey, fontSize: 11)),
+                        ]),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ]),
         ),
-        if (maxP > 0)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-            child: Column(children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text('Participants: $registered/$maxP',
-                    style: const TextStyle(fontSize: 12, color: _textGrey)),
-                Text('${(progress * 100).toInt()}%',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
-                        color: progress >= 1.0 ? Colors.red : _primary)),
-              ]),
-              const SizedBox(height: 4),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progress, backgroundColor: _accent,
-                  color: progress >= 1.0 ? Colors.red : _primary, minHeight: 6,
-                ),
-              ),
-            ]),
+
+        // ── Action buttons ───────────────────────────────────────────────
+        Container(
+          decoration: const BoxDecoration(
+            color: _bg,
+            border: Border(top: BorderSide(color: _accent)),
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(14),
+              bottomRight: Radius.circular(14),
+            ),
           ),
+          child: Row(children: [
+            Expanded(child: TextButton.icon(
+              icon: const Icon(Icons.edit_outlined, size: 15),
+              label: const Text('Edit', style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(foregroundColor: _primary),
+              onPressed: () { _populateForm(e); _showForm(); },
+            )),
+            Container(width: 1, height: 36, color: _accent),
+            Expanded(child: TextButton.icon(
+              icon: const Icon(Icons.delete_outline, size: 15),
+              label: const Text('Delete', style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              onPressed: () => _delete(e['_id']?.toString() ?? ''),
+            )),
+          ]),
+        ),
       ]),
     );
+  }
+
+  String _shortDate(String raw) {
+    try {
+      final d = DateTime.parse(raw);
+      const m = ['Jan','Feb','Mar','Apr','May','Jun',
+                 'Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${d.day} ${m[d.month - 1]} ${d.year}';
+    } catch (_) { return raw; }
   }
 
   Color _statusColor(String status) => switch (status) {
@@ -330,309 +487,218 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage>
   };
 
   Widget _statusBadge(String status, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-    child: Text(status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6)),
+    child: Text(status,
+        style: TextStyle(
+            fontSize: 10, fontWeight: FontWeight.bold, color: color)),
   );
 
-  // ── Analytics Tab ────────────────────────────────────────────
-  Widget _analyticsTab() {
-    final total      = _events.length;
-    final upcoming   = _events.where((e) => _computeStatus(e) == 'Upcoming').length;
-    final ongoing    = _events.where((e) => _computeStatus(e) == 'Ongoing').length;
-    final completed  = _events.where((e) => _computeStatus(e) == 'Completed').length;
-    final totalPax   = _events.fold<int>(0, (s, e) => s + ((e['registeredCount'] as num?)?.toInt() ?? 0));
-    final freeEvents = _events.where((e) => e['isFree'] == true || (e['registrationFee'] ?? 0) == 0).length;
-
-    final top3 = List<Map<String, dynamic>>.from(_events)
-      ..sort((a, b) => ((b['registeredCount'] as num?)?.toInt() ?? 0)
-          .compareTo((a['registeredCount'] as num?)?.toInt() ?? 0));
-
-    return ListView(padding: const EdgeInsets.all(16), children: [
-      GridView.count(
-        crossAxisCount: 2, shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.6,
-        children: [
-          _aCard('Total Events',    '$total',      Icons.event,         Colors.blue),
-          _aCard('Upcoming',        '$upcoming',   Icons.upcoming,       Colors.orange),
-          _aCard('Ongoing',         '$ongoing',    Icons.play_circle,    Colors.green),
-          _aCard('Completed',       '$completed',  Icons.check_circle,   Colors.teal),
-          _aCard('Total Attendees', '$totalPax',   Icons.people,         Colors.purple),
-          _aCard('Free Events',     '$freeEvents', Icons.free_breakfast,  Colors.cyan),
-        ],
-      ),
-      const SizedBox(height: 20),
-      if (top3.isNotEmpty)
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white,
-              borderRadius: BorderRadius.circular(14), border: Border.all(color: _accent)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Top Events by Participation',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _textDark)),
-            const SizedBox(height: 14),
-            ...top3.take(3).map((e) {
-              final reg  = (e['registeredCount'] as num?)?.toInt() ?? 0;
-              final maxP = (e['maxParticipants']  as num?)?.toInt() ?? 0;
-              final pct  = maxP > 0 ? (reg / maxP * 100).toInt() : 0;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Expanded(child: Text(e['title'] ?? '',
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13, color: _textDark))),
-                    Text('$reg pax',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
-                  ]),
-                  const SizedBox(height: 4),
-                  ClipRRect(borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(value: (pct / 100).clamp(0.0, 1.0),
-                          backgroundColor: _accent, color: _primary, minHeight: 6)),
-                  const SizedBox(height: 2),
-                  Text('$pct% full', style: const TextStyle(fontSize: 11, color: _textGrey)),
-                ]),
-              );
-            }),
-          ]),
-        ),
-    ]);
-  }
-
-  Widget _aCard(String label, String value, IconData icon, Color color) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.1), blurRadius: 6)]),
-    child: Row(children: [
-      Container(width: 38, height: 38,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: color, size: 20)),
-      const SizedBox(width: 10),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textDark)),
-        Text(label, style: const TextStyle(fontSize: 10, color: _textGrey)),
-      ])),
+  Widget _chip(String label, String value, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+    decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.3))),
+    child: Column(children: [
+      Text(value,
+          style: TextStyle(
+              fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+      Text(label, style: TextStyle(fontSize: 10, color: color)),
     ]),
   );
 
-  // ── Add / Edit Form ──────────────────────────────────────────
-  void _openForm({Map<String, dynamic>? event}) {
-    final isEdit     = event != null;
-    final titleCtrl  = TextEditingController(text: isEdit ? event['title']      ?? '' : '');
-    final templeCtrl = TextEditingController(text: isEdit ? event['templeName'] ?? '' : '');
-    final dateCtrl   = TextEditingController(text: isEdit ? event['date']       ?? '' : '');
-    final timeCtrl   = TextEditingController(text: isEdit ? event['time']       ?? '' : '');
-    final maxCtrl    = TextEditingController(text: isEdit ? '${event['maxParticipants'] ?? ''}' : '');
-    final feeCtrl    = TextEditingController(text: isEdit ? '${event['registrationFee'] ?? 0}' : '0');
-    final descCtrl   = TextEditingController(text: isEdit ? event['description'] ?? '' : '');
-    bool isFree      = isEdit ? (event['isFree'] == true || (event['registrationFee'] ?? 0) == 0) : true;
-    String category  = isEdit ? (event['category'] ?? 'Other') : 'Other';
-    final formKey    = GlobalKey<FormState>();
-    bool saving      = false;
-
+  // ── Add / Edit form bottom sheet ─────────────────────────────────────────
+  void _showForm() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: Container(
-            decoration: const BoxDecoration(color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-            child: Form(
-              key: formKey,
-              child: SingleChildScrollView(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Container(width: 40, height: 4,
-                      decoration: BoxDecoration(color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2))),
-                  const SizedBox(height: 16),
-                  Text(isEdit ? 'Edit Event' : 'Add Event',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textDark)),
-                  const SizedBox(height: 20),
+        builder: (ctx, setBS) => Padding(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(width: 40, height: 4,
+                decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 14),
+              Text(_editingId == null ? 'Add New Event' : 'Edit Event',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
 
-                  _ff(titleCtrl,  'Event Title *',         Icons.event,         required: true),
-                  const SizedBox(height: 12),
-                  _ff(templeCtrl, 'Temple Name',           Icons.temple_hindu),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(child: _ff(dateCtrl, 'Date (YYYY-MM-DD) *', Icons.calendar_today, required: true)),
-                    const SizedBox(width: 10),
-                    Expanded(child: _ff(timeCtrl, 'Time (e.g. 6:00 AM)', Icons.access_time)),
-                  ]),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(child: _ff(maxCtrl, 'Max Participants', Icons.people,
-                        keyboardType: TextInputType.number)),
-                    const SizedBox(width: 10),
-                    Expanded(child: _ff(feeCtrl, 'Fee (₹)', Icons.currency_rupee,
-                        keyboardType: TextInputType.number)),
-                  ]),
-                  const SizedBox(height: 12),
-                  _ff(descCtrl, 'Description', Icons.description_outlined, maxLines: 2),
-                  const SizedBox(height: 12),
+              _formField(_titleCtrl, 'Event Title *', Icons.title),
+              const SizedBox(height: 10),
+              _formField(_templeNameCtrl, 'Temple Name', Icons.temple_hindu),
+              const SizedBox(height: 10),
+              _formField(_descCtrl, 'Description', Icons.description,
+                  maxLines: 3),
+              const SizedBox(height: 10),
+              _formField(_locationCtrl, 'Location', Icons.location_on),
+              const SizedBox(height: 10),
+              _formField(_timeCtrl, 'Time (e.g. 6:00 AM)', Icons.access_time),
+              const SizedBox(height: 10),
 
-                  // Category
-                  Row(children: [
-                    const Text('Category: ', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: category,
-                        isDense: true,
-                        decoration: InputDecoration(
-                          filled: true, fillColor: _bg,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        ),
-                        items: ['Festival', 'Pooja', 'Special', 'Cultural', 'Other']
-                            .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13))))
-                            .toList(),
-                        onChanged: (v) => setSheet(() => category = v!),
-                      ),
-                    ),
-                  ]),
-                  const SizedBox(height: 12),
-
-                  // Free / Paid
-                  Row(children: [
-                    const Text('Type: ', style: TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 10),
-                    ...['Free', 'Paid'].map((t) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(t), selected: (t == 'Free') == isFree,
-                        onSelected: (_) => setSheet(() => isFree = t == 'Free'),
-                        selectedColor: _primary,
-                        labelStyle: TextStyle(
-                            color: (t == 'Free') == isFree ? Colors.white : _textGrey,
-                            fontWeight: FontWeight.w600),
-                        backgroundColor: _accent,
-                      ),
-                    )),
-                  ]),
-                  const SizedBox(height: 20),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: saving ? null : () async {
-                        if (!formKey.currentState!.validate()) return;
-                        setSheet(() => saving = true);
-                        final data = {
-                          'title':           titleCtrl.text.trim(),
-                          'templeName':      templeCtrl.text.trim(),
-                          'date':            dateCtrl.text.trim(),
-                          'time':            timeCtrl.text.trim(),
-                          'maxParticipants': int.tryParse(maxCtrl.text) ?? 500,
-                          'registrationFee': double.tryParse(feeCtrl.text) ?? 0,
-                          'isFree':          isFree,
-                          'category':        category,
-                          'description':     descCtrl.text.trim(),
-                          'isActive':        true,
-                        };
-                        try {
-                          if (isEdit) {
-                            await ApiService.updateEvent(event['_id']?.toString() ?? '', data);
-                          } else {
-                            await ApiService.addEvent(data);
-                          }
-                          if (context.mounted) Navigator.pop(context);
-                          _load();
-                          _snack(isEdit ? 'Event updated ✓' : 'Event added ✓', _primary);
-                        } catch (e) {
-                          setSheet(() => saving = false);
-                          _snack('Error: $e', Colors.red);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: _primary, foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                      child: saving
-                          ? const SizedBox(width: 20, height: 20,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text(isEdit ? 'Update Event' : 'Add Event',
-                              style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ),
+              // Date picker
+              InkWell(
+                onTap: () async {
+                  final d = await showDatePicker(
+                    context: ctx,
+                    initialDate: _pickedDate ?? DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2030),
+                  );
+                  if (d != null) setBS(() => _pickedDate = d);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade400),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ]),
+                  child: Row(children: [
+                    const Icon(Icons.calendar_today,
+                        color: _primary, size: 18),
+                    const SizedBox(width: 10),
+                    Text(
+                      _pickedDate == null
+                          ? 'Pick Date'
+                          : '${_pickedDate!.day}/${_pickedDate!.month}/${_pickedDate!.year}',
+                      style: TextStyle(
+                          color: _pickedDate == null
+                              ? Colors.grey
+                              : _textDark),
+                    ),
+                  ]),
+                ),
               ),
-            ),
+              const SizedBox(height: 10),
+
+              // Category dropdown
+              DropdownButtonFormField<String>(
+                initialValue: _category,
+                decoration: InputDecoration(
+                  labelText: 'Category',
+                  prefixIcon: const Icon(Icons.category, color: _primary),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                items: _categories
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) => setBS(() => _category = v ?? 'Festival'),
+              ),
+              const SizedBox(height: 10),
+
+              // Free / Paid toggle
+              SwitchListTile(
+                value: _isFree,
+                onChanged: (v) => setBS(() => _isFree = v),
+                title: Text(_isFree ? 'Free Event' : 'Paid Event',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600)),
+                secondary: Icon(
+                    _isFree ? Icons.free_breakfast : Icons.paid,
+                    color: _primary),
+                activeThumbColor: _primary,
+                contentPadding: EdgeInsets.zero,
+              ),
+              if (!_isFree) ...[
+                const SizedBox(height: 6),
+                _formField(_priceCtrl, 'Registration Fee (₹)',
+                    Icons.currency_rupee,
+                    type: TextInputType.number),
+              ],
+              const SizedBox(height: 10),
+              _formField(_maxPaxCtrl, 'Max Participants (0 = unlimited)',
+                  Icons.people,
+                  type: TextInputType.number),
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await _save();
+                    if (!mounted) return;
+                    // ignore: use_build_context_synchronously
+                    Navigator.pop(ctx);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    _editingId == null ? 'Create Event' : 'Save Changes',
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ]),
           ),
         ),
       ),
     );
   }
 
-  Widget _ff(TextEditingController ctrl, String label, IconData icon,
-      {bool required = false, int maxLines = 1, TextInputType? keyboardType}) =>
-      TextFormField(
-        controller: ctrl, maxLines: maxLines, keyboardType: keyboardType,
-        validator: required ? (v) => v == null || v.trim().isEmpty ? 'Required' : null : null,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, color: _primary, size: 20),
-          filled: true, fillColor: _bg,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: _accent)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: _primary, width: 1.5)),
+  Widget _formField(
+    TextEditingController ctrl,
+    String label,
+    IconData icon, {
+    int maxLines = 1,
+    TextInputType? type,
+  }) =>
+    TextField(
+      controller: ctrl,
+      maxLines: maxLines,
+      keyboardType: type,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: _primary),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _primary, width: 2),
         ),
-      );
-
-  void _handleAction(String action, Map<String, dynamic> e) {
-    switch (action) {
-      case 'edit':   _openForm(event: e); break;
-      case 'delete': _deleteEvent(e); break;
-    }
-  }
-
-  Future<void> _deleteEvent(Map<String, dynamic> e) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete Event', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Delete "${e['title']}"? This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel', style: TextStyle(color: _primary))),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-              child: const Text('Delete')),
-        ],
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12, vertical: 12),
       ),
     );
-    if (ok == true) {
-      try {
-        await ApiService.deleteEvent(e['_id']?.toString() ?? '');
-        _load();
-        _snack('Event deleted', Colors.red);
-      } catch (err) {
-        _snack('Failed to delete: $err', Colors.red);
-      }
-    }
-  }
 
-  Widget _errorView() => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-    const Icon(Icons.error_outline, color: Colors.red, size: 48),
-    const SizedBox(height: 12),
-    Text(_error ?? 'Error', style: const TextStyle(color: Colors.grey)),
-    const SizedBox(height: 12),
-    ElevatedButton(onPressed: _load,
-        style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
-        child: const Text('Retry')),
-  ]));
+  Widget _errorView() => Center(
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      const Icon(Icons.error_outline, color: Colors.red, size: 48),
+      const SizedBox(height: 12),
+      Text(_error ?? 'Error', style: const TextStyle(color: Colors.grey)),
+      const SizedBox(height: 12),
+      ElevatedButton(
+          onPressed: _load,
+          style: ElevatedButton.styleFrom(
+              backgroundColor: _primary, foregroundColor: Colors.white),
+          child: const Text('Retry')),
+    ]),
+  );
 
   void _snack(String msg, Color color) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg), backgroundColor: color, behavior: SnackBarBehavior.floating));
+        content: Text(msg),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating));
   }
 }

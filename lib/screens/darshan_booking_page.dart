@@ -453,7 +453,7 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
                             decoration: BoxDecoration(
                               color: _selectedTimeSlot == slot
                                   ? const Color(0xFFFF9933)
-                                      .withOpacity(0.08)
+                                      .withValues(alpha:0.08)
                                   : Colors.white,
                               border: Border.all(
                                 color: _selectedTimeSlot == slot

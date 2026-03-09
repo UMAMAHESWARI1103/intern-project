@@ -2,6 +2,9 @@ const express    = require('express');
 const mongoose   = require('mongoose');
 const cors       = require('cors');
 const facilitiesRoutes = require('./routes/facilities');
+const recommendations = require('./routes/recommendations');
+const mlRec = require('./routes/mlRecommendations')
+const priestRoutes = require('./routes/priests');
 require('dotenv').config();
 
 const app = express();
@@ -22,6 +25,9 @@ app.use('/api/facilities', facilitiesRoutes);
 app.use('/api/bookings',  require('./routes/booking'));
 app.use('/api/users',     require('./routes/users'));
 app.use('/api/orders',    require('./routes/orders'));
+app.use('/api/recommendations', recommendations);
+app.use('/api/ml-recommendations', mlRec);
+app.use('/api/priests', priestRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: '🛕 GodsConnect Backend is running!' });

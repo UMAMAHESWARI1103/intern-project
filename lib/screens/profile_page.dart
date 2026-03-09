@@ -37,17 +37,29 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _loadUserData() async {
+    // If userData passed directly (logged-in user from HomeScreen), use it
     if (widget.userData != null) {
       setState(() { _userData = widget.userData; _isLoading = false; });
       _loadBookings();
       return;
     }
+
+    // Guest / skipped login — check if a real user token exists
+    final token = await ApiService.loadToken();
+    if (token == null || token.isEmpty) {
+      // No token — show guest profile, never call the API
+      setState(() { _userData = null; _isLoading = false; });
+      return;
+    }
+
+    // Token exists — try fetching the user profile
     try {
       final data = await ApiService.getUserProfile();
       setState(() { _userData = data; _isLoading = false; });
       if (data != null) _loadBookings();
     } catch (_) {
-      setState(() => _isLoading = false);
+      // Token invalid or network error — still show guest
+      setState(() { _userData = null; _isLoading = false; });
     }
   }
 
@@ -60,7 +72,6 @@ class _ProfilePageState extends State<ProfilePage>
       ]);
       setState(() {
         _bookings           = results[0];
-        // ✅ FIX: tag event registrations with type='event'
         _eventRegistrations = results[1]
             .map((e) => {...e, 'type': 'event'})
             .toList();
@@ -94,7 +105,7 @@ class _ProfilePageState extends State<ProfilePage>
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-                color: _primary.withOpacity(0.12), shape: BoxShape.circle),
+                color: _primary.withValues(alpha: 0.12), shape: BoxShape.circle),
             child: const Icon(Icons.lock_outline, color: _primary, size: 36),
           ),
           const SizedBox(height: 16),
@@ -134,7 +145,7 @@ class _ProfilePageState extends State<ProfilePage>
           Container(
             width: 70, height: 70,
             decoration: BoxDecoration(
-              color: _primary.withOpacity(0.12),
+              color: _primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(18),
             ),
             child: const Icon(Icons.temple_hindu, color: _primary, size: 40),
@@ -266,7 +277,7 @@ legal@godsconnect.app
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.12),
+                    color: Colors.blue.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12)),
                 child: const Icon(Icons.help_outline, color: Colors.blue, size: 24),
               ),
@@ -353,7 +364,7 @@ legal@godsconnect.app
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                        color: iconColor.withOpacity(0.12),
+                        color: iconColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12)),
                     child: Icon(icon, color: iconColor, size: 22),
                   ),
@@ -492,9 +503,9 @@ legal@godsconnect.app
               Container(
                 width: 80, height: 80,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
                 ),
                 child: const Icon(Icons.person_outline, size: 44, color: Colors.white),
               ),
@@ -503,7 +514,7 @@ legal@godsconnect.app
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
               const SizedBox(height: 6),
               Text('Login to personalise your experience',
-                  style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.85))),
+                  style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.85))),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -528,7 +539,7 @@ legal@godsconnect.app
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: cardColor, borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _primary.withOpacity(0.2)),
+                border: Border.all(color: _primary.withValues(alpha: 0.2)),
               ),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
@@ -567,7 +578,7 @@ legal@godsconnect.app
                       leading: Container(
                         width: 38, height: 38,
                         decoration: BoxDecoration(
-                          color: (f['color'] as Color).withOpacity(0.12),
+                          color: (f['color'] as Color).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(f['icon'] as IconData,
@@ -580,7 +591,7 @@ legal@godsconnect.app
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.15),
+                            color: Colors.grey.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Text('Login',
@@ -631,7 +642,7 @@ legal@godsconnect.app
             Container(
               width: 48, height: 48,
               decoration: BoxDecoration(
-                  color: _primary.withOpacity(0.12),
+                  color: _primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14)),
               child: const Icon(Icons.temple_hindu, color: _primary, size: 28),
             ),
@@ -708,8 +719,8 @@ legal@godsconnect.app
       width: double.infinity,
       decoration: BoxDecoration(
         color: cardColor, borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _primary.withOpacity(0.2)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+        border: Border.all(color: _primary.withValues(alpha: 0.2)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
@@ -757,7 +768,6 @@ legal@godsconnect.app
     if (_bookingsLoading) {
       return const Center(child: CircularProgressIndicator(color: _primary));
     }
-    // _eventRegistrations already tagged with type='event' in _loadBookings
     final allDocs = [..._bookings, ..._eventRegistrations];
     if (allDocs.isEmpty) {
       return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -790,7 +800,6 @@ legal@godsconnect.app
   Widget _buildBookingList(List<Map<String, dynamic>> docs) {
     int h = 0, d = 0, m = 0, p = 0, e = 0;
     for (final doc in docs) {
-      // ✅ FIX: check both 'type' and 'bookingType' fields
       final t = (doc['type'] ?? doc['bookingType'] ?? '') as String;
       switch (t) {
         case 'homam':    h++; break;
@@ -817,8 +826,8 @@ legal@godsconnect.app
   Widget _chip(String label, String count, Color color) => Container(
     width: 72, padding: const EdgeInsets.symmetric(vertical: 10),
     decoration: BoxDecoration(
-      color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: color.withOpacity(0.3)),
+      color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: color.withValues(alpha: 0.3)),
     ),
     child: Column(children: [
       Text(count, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color)),
@@ -827,12 +836,10 @@ legal@godsconnect.app
   );
 
   Widget _buildBookingCard(Map<String, dynamic> data) {
-    // ✅ FIX: check both 'type' and 'bookingType'
     final type   = (data['type'] ?? data['bookingType'] ?? 'booking') as String;
     final status = (data['status'] ?? 'confirmed') as String;
     final amount = data['amount'] ?? data['totalAmount'];
 
-    // ✅ FIX: try multiple date fields + properly parse ISO strings
     final rawDate = data['date'] ?? data['weddingDate'] ?? data['createdAt'] ?? '';
     String fmtDate = '';
     if (rawDate is String && rawDate.isNotEmpty) {
@@ -885,7 +892,7 @@ legal@godsconnect.app
       decoration: BoxDecoration(
         color: Colors.white, borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
       ),
       child: Padding(padding: const EdgeInsets.all(14),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -893,7 +900,7 @@ legal@godsconnect.app
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: (cfg['color'] as Color).withOpacity(0.1),
+                color: (cfg['color'] as Color).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12)),
             child: Text(cfg['icon'] as String, style: const TextStyle(fontSize: 22)),
           ),
@@ -908,7 +915,7 @@ legal@godsconnect.app
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.12),
+                color: statusColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20)),
             child: Text(status.toUpperCase(),
                 style: TextStyle(fontSize: 10,

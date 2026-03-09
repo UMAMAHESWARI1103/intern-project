@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/user.dart';
 
 class UserService {
-  static const String _userKey = 'logged_in_user';
+  static const String _userKey       = 'logged_in_user';
   static const String _isLoggedInKey = 'is_logged_in';
 
   // Save user data after login
@@ -15,15 +16,16 @@ class UserService {
 
   // Get current logged in user
   static Future<User?> getUser() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs      = await SharedPreferences.getInstance();
     final userString = prefs.getString(_userKey);
-    
+
     if (userString != null) {
       try {
         final userJson = json.decode(userString);
         return User.fromJson(userJson);
       } catch (e) {
-        print('Error parsing user data: $e');
+        // FIX line 26: replaced print() with debugPrint() — safe for production
+        debugPrint('Error parsing user data: $e');
         return null;
       }
     }

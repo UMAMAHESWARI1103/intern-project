@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 
 class ApiService {
   static const String baseUrl = 'http://10.95.142.70:5000/api';
@@ -28,9 +29,10 @@ class ApiService {
 
   static String? getToken() => _token;
 
-  static void clearToken() {
+  static Future<void> clearToken() async {
     _token = null;
-    SharedPreferences.getInstance().then((p) => p.remove('auth_token'));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_token');
   }
 
   // ════════════════════════════════════════════
@@ -57,10 +59,10 @@ class ApiService {
       Uri.parse('$baseUrl/auth/signup'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'name': name,
-        'email': email,
+        'name':     name,
+        'email':    email,
         'password': password,
-        'phone': phone,
+        'phone':    phone,
       }),
     );
     final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -81,7 +83,7 @@ class ApiService {
     final response = await http.get(
       Uri.parse('$baseUrl/users/profile'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -95,12 +97,44 @@ class ApiService {
     final response = await http.put(
       Uri.parse('$baseUrl/users/profile'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode(data),
     );
     return response.statusCode == 200;
+  }
+
+  // ════════════════════════════════════════════
+  // PRIESTS  ✅ NEW
+  // ════════════════════════════════════════════
+
+  /// Fetch all available priests.
+  /// Pass [homamType] to filter priests who specialise in that homam.
+  static Future<List<dynamic>> getPriests({String? homamType}) async {
+    try {
+      final token = await loadToken();
+      final uri = homamType != null && homamType.isNotEmpty
+          ? Uri.parse('$baseUrl/priests?homamType=${Uri.encodeComponent(homamType)}')
+          : Uri.parse('$baseUrl/priests');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['priests'] ?? [];
+      }
+      return [];
+    } catch (e) {
+      debugPrint('getPriests error: $e');
+      return [];
+    }
   }
 
   // ════════════════════════════════════════════
@@ -112,7 +146,7 @@ class ApiService {
     final response = await http.get(
       Uri.parse('$baseUrl/admin/stats'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -134,7 +168,7 @@ class ApiService {
     final response = await http.get(
       Uri.parse('$baseUrl/admin/reports?period=$period'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -151,13 +185,13 @@ class ApiService {
 
   static Future<List<Map<String, dynamic>>> getAdminBookings({
     String status = 'all',
-    String type = 'all',
+    String type   = 'all',
     String search = '',
   }) async {
-    final token = await loadToken();
+    final token  = await loadToken();
     final params = <String, String>{};
-    if (status != 'all') params['status'] = status;
-    if (type != 'all') params['type'] = type;
+    if (status != 'all')   params['status'] = status;
+    if (type   != 'all')   params['type']   = type;
     if (search.isNotEmpty) params['search'] = search;
 
     final uri = Uri.parse('$baseUrl/admin/bookings')
@@ -166,11 +200,10 @@ class ApiService {
     final response = await http.get(
       uri,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
-
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final List raw = data['bookings'] ?? [];
@@ -185,7 +218,7 @@ class ApiService {
     final response = await http.patch(
       Uri.parse('$baseUrl/admin/bookings/$id/status'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode({'type': type, 'status': status}),
@@ -198,15 +231,15 @@ class ApiService {
   // ════════════════════════════════════════════
 
   static Future<Map<String, dynamic>> getAdminDonations({
-    String status = 'all',
+    String status   = 'all',
     String category = 'all',
-    String search = '',
+    String search   = '',
   }) async {
-    final token = await loadToken();
+    final token  = await loadToken();
     final params = <String, String>{};
-    if (status != 'all') params['status'] = status;
+    if (status   != 'all') params['status']   = status;
     if (category != 'all') params['category'] = category;
-    if (search.isNotEmpty) params['search'] = search;
+    if (search.isNotEmpty) params['search']   = search;
 
     final uri = Uri.parse('$baseUrl/admin/donations')
         .replace(queryParameters: params.isNotEmpty ? params : null);
@@ -214,18 +247,16 @@ class ApiService {
     final response = await http.get(
       uri,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
-
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final List raw = data['donations'] ?? [];
       return {
-        'donations':
-            raw.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
-        'total': data['total'] ?? 0,
+        'donations':   raw.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+        'total':       data['total']       ?? 0,
         'totalAmount': data['totalAmount'] ?? 0,
       };
     }
@@ -237,7 +268,7 @@ class ApiService {
     final response = await http.patch(
       Uri.parse('$baseUrl/admin/donations/$id/status'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode({'status': status}),
@@ -255,7 +286,7 @@ class ApiService {
   }) async {
     final token = await loadToken();
     final uri = Uri.parse('$baseUrl/orders').replace(queryParameters: {
-      if (status != 'all') 'status': status,
+      if (status != 'all')   'status': status,
       if (search.isNotEmpty) 'search': search,
     });
     final response = await http.get(
@@ -299,7 +330,7 @@ class ApiService {
     final response = await http.get(
       Uri.parse('$baseUrl/admin/users'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -315,7 +346,7 @@ class ApiService {
     final response = await http.patch(
       Uri.parse('$baseUrl/admin/users/$userId/toggle-block'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -327,7 +358,7 @@ class ApiService {
     final response = await http.patch(
       Uri.parse('$baseUrl/admin/users/$userId/role'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode({'role': role}),
@@ -340,7 +371,7 @@ class ApiService {
     final response = await http.delete(
       Uri.parse('$baseUrl/admin/users/$userId'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -388,7 +419,7 @@ class ApiService {
     final response = await http.get(
       Uri.parse('$baseUrl/admin/temples'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -405,7 +436,7 @@ class ApiService {
     final response = await http.post(
       Uri.parse('$baseUrl/admin/temples'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode(data),
@@ -419,7 +450,7 @@ class ApiService {
     final response = await http.put(
       Uri.parse('$baseUrl/admin/temples/$id'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode(data),
@@ -432,7 +463,7 @@ class ApiService {
     final response = await http.delete(
       Uri.parse('$baseUrl/admin/temples/$id'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -501,7 +532,7 @@ class ApiService {
     final response = await http.post(
       Uri.parse('$baseUrl/admin/events'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode(data),
@@ -519,7 +550,7 @@ class ApiService {
     final response = await http.put(
       Uri.parse('$baseUrl/admin/events/$id'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode(data),
@@ -536,11 +567,11 @@ class ApiService {
     final response = await http.delete(
       Uri.parse('$baseUrl/admin/events/$id'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
-    if (response.statusCode != 200) {
+    if (response.statusCode != 200 && response.statusCode != 204) {
       final body = jsonDecode(response.body);
       throw Exception(body['message'] ?? 'Failed to delete event');
     }
@@ -548,7 +579,7 @@ class ApiService {
   }
 
   // ════════════════════════════════════════════
-  // PRAYERS / MANTRAS  (User side — read only)
+  // PRAYERS / MANTRAS
   // ════════════════════════════════════════════
 
   static Future<List<dynamic>> getAllPrayers() async {
@@ -567,17 +598,13 @@ class ApiService {
     return [];
   }
 
-  // ════════════════════════════════════════════
-  // ADMIN — PRAYERS / MANTRAS  (Admin CRUD)
-  // ════════════════════════════════════════════
-
   static Future<Map<String, dynamic>?> addPrayer(
       Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/admin/prayers'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode(data),
@@ -594,7 +621,7 @@ class ApiService {
     final response = await http.put(
       Uri.parse('$baseUrl/admin/prayers/$id'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode(data),
@@ -607,7 +634,7 @@ class ApiService {
     final response = await http.delete(
       Uri.parse('$baseUrl/admin/prayers/$id'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -615,7 +642,7 @@ class ApiService {
   }
 
   // ════════════════════════════════════════════
-  // ADMIN — PRAYER REQUESTS (from users)
+  // ADMIN — PRAYER REQUESTS
   // ════════════════════════════════════════════
 
   static Future<List<dynamic>> getAdminPrayerRequests({
@@ -623,10 +650,10 @@ class ApiService {
     String type   = 'all',
     String search = '',
   }) async {
-    final token = await loadToken();
+    final token  = await loadToken();
     final params = <String, String>{};
-    if (status != 'all') params['status'] = status;
-    if (type   != 'all') params['type']   = type;
+    if (status != 'all')   params['status'] = status;
+    if (type   != 'all')   params['type']   = type;
     if (search.isNotEmpty) params['search'] = search;
 
     final uri = Uri.parse('$baseUrl/admin/prayer-requests')
@@ -635,7 +662,7 @@ class ApiService {
     final response = await http.get(
       uri,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -654,7 +681,7 @@ class ApiService {
     final response = await http.patch(
       Uri.parse('$baseUrl/admin/prayer-requests/$id/status'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode({'status': status}),
@@ -671,7 +698,7 @@ class ApiService {
     final response = await http.get(
       Uri.parse('$baseUrl/admin/prayer-schedules'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -688,7 +715,7 @@ class ApiService {
     final response = await http.post(
       Uri.parse('$baseUrl/admin/prayer-schedules'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode(data),
@@ -705,7 +732,7 @@ class ApiService {
     final response = await http.patch(
       Uri.parse('$baseUrl/admin/prayer-schedules/$id/status'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode({'status': status}),
@@ -714,16 +741,14 @@ class ApiService {
   }
 
   // ════════════════════════════════════════════
-  // ★ PRODUCTS — USER SIDE (read only)
+  // PRODUCTS — USER SIDE
   // ════════════════════════════════════════════
 
-  /// Fetch all active products for the user-facing store.
-  /// Returns empty list on error — caller should fall back to hardcoded.
   static Future<List<Map<String, dynamic>>> getProducts({
     String category = 'all',
     String search   = '',
   }) async {
-    final token = await loadToken();
+    final token  = await loadToken();
     final params = <String, String>{};
     if (category != 'all') params['category'] = category;
     if (search.isNotEmpty) params['search']   = search;
@@ -747,15 +772,14 @@ class ApiService {
   }
 
   // ════════════════════════════════════════════
-  // ★ PRODUCTS — ADMIN CRUD
+  // PRODUCTS — ADMIN CRUD
   // ════════════════════════════════════════════
 
-  /// Fetch all products for admin (including inactive).
   static Future<List<Map<String, dynamic>>> getAdminProducts({
     String category = 'all',
     String search   = '',
   }) async {
-    final token = await loadToken();
+    final token  = await loadToken();
     final params = <String, String>{};
     if (category != 'all') params['category'] = category;
     if (search.isNotEmpty) params['search']   = search;
@@ -766,7 +790,7 @@ class ApiService {
     final response = await http.get(
       uri,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -778,88 +802,46 @@ class ApiService {
     return [];
   }
 
-  // ════════════════════════════════════════════════════════════════════
-// REPLACE these two methods in your api_service.dart
-// They add proper error logging so you can see WHY it fails
-// ════════════════════════════════════════════════════════════════════
-
-  /// Add a new product (admin only).
   static Future<Map<String, dynamic>?> addProduct(
       Map<String, dynamic> data) async {
-    try {
-      // ✅ FIX 1: Always load token from SharedPreferences first
-      final token = await loadToken();
-
-      print('🛒 addProduct called');
-      print('🔑 Token: ${token != null ? "present" : "NULL - this is the problem!"}');
-      print('📦 Data: $data');
-      print('🌐 URL: $baseUrl/admin/products');
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/admin/products'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(data),
-      );
-
-      print('📡 Response status: ${response.statusCode}');
-      print('📡 Response body: ${response.body}');
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
-      }
-
-      // ✅ FIX 2: Throw with actual server error message instead of returning null
-      final errBody = jsonDecode(response.body);
-      throw Exception(errBody['message'] ?? 'Server error ${response.statusCode}');
-
-    } catch (e) {
-      print('❌ addProduct error: $e');
-      rethrow; // ✅ FIX 3: rethrow so the UI shows the real error
+    final token = await loadToken();
+    final response = await http.post(
+      Uri.parse('$baseUrl/admin/products'),
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(data),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
     }
+    final errBody = jsonDecode(response.body);
+    throw Exception(errBody['message'] ?? 'Server error ${response.statusCode}');
   }
 
-  /// Update an existing product (admin only).
   static Future<bool> updateProduct(
       String id, Map<String, dynamic> data) async {
-    try {
-      final token = await loadToken();
-
-      print('✏️ updateProduct called for id: $id');
-      print('🔑 Token: ${token != null ? "present" : "NULL"}');
-
-      final response = await http.put(
-        Uri.parse('$baseUrl/admin/products/$id'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(data),
-      );
-
-      print('📡 updateProduct status: ${response.statusCode}');
-      print('📡 updateProduct body: ${response.body}');
-
-      if (response.statusCode == 200) return true;
-
-      final errBody = jsonDecode(response.body);
-      throw Exception(errBody['message'] ?? 'Update failed ${response.statusCode}');
-
-    } catch (e) {
-      print('❌ updateProduct error: $e');
-      rethrow;
-    }
+    final token = await loadToken();
+    final response = await http.put(
+      Uri.parse('$baseUrl/admin/products/$id'),
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(data),
+    );
+    if (response.statusCode == 200) return true;
+    final errBody = jsonDecode(response.body);
+    throw Exception(errBody['message'] ?? 'Update failed ${response.statusCode}');
   }
 
-  /// Delete a product (admin only).
   static Future<bool> deleteProduct(String id) async {
     final token = await loadToken();
     final response = await http.delete(
       Uri.parse('$baseUrl/admin/products/$id'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -874,7 +856,7 @@ class ApiService {
       double amountInRupees,
       String receipt,
       Map<String, dynamic> notes) async {
-    final token = await loadToken();
+    final token         = await loadToken();
     final amountInPaise = (amountInRupees * 100).toInt();
     final response = await http.post(
       Uri.parse('$baseUrl/payments/create-order'),
@@ -883,10 +865,10 @@ class ApiService {
         if (token != null) 'Authorization': 'Bearer $token',
       },
       body: jsonEncode({
-        'amount': amountInPaise,
+        'amount':   amountInPaise,
         'currency': 'INR',
-        'receipt': receipt,
-        'notes': notes,
+        'receipt':  receipt,
+        'notes':    notes,
       }),
     );
     final contentType = response.headers['content-type'] ?? '';
@@ -973,7 +955,7 @@ class ApiService {
     final response = await http.get(
       Uri.parse('$baseUrl/bookings/my-bookings'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
@@ -985,20 +967,48 @@ class ApiService {
     return [];
   }
 
-  static Future<List<Map<String, dynamic>>>
-      getUserEventRegistrations() async {
+  static Future<List<Map<String, dynamic>>> getUserEventRegistrations() async {
     final token = await loadToken();
     if (token == null) return [];
     final response = await http.get(
       Uri.parse('$baseUrl/events/my-registrations'),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
         'Authorization': 'Bearer $token',
       },
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final List raw = data is List ? data : (data['registrations'] ?? []);
+      return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    return [];
+  }
+
+  static Future<List<Map<String, dynamic>>> getAdminEventRegistrations({
+    String status = 'all',
+    String search = '',
+  }) async {
+    final token  = await loadToken();
+    final params = <String, String>{};
+    if (status != 'all')   params['status'] = status;
+    if (search.isNotEmpty) params['search'] = search;
+
+    final uri = Uri.parse('$baseUrl/admin/event-registrations')
+        .replace(queryParameters: params.isNotEmpty ? params : null);
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final List raw = data is List
+          ? data
+          : (data['registrations'] ?? data['eventRegistrations'] ?? []);
       return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
     }
     return [];

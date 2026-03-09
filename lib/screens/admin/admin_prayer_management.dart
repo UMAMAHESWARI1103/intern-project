@@ -110,8 +110,7 @@ class _AdminPrayerManagementPageState
                           children: _categories.map((c) {
                             final active = _categoryFilter == c;
                             return Padding(
-                              padding:
-                                  const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.only(right: 8),
                               child: ChoiceChip(
                                 label: Text(c),
                                 selected: active,
@@ -135,11 +134,9 @@ class _AdminPrayerManagementPageState
 
                   // ── Count + inline add button ────────────────
                   Padding(
-                    padding:
-                        const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                     child: Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('${_filtered.length} prayers found',
                             style: const TextStyle(
@@ -154,9 +151,8 @@ class _AdminPrayerManagementPageState
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600)),
                           style: TextButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4)),
                         ),
                       ],
                     ),
@@ -197,12 +193,11 @@ class _AdminPrayerManagementPageState
   Widget _mantraCard(Map<String, dynamic> m) {
     final category = (m['category'] ?? 'Mantra').toString();
     final language = (m['language'] ?? '').toString();
-    final duration =
-        (m['duration'] ?? m['durationMins'] ?? '').toString();
-    final deity   = (m['deity'] ?? '').toString();
-    final lyrics  = (m['lyrics'] ?? m['text'] ?? '').toString();
-    final meaning = (m['meaning'] ?? '').toString();
-    final id      = (m['_id'] ?? m['id'] ?? '').toString();
+    final duration = (m['duration'] ?? m['durationMins'] ?? '').toString();
+    final deity    = (m['deity'] ?? '').toString();
+    final lyrics   = (m['lyrics'] ?? m['text'] ?? '').toString();
+    final meaning  = (m['meaning'] ?? '').toString();
+    final id       = (m['_id'] ?? m['id'] ?? '').toString();
     final catColor = _catColor(category);
 
     return Container(
@@ -237,12 +232,10 @@ class _AdminPrayerManagementPageState
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          (m['title'] ?? m['name'] ?? '')
-                              .toString(),
+                          (m['title'] ?? m['name'] ?? '').toString(),
                           style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
@@ -284,8 +277,7 @@ class _AdminPrayerManagementPageState
                               size: 16, color: Colors.red),
                           SizedBox(width: 8),
                           Text('Delete',
-                              style:
-                                  TextStyle(color: Colors.red)),
+                              style: TextStyle(color: Colors.red)),
                         ])),
                   ],
                 ),
@@ -296,8 +288,7 @@ class _AdminPrayerManagementPageState
               // Chips
               Wrap(spacing: 6, runSpacing: 4, children: [
                 _pill(category, catColor),
-                if (language.isNotEmpty)
-                  _pill(language, Colors.blue),
+                if (language.isNotEmpty) _pill(language, Colors.blue),
                 if (duration.isNotEmpty && duration != '0')
                   _pill('$duration min', Colors.green),
               ]),
@@ -330,8 +321,7 @@ class _AdminPrayerManagementPageState
               if (meaning.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Row(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Icon(Icons.info_outline,
                           size: 13, color: _textGrey),
@@ -364,15 +354,10 @@ class _AdminPrayerManagementPageState
     final meaningCtrl  = TextEditingController(
         text: existing?['meaning'] ?? '');
     final durationCtrl = TextEditingController(
-        text: (existing?['duration'] ??
-                    existing?['durationMins'] ??
-                    '')
-                .toString() ==
-            '0'
+        text: (existing?['duration'] ?? existing?['durationMins'] ?? '')
+                    .toString() == '0'
             ? ''
-            : (existing?['duration'] ??
-                    existing?['durationMins'] ??
-                    '')
+            : (existing?['duration'] ?? existing?['durationMins'] ?? '')
                 .toString());
     String category = existing?['category'] ?? 'Morning';
     String language = existing?['language'] ?? 'Sanskrit';
@@ -386,15 +371,13 @@ class _AdminPrayerManagementPageState
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) => Padding(
           padding: EdgeInsets.only(
-              bottom:
-                  MediaQuery.of(context).viewInsets.bottom),
+              bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Container(
             decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(
                     top: Radius.circular(24))),
-            padding:
-                const EdgeInsets.fromLTRB(24, 20, 24, 32),
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
             child: Form(
               key: formKey,
               child: SingleChildScrollView(
@@ -407,8 +390,7 @@ class _AdminPrayerManagementPageState
                         height: 4,
                         decoration: BoxDecoration(
                             color: Colors.grey[300],
-                            borderRadius:
-                                BorderRadius.circular(2)),
+                            borderRadius: BorderRadius.circular(2)),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -434,24 +416,21 @@ class _AdminPrayerManagementPageState
                       // Category & Language row
                       Row(children: [
                         Expanded(
-                          child: DropdownButtonFormField<
-                              String>(
+                          child: DropdownButtonFormField<String>(
                             initialValue: category,
                             decoration: _dropDecor(
                                 'Category', Icons.category),
                             items: ['Morning', 'Evening', 'Mantra']
                                 .map((c) => DropdownMenuItem(
-                                    value: c,
-                                    child: Text(c)))
+                                    value: c, child: Text(c)))
                                 .toList(),
-                            onChanged: (v) => setModal(
-                                () => category = v!),
+                            onChanged: (v) =>
+                                setModal(() => category = v!),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: DropdownButtonFormField<
-                              String>(
+                          child: DropdownButtonFormField<String>(
                             initialValue: language,
                             decoration: _dropDecor(
                                 'Language', Icons.language),
@@ -463,11 +442,10 @@ class _AdminPrayerManagementPageState
                               'Kannada'
                             ]
                                 .map((l) => DropdownMenuItem(
-                                    value: l,
-                                    child: Text(l)))
+                                    value: l, child: Text(l)))
                                 .toList(),
-                            onChanged: (v) => setModal(
-                                () => language = v!),
+                            onChanged: (v) =>
+                                setModal(() => language = v!),
                           ),
                         ),
                       ]),
@@ -475,8 +453,7 @@ class _AdminPrayerManagementPageState
 
                       _field(durationCtrl, 'Duration (mins)',
                           Icons.timer,
-                          keyboardType:
-                              TextInputType.number,
+                          keyboardType: TextInputType.number,
                           required: false),
                       const SizedBox(height: 12),
 
@@ -490,10 +467,8 @@ class _AdminPrayerManagementPageState
                                 : null,
                         decoration: InputDecoration(
                           labelText: 'Lyrics / Mantra Text',
-                          prefixIcon: const Icon(
-                              Icons.music_note,
-                              color: _primary,
-                              size: 20),
+                          prefixIcon: const Icon(Icons.music_note,
+                              color: _primary, size: 20),
                           filled: true,
                           fillColor: _bg,
                           border: OutlineInputBorder(
@@ -502,14 +477,13 @@ class _AdminPrayerManagementPageState
                           enabledBorder: OutlineInputBorder(
                               borderRadius:
                                   BorderRadius.circular(10),
-                              borderSide: const BorderSide(
-                                  color: _accent)),
+                              borderSide:
+                                  const BorderSide(color: _accent)),
                           focusedBorder: OutlineInputBorder(
                               borderRadius:
                                   BorderRadius.circular(10),
                               borderSide: const BorderSide(
-                                  color: _primary,
-                                  width: 1.5)),
+                                  color: _primary, width: 1.5)),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -520,10 +494,8 @@ class _AdminPrayerManagementPageState
                         maxLines: 3,
                         decoration: InputDecoration(
                           labelText: 'Meaning (optional)',
-                          prefixIcon: const Icon(
-                              Icons.info_outline,
-                              color: _primary,
-                              size: 20),
+                          prefixIcon: const Icon(Icons.info_outline,
+                              color: _primary, size: 20),
                           filled: true,
                           fillColor: _bg,
                           border: OutlineInputBorder(
@@ -532,14 +504,13 @@ class _AdminPrayerManagementPageState
                           enabledBorder: OutlineInputBorder(
                               borderRadius:
                                   BorderRadius.circular(10),
-                              borderSide: const BorderSide(
-                                  color: _accent)),
+                              borderSide:
+                                  const BorderSide(color: _accent)),
                           focusedBorder: OutlineInputBorder(
                               borderRadius:
                                   BorderRadius.circular(10),
                               borderSide: const BorderSide(
-                                  color: _primary,
-                                  width: 1.5)),
+                                  color: _primary, width: 1.5)),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -555,86 +526,65 @@ class _AdminPrayerManagementPageState
                                       .validate()) {
                                     return;
                                   }
-                                  setModal(
-                                      () => saving = true);
+                                  setModal(() => saving = true);
                                   final payload = {
-                                    'title': titleCtrl.text
-                                        .trim(),
-                                    'deity': deityCtrl.text
-                                        .trim(),
+                                    'title':    titleCtrl.text.trim(),
+                                    'deity':    deityCtrl.text.trim(),
                                     'category': category,
                                     'language': language,
-                                    'duration':
-                                        int.tryParse(
-                                                durationCtrl
-                                                    .text
-                                                    .trim()) ??
-                                            0,
-                                    'lyrics': lyricsCtrl
-                                        .text
-                                        .trim(),
-                                    'meaning': meaningCtrl
-                                        .text
-                                        .trim(),
+                                    'duration': int.tryParse(
+                                            durationCtrl.text.trim()) ??
+                                        0,
+                                    'lyrics':  lyricsCtrl.text.trim(),
+                                    'meaning': meaningCtrl.text.trim(),
                                   };
                                   bool ok;
                                   if (isEdit) {
-                                    final id = (existing[
-                                                    '_id'] ??
-                                                existing[
-                                                    'id'] ??
-                                                '')
+                                    final id = (existing['_id'] ??
+                                            existing['id'] ??
+                                            '')
                                         .toString();
                                     ok = await ApiService
-                                        .updatePrayer(
-                                            id, payload);
+                                        .updatePrayer(id, payload);
                                   } else {
-                                    final result =
-                                        await ApiService
-                                            .addPrayer(
-                                                payload);
+                                    final result = await ApiService
+                                        .addPrayer(payload);
                                     ok = result != null;
                                   }
-                                  setModal(
-                                      () => saving = false);
-                                  if (ok) {
-                                    Navigator.pop(context);
-                                    _loadMantras();
-                                    _snack(
-                                        isEdit
-                                            ? 'Updated ✓'
-                                            : 'Prayer added ✓',
-                                        _primary);
-                                  } else {
-                                    _snack('Failed to save',
-                                        Colors.red);
-                                  }
+                                  setModal(() => saving = false);
+                                  // FIX: guard context use after async gap
+                                  if (!ctx.mounted) return;
+                                  Navigator.pop(ctx);
+                                  _loadMantras();
+                                  _snack(
+                                      ok
+                                          ? (isEdit
+                                              ? 'Updated ✓'
+                                              : 'Prayer added ✓')
+                                          : 'Failed to save',
+                                      ok ? _primary : Colors.red);
                                 },
                           style: ElevatedButton.styleFrom(
                               backgroundColor: _primary,
                               foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(
-                                      vertical: 13),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 13),
                               shape: RoundedRectangleBorder(
                                   borderRadius:
-                                      BorderRadius.circular(
-                                          10))),
+                                      BorderRadius.circular(10))),
                           child: saving
                               ? const SizedBox(
                                   height: 18,
                                   width: 18,
-                                  child:
-                                      CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2))
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2))
                               : Text(
                                   isEdit
                                       ? 'Update Prayer'
                                       : 'Add Prayer / Mantra',
                                   style: const TextStyle(
-                                      fontWeight:
-                                          FontWeight.bold)),
+                                      fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ]),
@@ -654,8 +604,7 @@ class _AdminPrayerManagementPageState
             borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Prayer',
             style: TextStyle(fontWeight: FontWeight.bold)),
-        content:
-            Text('Delete "$title"? This cannot be undone.'),
+        content: Text('Delete "$title"? This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -697,9 +646,7 @@ class _AdminPrayerManagementPageState
         controller: ctrl,
         keyboardType: keyboardType,
         validator: required
-            ? (v) => v == null || v.trim().isEmpty
-                ? 'Required'
-                : null
+            ? (v) => v == null || v.trim().isEmpty ? 'Required' : null
             : null,
         decoration: InputDecoration(
           labelText: label,
@@ -713,13 +660,11 @@ class _AdminPrayerManagementPageState
               borderSide: const BorderSide(color: _accent)),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: _primary, width: 1.5)),
+              borderSide: const BorderSide(color: _primary, width: 1.5)),
         ),
       );
 
-  InputDecoration _dropDecor(String label, IconData icon) =>
-      InputDecoration(
+  InputDecoration _dropDecor(String label, IconData icon) => InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: _primary, size: 20),
         filled: true,
@@ -731,27 +676,22 @@ class _AdminPrayerManagementPageState
             borderSide: const BorderSide(color: _accent)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide:
-                const BorderSide(color: _primary, width: 1.5)),
+            borderSide: const BorderSide(color: _primary, width: 1.5)),
       );
 
   Widget _errorView() => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child:
-              Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.cloud_off,
-                size: 48, color: _textGrey),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.cloud_off, size: 48, color: _textGrey),
             const SizedBox(height: 12),
             const Text('Failed to load prayers',
                 style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: _textDark)),
+                    fontWeight: FontWeight.bold, color: _textDark)),
             const SizedBox(height: 6),
             Text(_error ?? '',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 12, color: _textGrey)),
+                style: const TextStyle(fontSize: 12, color: _textGrey)),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _loadMantras,
@@ -766,8 +706,7 @@ class _AdminPrayerManagementPageState
       );
 
   Widget _emptyView() => Center(
-        child:
-            Column(mainAxisSize: MainAxisSize.min, children: [
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('🙏', style: TextStyle(fontSize: 40)),
           const SizedBox(height: 12),
           const Text('No prayers added yet',
@@ -776,10 +715,8 @@ class _AdminPrayerManagementPageState
                   fontWeight: FontWeight.w600,
                   color: _textDark)),
           const SizedBox(height: 6),
-          const Text(
-              'Tap + to add prayers & mantras for users',
-              style:
-                  TextStyle(fontSize: 12, color: _textGrey)),
+          const Text('Tap + to add prayers & mantras for users',
+              style: TextStyle(fontSize: 12, color: _textGrey)),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () => _openMantraForm(),
@@ -799,13 +736,11 @@ class _AdminPrayerManagementPageState
       };
 
   Widget _pill(String label, Color color) => Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
             color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(6),
-            border:
-                Border.all(color: color.withValues(alpha: 0.25))),
+            border: Border.all(color: color.withValues(alpha: 0.25))),
         child: Text(label,
             style: TextStyle(
                 fontSize: 11,
@@ -813,8 +748,7 @@ class _AdminPrayerManagementPageState
                 color: color)),
       );
 
-  Widget _statTile(String label, String value, Color color) =>
-      Expanded(
+  Widget _statTile(String label, String value, Color color) => Expanded(
         child: Column(children: [
           Text(value,
               style: TextStyle(
@@ -822,8 +756,7 @@ class _AdminPrayerManagementPageState
                   fontWeight: FontWeight.bold,
                   color: color)),
           Text(label,
-              style: const TextStyle(
-                  fontSize: 10, color: _textGrey)),
+              style: const TextStyle(fontSize: 10, color: _textGrey)),
         ]),
       );
 

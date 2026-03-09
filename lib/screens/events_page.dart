@@ -20,7 +20,6 @@ class EventsPage extends StatefulWidget {
 }
 
 class _EventsPageState extends State<EventsPage> {
-  // ✅ Events are always shown — DB events + seed events merged from backend
   List<Event> _events           = [];
   bool        _isLoading        = true;
   String      _selectedCategory = 'All';
@@ -29,7 +28,13 @@ class _EventsPageState extends State<EventsPage> {
     'All', 'Festival', 'Pooja', 'Special', 'Cultural', 'Other'
   ];
 
-  // ✅ A seed event has id starting with 'seed_'
+  late Razorpay _razorpay;
+
+  Event?  _pendingEvent;
+  String? _pendingOrderId;
+  String? _pendingUserName;
+  String? _pendingUserEmail;
+
   bool _isSeed(Event e) => e.id.startsWith('seed_');
 
   List<Event> get _filtered {
@@ -40,7 +45,17 @@ class _EventsPageState extends State<EventsPage> {
   @override
   void initState() {
     super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR,   _onPaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
     _loadEvents();
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
   }
 
   Future<void> _loadEvents() async {
@@ -52,9 +67,119 @@ class _EventsPageState extends State<EventsPage> {
           .toList();
       if (mounted) setState(() { _events = events; _isLoading = false; });
     } catch (_) {
-      // Even on error, backend returns seed events — but handle complete failure
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _onFreeRegistrationSuccess({
+    required Event event,
+    required String userName,
+    required String userEmail,
+    required bool isSeed,
+  }) {
+    if (!mounted) return;
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => EventConfirmationPage(
+        event: event,
+        userName: userName,
+        userEmail: userEmail,
+        isSeed: isSeed,
+      ),
+    ));
+  }
+
+  void _openRazorpay({
+    required Event event,
+    required String userName,
+    required String userEmail,
+    required String userPhone,
+    required Map<String, dynamic> order,
+  }) {
+    final orderId = order['order_id']?.toString() ?? '';
+    if (orderId.isEmpty) {
+      _showSnack('Payment server unavailable. Please try again.', Colors.red);
+      return;
+    }
+
+    final rawAmount = order['amount'];
+    final int amountInPaise = rawAmount is int
+        ? rawAmount
+        : (rawAmount is double
+            ? rawAmount.toInt()
+            : int.tryParse(rawAmount.toString()) ?? (event.price * 100).toInt());
+
+    _pendingEvent     = event;
+    _pendingOrderId   = orderId;
+    _pendingUserName  = userName;
+    _pendingUserEmail = userEmail;
+
+    _razorpay.open({
+      'key':         order['razorpay_key'] ?? 'rzp_test_SJdyZblt9njE1Z',
+      'amount':      amountInPaise,
+      'currency':    order['currency'] ?? 'INR',
+      'order_id':    orderId,
+      'name':        'GodsConnect Events',
+      'description': event.title,
+      'prefill': {
+        'name':    userName,
+        'email':   userEmail,
+        'contact': userPhone,
+      },
+      'theme': {'color': '#FF9933'},
+    });
+  }
+
+  void _onPaymentSuccess(PaymentSuccessResponse response) async {
+    final event     = _pendingEvent;
+    final userName  = _pendingUserName  ?? '';
+    final userEmail = _pendingUserEmail ?? '';
+
+    if (event == null) return;
+
+    try {
+      await ApiService.registerForEvent(event.id, {
+        'user_name':           userName,
+        'user_email':          userEmail,
+        'razorpay_payment_id': response.paymentId,
+        'razorpay_order_id':   response.orderId ?? _pendingOrderId,
+        'razorpay_signature':  response.signature,
+      });
+    } catch (_) {}
+
+    _pendingEvent     = null;
+    _pendingOrderId   = null;
+    _pendingUserName  = null;
+    _pendingUserEmail = null;
+
+    if (!mounted) return;
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => EventConfirmationPage(
+        event: event,
+        userName:  userName,
+        userEmail: userEmail,
+        paymentId: response.paymentId,
+        isPaid: true,
+      ),
+    ));
+  }
+
+  void _onPaymentError(PaymentFailureResponse r) {
+    _pendingEvent   = null;
+    _pendingOrderId = null;
+    _showSnack('Payment failed: ${r.message ?? 'Unknown error'}', Colors.red);
+  }
+
+  void _onExternalWallet(ExternalWalletResponse r) {
+    _showSnack('Wallet selected: ${r.walletName}', const Color(0xFFFF9933));
+  }
+
+  void _showSnack(String msg, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: color,
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   void _onRegister(Event event) {
@@ -64,11 +189,13 @@ class _EventsPageState extends State<EventsPage> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _RegisterSheet(
-        event:        event,
-        isSeed:       _isSeed(event),
-        prefillName:  widget.loggedInName,
-        prefillEmail: widget.loggedInEmail,
-        prefillPhone: widget.loggedInPhone,
+        event:          event,
+        isSeed:         _isSeed(event),
+        prefillName:    widget.loggedInName,
+        prefillEmail:   widget.loggedInEmail,
+        prefillPhone:   widget.loggedInPhone,
+        onFreeSuccess:  _onFreeRegistrationSuccess,
+        onOpenRazorpay: _openRazorpay,
       ),
     );
   }
@@ -162,7 +289,6 @@ class _EventsPageState extends State<EventsPage> {
         )],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Header
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: const BoxDecoration(
@@ -175,10 +301,11 @@ class _EventsPageState extends State<EventsPage> {
             Expanded(
               child: Text(event.title,
                   style: const TextStyle(color: Colors.white,
-                      fontWeight: FontWeight.bold, fontSize: 16)),
+                      fontWeight: FontWeight.bold, fontSize: 16),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
             ),
             const SizedBox(width: 8),
-            // ✅ "Sample" badge for seed events, "Admin" badge for DB events
             Container(
               margin: const EdgeInsets.only(right: 6),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -202,7 +329,6 @@ class _EventsPageState extends State<EventsPage> {
             ),
           ]),
         ),
-        // Body
         Padding(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -240,7 +366,8 @@ class _EventsPageState extends State<EventsPage> {
             const SizedBox(height: 16),
             Row(children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Entry Fee', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                const Text('Entry Fee',
+                    style: TextStyle(fontSize: 11, color: Colors.grey)),
                 Text(
                   event.isFree ? 'FREE' : '₹${event.price.toStringAsFixed(0)}',
                   style: TextStyle(
@@ -256,7 +383,8 @@ class _EventsPageState extends State<EventsPage> {
                   backgroundColor: const Color(0xFFFF9933),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
                 child: const Text('Register',
                     style: TextStyle(fontWeight: FontWeight.bold)),
@@ -325,12 +453,16 @@ class EventConfirmationPage extends StatelessWidget {
               color: Colors.green.shade50, shape: BoxShape.circle,
               border: Border.all(color: Colors.green.shade300, width: 3),
             ),
-            child: const Center(child: Text('✅', style: TextStyle(fontSize: 52))),
+            child: const Center(
+                child: Text('✅', style: TextStyle(fontSize: 52))),
           ),
           const SizedBox(height: 20),
           Text(
-            isPaid ? 'Payment & Registration\nSuccessful!' : 'Registration Successful!',
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green),
+            isPaid
+                ? 'Payment & Registration\nSuccessful!'
+                : 'Registration Successful!',
+            style: const TextStyle(
+                fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green),
             textAlign: TextAlign.center,
           ),
           if (isSeed) ...[
@@ -338,10 +470,12 @@ class EventConfirmationPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8),
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.orange.shade200),
               ),
-              child: const Text('📋 Sample event — your registration has been saved!',
+              child: const Text(
+                  '📋 Sample event — your registration has been saved!',
                   style: TextStyle(fontSize: 13, color: Colors.orange),
                   textAlign: TextAlign.center),
             ),
@@ -351,11 +485,11 @@ class EventConfirmationPage extends StatelessWidget {
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               textAlign: TextAlign.center),
           const SizedBox(height: 28),
-          // Booking card
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.white, borderRadius: BorderRadius.circular(16),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFFF9933), width: 1.5),
             ),
             child: Column(children: [
@@ -365,28 +499,33 @@ class EventConfirmationPage extends StatelessWidget {
                 decoration: const BoxDecoration(
                   color: Color(0xFFFF9933),
                   borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(15), topRight: Radius.circular(15),
+                    topLeft: Radius.circular(15),
+                    topRight: Radius.circular(15),
                   ),
                 ),
                 child: const Row(children: [
                   Text('🎫', style: TextStyle(fontSize: 22)),
                   SizedBox(width: 10),
-                  Text('Booking Details', style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text('Booking Details',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16)),
                 ]),
               ),
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(children: [
-                  _detailRow('Event',    event.title),
+                  _detailRow('Event',   event.title),
                   _divider(),
-                  _detailRow('Temple',   event.templeName),
+                  _detailRow('Temple',  event.templeName),
                   _divider(),
-                  _detailRow('Date',     dateStr),
+                  _detailRow('Date',    dateStr),
                   _divider(),
-                  _detailRow('Time',     event.time),
+                  _detailRow('Time',    event.time),
                   if (event.location.isNotEmpty) ...[
-                    _divider(), _detailRow('Location', event.location),
+                    _divider(),
+                    _detailRow('Location', event.location),
                   ],
                   _divider(),
                   _detailRow('Name',  userName),
@@ -396,10 +535,15 @@ class EventConfirmationPage extends StatelessWidget {
                     _divider(),
                     _detailRow('Payment ID', paymentId!, highlight: true),
                     _divider(),
-                    _detailRow('Amount Paid', '₹${event.price.toStringAsFixed(0)}', highlight: true),
+                    _detailRow('Amount Paid',
+                        '₹${event.price.toStringAsFixed(0)}',
+                        highlight: true),
                   ],
-                  if (event.isFree) ...[
-                    _divider(), _detailRow('Entry Fee', 'FREE', highlight: true),
+                  if (!isPaid) ...[
+                    _divider(),
+                    _detailRow('Entry Fee',
+                        event.isFree ? 'FREE' : '₹${event.price.toStringAsFixed(0)}',
+                        highlight: true),
                   ],
                 ]),
               ),
@@ -409,18 +553,21 @@ class EventConfirmationPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12),
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.blue.shade200),
             ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Icon(Icons.info_outline, color: Colors.blue, size: 20),
               const SizedBox(width: 10),
-              Expanded(child: Text(
-                isSeed
-                    ? 'Sample event registration saved. When the admin adds real events, you can register for those too!'
-                    : 'A confirmation has been sent to $userEmail. Please carry a valid ID on the day of the event.',
-                style: TextStyle(fontSize: 13, color: Colors.blue.shade800),
-              )),
+              Expanded(
+                child: Text(
+                  isSeed
+                      ? 'Sample event registration saved. When the admin adds real events, you can register for those too!'
+                      : 'A confirmation has been sent to $userEmail. Please carry a valid ID on the day of the event.',
+                  style: TextStyle(fontSize: 13, color: Colors.blue.shade800),
+                ),
+              ),
             ]),
           ),
           const SizedBox(height: 28),
@@ -429,9 +576,11 @@ class EventConfirmationPage extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF9933), foregroundColor: Colors.white,
+                backgroundColor: const Color(0xFFFF9933),
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Done',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -443,17 +592,30 @@ class EventConfirmationPage extends StatelessWidget {
     );
   }
 
-  Widget _detailRow(String label, String value, {bool highlight = false}) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 100, child: Text(label,
-          style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500))),
-      Expanded(child: Text(value, style: TextStyle(
-          fontSize: 13,
-          fontWeight: highlight ? FontWeight.bold : FontWeight.w600,
-          color: highlight ? const Color(0xFFFF9933) : Colors.black87))),
-    ]),
-  );
+  Widget _detailRow(String label, String value, {bool highlight = false}) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(
+            width: 100,
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight:
+                        highlight ? FontWeight.bold : FontWeight.w600,
+                    color: highlight
+                        ? const Color(0xFFFF9933)
+                        : Colors.black87)),
+          ),
+        ]),
+      );
 
   Widget _divider() => Divider(height: 1, color: Colors.grey.shade200);
 }
@@ -468,9 +630,26 @@ class _RegisterSheet extends StatefulWidget {
   final String? prefillEmail;
   final String? prefillPhone;
 
+  final void Function({
+    required Event event,
+    required String userName,
+    required String userEmail,
+    required bool isSeed,
+  }) onFreeSuccess;
+
+  final void Function({
+    required Event event,
+    required String userName,
+    required String userEmail,
+    required String userPhone,
+    required Map<String, dynamic> order,
+  }) onOpenRazorpay;
+
   const _RegisterSheet({
     required this.event,
     required this.isSeed,
+    required this.onFreeSuccess,
+    required this.onOpenRazorpay,
     this.prefillName,
     this.prefillEmail,
     this.prefillPhone,
@@ -486,8 +665,6 @@ class _RegisterSheetState extends State<_RegisterSheet> {
   late final TextEditingController _phoneCtrl;
   final _formKey   = GlobalKey<FormState>();
   bool  _isLoading = false;
-  String? _pendingOrderId;
-  late Razorpay _razorpay;
 
   @override
   void initState() {
@@ -495,16 +672,13 @@ class _RegisterSheetState extends State<_RegisterSheet> {
     _nameCtrl  = TextEditingController(text: widget.prefillName  ?? '');
     _emailCtrl = TextEditingController(text: widget.prefillEmail ?? '');
     _phoneCtrl = TextEditingController(text: widget.prefillPhone ?? '');
-    _razorpay  = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR,   _onPaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
   }
 
   @override
   void dispose() {
-    _razorpay.clear();
-    _nameCtrl.dispose(); _emailCtrl.dispose(); _phoneCtrl.dispose();
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
     super.dispose();
   }
 
@@ -512,121 +686,83 @@ class _RegisterSheetState extends State<_RegisterSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    final userData = {
-      'user_name':  _nameCtrl.text.trim(),
-      'user_email': _emailCtrl.text.trim(),
-      'user_phone': _phoneCtrl.text.trim(),
-    };
+    final userName  = _nameCtrl.text.trim();
+    final userEmail = _emailCtrl.text.trim();
+    final userPhone = _phoneCtrl.text.trim();
 
     try {
-      if (widget.isSeed) {
-        // ✅ Seed event — always free, use sample-register or /:id/register
-        await ApiService.registerForEvent(widget.event.id, userData);
-        if (mounted) {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(
-            builder: (_) => EventConfirmationPage(
-              event: widget.event, userName: _nameCtrl.text.trim(),
-              userEmail: _emailCtrl.text.trim(), isSeed: true,
-            ),
-          ));
-        }
-      } else if (widget.event.isFree) {
-        // ✅ Real free DB event
-        await ApiService.registerForEvent(widget.event.id, userData);
-        if (mounted) {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(
-            builder: (_) => EventConfirmationPage(
-              event: widget.event, userName: _nameCtrl.text.trim(),
-              userEmail: _emailCtrl.text.trim(),
-            ),
-          ));
-        }
+      // ── KEY FIX: routing is based ONLY on isFree, NOT on isSeed.
+      // A seed event can be paid (e.g. price:150, isFree:false) and must
+      // go through Razorpay just like a real paid event.
+      if (widget.event.isFree) {
+        // ── FREE path ─────────────────────────────────────────────────────
+        await ApiService.registerForEvent(widget.event.id, {
+          'user_name':  userName,
+          'user_email': userEmail,
+          'user_phone': userPhone,
+        });
+        if (!mounted) return;
+        Navigator.pop(context);
+        widget.onFreeSuccess(
+          event:     widget.event,
+          userName:  userName,
+          userEmail: userEmail,
+          isSeed:    widget.isSeed,
+        );
+
       } else {
-        // ✅ Real paid DB event — Razorpay
+        // ── PAID path (seed or real) ───────────────────────────────────────
         final order = await ApiService.createRazorpayOrder(
-          widget.event.price, 'event_${widget.event.id}',
+          widget.event.price,
+          'event_${widget.event.id}',
           {'event_id': widget.event.id, 'type': 'event_registration'},
         );
-        if (order['order_id'] == null) {
+
+        final orderId = order['order_id']?.toString() ?? '';
+        if (orderId.isEmpty) {
           throw Exception('Payment server unavailable. Please try again.');
         }
-        _pendingOrderId = order['order_id'] as String;
-        _razorpay.open({
-          'key':         order['razorpay_key'] ?? 'rzp_test_SJdyZblt9njE1Z',
-          'amount':      order['amount'],
-          'currency':    order['currency'] ?? 'INR',
-          'order_id':    order['order_id'],
-          'name':        'GodsConnect Events',
-          'description': widget.event.title,
-          'prefill': {
-            'name':    _nameCtrl.text.trim(),
-            'email':   _emailCtrl.text.trim(),
-            'contact': _phoneCtrl.text.trim(),
-          },
-          'theme': {'color': '#FF9933'},
-        });
+
+        if (!mounted) return;
+
+        // Capture before pop — widget refs are invalid after dispose
+        final razorpayCallback = widget.onOpenRazorpay;
+        final capturedEvent    = widget.event;
+        final capturedOrder    = order;
+        final capturedName     = userName;
+        final capturedEmail    = userEmail;
+        final capturedPhone    = userPhone;
+
+        Navigator.pop(context);
+
+        // Wait for sheet dismiss animation before opening Razorpay
+        await Future.delayed(const Duration(milliseconds: 400));
+
+        razorpayCallback(
+          event:     capturedEvent,
+          userName:  capturedName,
+          userEmail: capturedEmail,
+          userPhone: capturedPhone,
+          order:     capturedOrder,
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: ${e.toString().replaceAll('Exception:', '').trim()}'),
+          content: Text(
+              'Error: ${e.toString().replaceAll('Exception:', '').trim()}'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 4),
         ));
+        setState(() => _isLoading = false);
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _onPaymentSuccess(PaymentSuccessResponse response) async {
-    try {
-      await ApiService.registerForEvent(widget.event.id, {
-        'user_name':           _nameCtrl.text.trim(),
-        'user_email':          _emailCtrl.text.trim(),
-        'user_phone':          _phoneCtrl.text.trim(),
-        'razorpay_payment_id': response.paymentId,
-        'razorpay_order_id':   response.orderId ?? _pendingOrderId,
-        'razorpay_signature':  response.signature,
-      });
-    } catch (_) {}
-    if (mounted) {
-      Navigator.pop(context);
-      Navigator.push(context, MaterialPageRoute(
-        builder: (_) => EventConfirmationPage(
-          event: widget.event, userName: _nameCtrl.text.trim(),
-          userEmail: _emailCtrl.text.trim(),
-          paymentId: response.paymentId, isPaid: true,
-        ),
-      ));
-    }
-  }
-
-  void _onPaymentError(PaymentFailureResponse r) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Payment failed: ${r.message ?? 'Unknown error'}'),
-        backgroundColor: Colors.red,
-      ));
-      setState(() => _isLoading = false);
-    }
-  }
-
-  void _onExternalWallet(ExternalWalletResponse r) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Wallet selected: ${r.walletName}'),
-        backgroundColor: const Color(0xFFFF9933),
-      ));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final bool isAutoFilled =
-        (widget.prefillName?.isNotEmpty == true) ||
+        (widget.prefillName?.isNotEmpty  == true) ||
         (widget.prefillEmail?.isNotEmpty == true) ||
         (widget.prefillPhone?.isNotEmpty == true);
 
@@ -638,57 +774,79 @@ class _RegisterSheetState extends State<_RegisterSheet> {
       child: Form(
         key: _formKey,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 40, height: 4,
+          Container(
+            width: 40, height: 4,
             decoration: BoxDecoration(
-                color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 16),
           Text('Register: ${widget.event.title}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center),
           const SizedBox(height: 4),
-          if (widget.isSeed)
-            _infoBanner(color: Colors.orange, icon: Icons.info_outline,
+          // Show fee info — seed paid events show the price, not "FREE"
+          if (widget.isSeed && widget.event.isFree)
+            _infoBanner(
+                color: Colors.orange,
+                icon: Icons.info_outline,
                 text: 'Sample event — Registration is FREE')
           else
             Text(
               widget.event.isFree
                   ? 'Free Entry — No payment required'
                   : 'Entry Fee: ₹${widget.event.price.toStringAsFixed(0)}',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-                  color: widget.event.isFree ? Colors.green : const Color(0xFFFF9933)),
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: widget.event.isFree
+                      ? Colors.green
+                      : const Color(0xFFFF9933)),
             ),
           if (isAutoFilled) ...[
             const SizedBox(height: 8),
-            _infoBanner(color: Colors.green, icon: Icons.check_circle,
+            _infoBanner(
+                color: Colors.green,
+                icon: Icons.check_circle,
                 text: 'Details auto-filled from your account ✓'),
           ],
           const SizedBox(height: 16),
           _field(_nameCtrl, 'Full Name', Icons.person,
-              validator: (v) => v!.trim().isEmpty ? 'Enter name' : null),
+              validator: (v) =>
+                  v!.trim().isEmpty ? 'Enter name' : null),
           const SizedBox(height: 10),
-          _field(_emailCtrl, 'Email', Icons.email, type: TextInputType.emailAddress,
-              validator: (v) => !v!.contains('@') ? 'Enter valid email' : null),
+          _field(_emailCtrl, 'Email', Icons.email,
+              type: TextInputType.emailAddress,
+              validator: (v) =>
+                  !v!.contains('@') ? 'Enter valid email' : null),
           const SizedBox(height: 10),
-          _field(_phoneCtrl, 'Phone', Icons.phone, type: TextInputType.phone,
-              validator: (v) => v!.length < 10 ? 'Enter valid phone' : null),
+          _field(_phoneCtrl, 'Phone', Icons.phone,
+              type: TextInputType.phone,
+              validator: (v) =>
+                  v!.length < 10 ? 'Enter valid phone' : null),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _isLoading ? null : _submit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF9933), foregroundColor: Colors.white,
+                backgroundColor: const Color(0xFFFF9933),
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: _isLoading
-                  ? const SizedBox(height: 20, width: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  ? const SizedBox(
+                      height: 20, width: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
                   : Text(
-                      widget.isSeed ? '🎉 Register (Free)'
-                          : widget.event.isFree ? '🎉 Register for Free'
+                      widget.event.isFree
+                          ? '🎉 Register for Free'
                           : 'Pay ₹${widget.event.price.toStringAsFixed(0)} & Register',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.bold),
                     ),
             ),
           ),
@@ -698,34 +856,51 @@ class _RegisterSheetState extends State<_RegisterSheet> {
     );
   }
 
-  Widget _infoBanner({required Color color, required IconData icon, required String text}) =>
-    Container(
-      margin: const EdgeInsets.only(top: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 6),
-        Expanded(child: Text(text, style: TextStyle(fontSize: 12, color: color))),
-      ]),
-    );
-
-  Widget _field(TextEditingController ctrl, String hint, IconData icon,
-      {TextInputType? type, String? Function(String?)? validator}) =>
-    TextFormField(
-      controller: ctrl, keyboardType: type, validator: validator,
-      decoration: InputDecoration(
-        hintText: hint,
-        prefixIcon: Icon(icon, color: const Color(0xFFFF9933)),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFFF9933), width: 2),
+  Widget _infoBanner({
+    required Color color,
+    required IconData icon,
+    required String text,
+  }) =>
+      Container(
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      ),
-    );
+        child: Row(children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+              child: Text(text,
+                  style: TextStyle(fontSize: 12, color: color))),
+        ]),
+      );
+
+  Widget _field(
+    TextEditingController ctrl,
+    String hint,
+    IconData icon, {
+    TextInputType? type,
+    String? Function(String?)? validator,
+  }) =>
+      TextFormField(
+        controller: ctrl,
+        keyboardType: type,
+        validator: validator,
+        decoration: InputDecoration(
+          hintText: hint,
+          prefixIcon: Icon(icon, color: const Color(0xFFFF9933)),
+          border:
+              OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+                const BorderSide(color: Color(0xFFFF9933), width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12, vertical: 14),
+        ),
+      );
 }

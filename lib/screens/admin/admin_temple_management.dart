@@ -150,7 +150,12 @@ class _AdminTempleManagementPageState extends State<AdminTempleManagementPage> {
     final name     = t['name']     ?? 'Unknown Temple';
     final location = t['location'] ?? t['city'] ?? '';
     final rating   = (t['rating'] as num?)?.toDouble() ?? 0.0;
-    final id       = t['_id']?.toString() ?? '';
+
+    // ── Timing display ────────────────────────────────────────
+    final openTime       = t['openTime']       ?? t['open_time']        ?? '6:00 AM';
+    final closeTime      = t['closeTime']      ?? t['close_time']       ?? '12:00 PM';
+    final reopenTime     = t['reopenTime']     ?? t['reopen_time']      ?? '4:00 PM';
+    final finalCloseTime = t['finalCloseTime'] ?? t['final_close_time'] ?? '8:30 PM';
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -189,6 +194,19 @@ class _AdminTempleManagementPageState extends State<AdminTempleManagementPage> {
                 const SizedBox(width: 2),
                 Text('$rating', style: const TextStyle(color: _textGrey, fontSize: 12)),
               ],
+            ]),
+            const SizedBox(height: 4),
+            // ── Two-session timing display ─────────────────────
+            Row(children: [
+              const Icon(Icons.wb_sunny_outlined, size: 11, color: _textGrey),
+              const SizedBox(width: 3),
+              Text('$openTime – $closeTime',
+                  style: const TextStyle(color: _textGrey, fontSize: 11)),
+              const SizedBox(width: 8),
+              const Icon(Icons.nights_stay_outlined, size: 11, color: _textGrey),
+              const SizedBox(width: 3),
+              Text('$reopenTime – $finalCloseTime',
+                  style: const TextStyle(color: _textGrey, fontSize: 11)),
             ]),
             const SizedBox(height: 6),
             Container(
@@ -268,17 +286,68 @@ class _AdminTempleManagementPageState extends State<AdminTempleManagementPage> {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  // TIME PICKER HELPER
+  // ─────────────────────────────────────────────────────────────────────
+  Future<void> _pickTime(
+    BuildContext ctx,
+    TextEditingController ctrl,
+    StateSetter setSheet,
+  ) async {
+    // Parse existing value into TimeOfDay
+    TimeOfDay initial = TimeOfDay.now();
+    try {
+      final text = ctrl.text.trim();
+      if (text.isNotEmpty) {
+        final parts  = text.split(' ');
+        final hm     = parts[0].split(':');
+        int h        = int.parse(hm[0]);
+        final m      = hm.length > 1 ? int.parse(hm[1]) : 0;
+        final period = parts.length > 1 ? parts[1] : 'AM';
+        if (period == 'PM' && h != 12) h += 12;
+        if (period == 'AM' && h == 12) h = 0;
+        initial = TimeOfDay(hour: h, minute: m);
+      }
+    } catch (_) {}
+
+    final picked = await showTimePicker(
+      context: ctx,
+      initialTime: initial,
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: _primary,
+            onPrimary: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked != null) {
+      final period = picked.hour < 12 ? 'AM' : 'PM';
+      final h      = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
+      final m      = picked.minute.toString().padLeft(2, '0');
+      setSheet(() => ctrl.text = '$h:$m $period');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // ADD / EDIT FORM — now with 4 time pickers
+  // ─────────────────────────────────────────────────────────────────────
   void _openTempleForm({Map<String, dynamic>? temple}) {
-    final isEdit       = temple != null;
-    final nameCtrl     = TextEditingController(text: isEdit ? temple['name']        ?? '' : '');
-    final locationCtrl = TextEditingController(text: isEdit ? temple['location']    ?? temple['city'] ?? '' : '');
-    final deityCtrl    = TextEditingController(text: isEdit ? temple['deity']       ?? '' : '');
-    final openCtrl     = TextEditingController(text: isEdit ? temple['openTime']    ?? '' : '');
-    final closeCtrl    = TextEditingController(text: isEdit ? temple['closeTime']   ?? '' : '');
-    final descCtrl     = TextEditingController(text: isEdit ? temple['description'] ?? '' : '');
-    final imageCtrl    = TextEditingController(text: isEdit ? temple['imageUrl']    ?? '' : '');
-    final formKey      = GlobalKey<FormState>();
-    bool saving        = false;
+    final isEdit           = temple != null;
+    final nameCtrl         = TextEditingController(text: isEdit ? temple['name']           ?? '' : '');
+    final locationCtrl     = TextEditingController(text: isEdit ? temple['location']       ?? temple['city'] ?? '' : '');
+    final deityCtrl        = TextEditingController(text: isEdit ? temple['deity']          ?? '' : '');
+    final openCtrl         = TextEditingController(text: isEdit ? temple['openTime']       ?? temple['open_time']        ?? '6:00 AM'  : '6:00 AM');
+    final closeCtrl        = TextEditingController(text: isEdit ? temple['closeTime']      ?? temple['close_time']       ?? '12:00 PM' : '12:00 PM');
+    final reopenCtrl       = TextEditingController(text: isEdit ? temple['reopenTime']     ?? temple['reopen_time']      ?? '4:00 PM'  : '4:00 PM');
+    final finalCloseCtrl   = TextEditingController(text: isEdit ? temple['finalCloseTime'] ?? temple['final_close_time'] ?? '8:30 PM'  : '8:30 PM');
+    final descCtrl         = TextEditingController(text: isEdit ? temple['description']    ?? '' : '');
+    final imageCtrl        = TextEditingController(text: isEdit ? temple['imageUrl']       ?? '' : '');
+    final formKey          = GlobalKey<FormState>();
+    bool saving            = false;
 
     showModalBottomSheet(
       context: context,
@@ -304,23 +373,41 @@ class _AdminTempleManagementPageState extends State<AdminTempleManagementPage> {
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textDark)),
                   const SizedBox(height: 20),
 
-                  _ff(nameCtrl,     'Temple Name *',       Icons.temple_hindu,      required: true),
+                  // ── Basic info ──────────────────────────────────────────
+                  _ff(nameCtrl,     'Temple Name *',     Icons.temple_hindu,  required: true),
                   const SizedBox(height: 12),
-                  _ff(locationCtrl, 'Location / City *',   Icons.location_on,       required: true),
+                  _ff(locationCtrl, 'Location / City *', Icons.location_on,   required: true),
                   const SizedBox(height: 12),
-                  _ff(deityCtrl,    'Main Deity',          Icons.person_outline),
-                  const SizedBox(height: 12),
+                  _ff(deityCtrl,    'Main Deity',        Icons.person_outline),
+                  const SizedBox(height: 16),
+
+                  // ── Morning session ─────────────────────────────────────
+                  _sectionLabel('🌅  Morning Session', _primary),
+                  const SizedBox(height: 8),
                   Row(children: [
-                    Expanded(child: _ff(openCtrl,  'Open Time',  Icons.access_time)),
+                    Expanded(child: _timePicker(ctx, openCtrl,   'Opens',  Icons.wb_sunny_outlined,  setSheet)),
                     const SizedBox(width: 10),
-                    Expanded(child: _ff(closeCtrl, 'Close Time', Icons.access_time_filled)),
+                    Expanded(child: _timePicker(ctx, closeCtrl,  'Closes', Icons.wb_cloudy_outlined, setSheet)),
                   ]),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
+
+                  // ── Evening session ─────────────────────────────────────
+                  _sectionLabel('🌆  Evening Session', _primary),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _timePicker(ctx, reopenCtrl,     'Re-opens', Icons.nights_stay_outlined, setSheet)),
+                    const SizedBox(width: 10),
+                    Expanded(child: _timePicker(ctx, finalCloseCtrl, 'Closes',   Icons.bedtime_outlined,     setSheet)),
+                  ]),
+                  const SizedBox(height: 16),
+
+                  // ── Optional fields ─────────────────────────────────────
                   _ff(imageCtrl, 'Image URL (optional)', Icons.image_outlined),
                   const SizedBox(height: 12),
                   _ff(descCtrl,  'Description',          Icons.description_outlined, maxLines: 2),
                   const SizedBox(height: 20),
 
+                  // ── Save button ─────────────────────────────────────────
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -328,14 +415,16 @@ class _AdminTempleManagementPageState extends State<AdminTempleManagementPage> {
                         if (!formKey.currentState!.validate()) return;
                         setSheet(() => saving = true);
                         final data = {
-                          'name':        nameCtrl.text.trim(),
-                          'location':    locationCtrl.text.trim(),
-                          'deity':       deityCtrl.text.trim(),
-                          'openTime':    openCtrl.text.trim(),
-                          'closeTime':   closeCtrl.text.trim(),
-                          'imageUrl':    imageCtrl.text.trim(),
-                          'description': descCtrl.text.trim(),
-                          'isVerified':  false,
+                          'name':           nameCtrl.text.trim(),
+                          'location':       locationCtrl.text.trim(),
+                          'deity':          deityCtrl.text.trim(),
+                          'openTime':       openCtrl.text.trim(),
+                          'closeTime':      closeCtrl.text.trim(),
+                          'reopenTime':     reopenCtrl.text.trim(),
+                          'finalCloseTime': finalCloseCtrl.text.trim(),
+                          'imageUrl':       imageCtrl.text.trim(),
+                          'description':    descCtrl.text.trim(),
+                          'isVerified':     false,
                         };
                         try {
                           if (isEdit) {
@@ -343,7 +432,10 @@ class _AdminTempleManagementPageState extends State<AdminTempleManagementPage> {
                           } else {
                             await ApiService.addTemple(data);
                           }
-                          if (context.mounted) Navigator.pop(context);
+                          // FIX: use ctx.mounted (the StatefulBuilder's local context),
+                          // NOT context.mounted (the State's context — an unrelated mounted check)
+                          if (!ctx.mounted) return;
+                          Navigator.pop(ctx);
                           _load();
                           _snack(isEdit ? 'Temple updated ✓' : 'Temple added ✓', _primary);
                         } catch (e) {
@@ -370,6 +462,40 @@ class _AdminTempleManagementPageState extends State<AdminTempleManagementPage> {
       ),
     );
   }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // UI HELPERS
+  // ─────────────────────────────────────────────────────────────────────
+
+  Widget _sectionLabel(String label, Color color) => Row(children: [
+    Container(width: 3, height: 16, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+    const SizedBox(width: 8),
+    Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: color)),
+  ]);
+
+  Widget _timePicker(
+    BuildContext ctx,
+    TextEditingController ctrl,
+    String label,
+    IconData icon,
+    StateSetter setSheet,
+  ) =>
+      TextFormField(
+        controller: ctrl,
+        readOnly: true,
+        onTap: () => _pickTime(ctx, ctrl, setSheet),
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: _primary, size: 20),
+          suffixIcon: const Icon(Icons.access_time, color: _primary, size: 18),
+          filled: true, fillColor: _bg,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: _accent)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: _primary, width: 1.5)),
+        ),
+      );
 
   Widget _ff(TextEditingController ctrl, String label, IconData icon,
       {bool required = false, int maxLines = 1}) =>

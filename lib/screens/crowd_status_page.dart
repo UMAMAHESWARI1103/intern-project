@@ -100,7 +100,7 @@ class _CrowdStatusPageState extends State<CrowdStatusPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF9933).withOpacity(0.1),
+              color: const Color(0xFFFF9933).withValues(alpha:0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFFF9933)),
             ),
@@ -282,7 +282,7 @@ class _CrowdStatusPageState extends State<CrowdStatusPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFF9933).withOpacity(0.1),
+        color: const Color(0xFFFF9933).withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(

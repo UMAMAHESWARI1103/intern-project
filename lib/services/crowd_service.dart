@@ -20,25 +20,37 @@ class CrowdService {
       level = 'very_high';
     } else if (weekday == 6 || weekday == 7) {
       // Weekend
+      // FIX lines 25–27: all single-line else-if bodies wrapped in {}
       if (hour >= 6 && hour < 9) {
         level = 'medium';
-      } else if (hour >= 9 && hour < 18)  level = 'very_high';
-      else if (hour >= 18 && hour < 21) level = 'high';
-      else                               level = 'low';
+      } else if (hour >= 9 && hour < 18) {
+        level = 'very_high';
+      } else if (hour >= 18 && hour < 21) {
+        level = 'high';
+      } else {
+        level = 'low';
+      }
     } else {
       // Weekday
+      // FIX lines 32–36: all single-line else-if bodies wrapped in {}
       if (hour >= 5 && hour < 8) {
         level = 'low';
-      } else if (hour >= 8 && hour < 11)  level = 'medium';
-      else if (hour >= 11 && hour < 14) level = 'high';
-      else if (hour >= 14 && hour < 17) level = 'medium';
-      else if (hour >= 17 && hour < 21) level = 'high';
-      else                               level = 'low';
+      } else if (hour >= 8 && hour < 11) {
+        level = 'medium';
+      } else if (hour >= 11 && hour < 14) {
+        level = 'high';
+      } else if (hour >= 14 && hour < 17) {
+        level = 'medium';
+      } else if (hour >= 17 && hour < 21) {
+        level = 'high';
+      } else {
+        level = 'low';
+      }
     }
 
     return {
-      'level':      level,
-      'percent':    _toPercent(level),
+      'level':       level,
+      'percent':     _toPercent(level),
       'is_festival': isFestival,
     };
   }
@@ -46,9 +58,13 @@ class CrowdService {
   bool _isFestivalDay(DateTime now) {
     // Simple check: Fridays close to Pournami (full moon ~15th) are festival-ish
     // Replace with real MongoDB festival lookup for production
-    if (now.weekday == 5 && now.day >= 13 && now.day <= 16) return true;
+    if (now.weekday == 5 && now.day >= 13 && now.day <= 16) {
+      return true;
+    }
     // Major Tamil festival months: January (Pongal), March (Panguni)
-    if (now.month == 1 && now.day >= 14 && now.day <= 17) return true;
+    if (now.month == 1 && now.day >= 14 && now.day <= 17) {
+      return true;
+    }
     return false;
   }
 
@@ -64,7 +80,9 @@ class CrowdService {
 
   /// Returns "go" | "wait" | "avoid"
   String getGoDecision(String crowdLevel, bool canReach) {
-    if (!canReach) return 'avoid';
+    if (!canReach) {
+      return 'avoid';
+    }
     switch (crowdLevel) {
       case 'low':       return 'go';
       case 'medium':    return 'go';
@@ -75,7 +93,9 @@ class CrowdService {
   }
 
   String getBestTime(String crowdLevel, DateTime now) {
-    if (crowdLevel == 'low') return 'Right now is a great time! Peaceful darshan expected.';
+    if (crowdLevel == 'low') {
+      return 'Right now is a great time! Peaceful darshan expected.';
+    }
     final isWeekend = now.weekday == 6 || now.weekday == 7;
     if (isWeekend) {
       return 'Weekends are crowded. Best: Weekday mornings 6–8 AM or evenings 7–8 PM.';

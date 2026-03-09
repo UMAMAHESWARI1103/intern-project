@@ -18,7 +18,7 @@ class DosAndDontsPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF9933).withOpacity(0.1),
+              color: const Color(0xFFFF9933).withValues(alpha:0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFFF9933)),
             ),
@@ -221,7 +221,7 @@ class DosAndDontsPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
+              color: Colors.blue.withValues(alpha:0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.blue),
             ),
@@ -249,14 +249,14 @@ class DosAndDontsPage extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.green),
-        color: Colors.green.withOpacity(0.05),
+        color: Colors.green.withValues(alpha:0.05),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.2),
+              color: Colors.green.withValues(alpha:0.2),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: Colors.green, size: 24),
@@ -297,14 +297,14 @@ class DosAndDontsPage extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.red),
-        color: Colors.red.withOpacity(0.05),
+        color: Colors.red.withValues(alpha:0.05),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.2),
+              color: Colors.red.withValues(alpha:0.2),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: Colors.red, size: 24),

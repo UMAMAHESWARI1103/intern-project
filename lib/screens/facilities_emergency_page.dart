@@ -206,7 +206,7 @@ class FacilitiesEmergencyPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF9933).withOpacity(0.1),
+              color: const Color(0xFFFF9933).withValues(alpha:0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: const Color(0xFFFF9933), size: 28),
@@ -260,7 +260,7 @@ class FacilitiesEmergencyPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF9933).withOpacity(0.1),
+              color: const Color(0xFFFF9933).withValues(alpha:0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: const Color(0xFFFF9933), size: 28),
@@ -313,7 +313,7 @@ class FacilitiesEmergencyPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF9933).withOpacity(0.1),
+              color: const Color(0xFFFF9933).withValues(alpha:0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: const Color(0xFFFF9933), size: 28),

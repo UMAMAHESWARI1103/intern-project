@@ -1,7 +1,7 @@
+// lib/screens/admin/admin_reports_analytics.dart
+
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
-
-// Place at: lib/screens/admin/admin_reports_analytics.dart
 
 class AdminReportsAnalyticsPage extends StatefulWidget {
   const AdminReportsAnalyticsPage({super.key});
@@ -23,18 +23,15 @@ class _AdminReportsAnalyticsPageState
   bool _isLoading = true;
   String? _error;
 
-  // ── Real data from DB ────────────────────────────────────────────────────
-  Map<String, dynamic> _stats         = {};
-  Map<String, dynamic> _revenueData   = {};
-  List<Map<String, dynamic>> _topTemples    = [];
-  List<Map<String, dynamic>> _donationByCategory = [];
-  List<Map<String, dynamic>> _monthlyTrend = [];
+  Map<String, dynamic> _stats   = {};
+  Map<String, dynamic> _reports = {};
+  int _eventRegCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _loadData();
+    _tabController = TabController(length: 2, vsync: this);
+    _load();
   }
 
   @override
@@ -43,58 +40,40 @@ class _AdminReportsAnalyticsPageState
     super.dispose();
   }
 
-  // ── Fetch everything from backend ────────────────────────────────────────
-  Future<void> _loadData() async {
+  Future<void> _load() async {
     setState(() { _isLoading = true; _error = null; });
     try {
       final results = await Future.wait([
         ApiService.getAdminStats(),
         ApiService.getAdminReports(),
+        ApiService.getAdminEventRegistrations(),
       ]);
-
-      final stats   = results[0];
-      final reports = results[1];
-
-      setState(() {
-        _stats = stats;
-
-        // Revenue breakdown from real DB
-        _revenueData = {
-          'bookingsRevenue':  reports['bookingsRevenue']  ?? 0,
-          'donationsRevenue': reports['donationsRevenue'] ?? 0,
-          'ecommerceRevenue': reports['ecommerceRevenue'] ?? 0,
-          'ordersRevenue':    reports['ordersRevenue']    ?? 0,
-          'totalRevenue':     reports['totalRevenue']     ?? 0,
-          'growth':           reports['growth']           ?? '+0%',
-        };
-
-        // Top temples from DB
-        _topTemples = List<Map<String, dynamic>>.from(
-          (reports['topTemples'] as List? ?? [])
-              .map((e) => Map<String, dynamic>.from(e as Map)),
-        );
-
-        // Donation breakdown by category
-        _donationByCategory = List<Map<String, dynamic>>.from(
-          (reports['donationsByCategory'] as List? ?? [])
-              .map((e) => Map<String, dynamic>.from(e as Map)),
-        );
-
-        // Monthly booking trend (last 6 months)
-        _monthlyTrend = List<Map<String, dynamic>>.from(
-          (reports['monthlyTrend'] as List? ?? [])
-              .map((e) => Map<String, dynamic>.from(e as Map)),
-        );
-
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _stats          = results[0] as Map<String, dynamic>;
+          _reports        = results[1] as Map<String, dynamic>;
+          _eventRegCount  = (results[2] as List).length;
+          _isLoading      = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error    = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) setState(() { _error = e.toString(); _isLoading = false; });
     }
   }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  num _n(Map m, String key, [num def = 0]) => (m[key] as num?) ?? def;
+
+  String _fmt(num n) {
+    if (n >= 100000) return '${(n / 100000).toStringAsFixed(1)}L';
+    if (n >= 1000)   return '${(n / 1000).toStringAsFixed(1)}K';
+    return n.toInt().toString();
+  }
+
+  List<Map<String, dynamic>> _list(String key) =>
+      List<Map<String, dynamic>>.from(
+          (_reports[key] as List? ?? [])
+              .map((e) => Map<String, dynamic>.from(e as Map)));
 
   @override
   Widget build(BuildContext context) {
@@ -106,11 +85,7 @@ class _AdminReportsAnalyticsPageState
         title: const Text('Reports & Analytics',
             style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-            tooltip: 'Refresh',
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -120,166 +95,164 @@ class _AdminReportsAnalyticsPageState
           tabs: const [
             Tab(text: '💰 Revenue'),
             Tab(text: '📊 Bookings'),
-            Tab(text: '🛕 Temples'),
           ],
         ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _primary))
           : _error != null
-              ? _buildError()
+              ? _errorView()
               : TabBarView(
                   controller: _tabController,
-                  children: [_revenueTab(), _bookingsTab(), _templesTab()],
+                  children: [_revenueTab(), _bookingsTab()],
                 ),
     );
   }
 
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.error_outline, color: Colors.red, size: 52),
-          const SizedBox(height: 14),
-          const Text('Failed to load data', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 8),
-          Text(_error ?? '', style: const TextStyle(color: Colors.grey, fontSize: 12),
-              textAlign: TextAlign.center),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: _loadData,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
+  // ── ERROR ─────────────────────────────────────────────────────────────────
+  Widget _errorView() => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.error_outline, color: Colors.red, size: 52),
+        const SizedBox(height: 14),
+        const Text('Failed to load data',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 8),
+        Text(_error ?? '',
+            style: const TextStyle(color: Colors.grey, fontSize: 12),
+            textAlign: TextAlign.center),
+        const SizedBox(height: 20),
+        ElevatedButton.icon(
+          onPressed: _load,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Retry'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
           ),
-        ]),
-      ),
-    );
-  }
+        ),
+      ]),
+    ),
+  );
 
-  // ── REVENUE TAB ──────────────────────────────────────────────────────────
+  // ── REVENUE TAB ───────────────────────────────────────────────────────────
   Widget _revenueTab() {
-    final total     = (_revenueData['totalRevenue']     ?? 0) as num;
-    final bookings  = (_revenueData['bookingsRevenue']  ?? 0) as num;
-    final donations = (_revenueData['donationsRevenue'] ?? 0) as num;
-    final ecommerce = (_revenueData['ecommerceRevenue'] ?? 0) as num;
-    final orders    = (_revenueData['ordersRevenue']    ?? 0) as num;
-    final growth    = _revenueData['growth'] ?? '+0%';
+    // ✅ backend reports: bookingsRevenue, donationsRevenue, ecommerceRevenue, ordersRevenue, totalRevenue, growth
+    final total     = _n(_reports, 'totalRevenue');
+    final bookings  = _n(_reports, 'bookingsRevenue');
+    final donations = _n(_reports, 'donationsRevenue');
+    final ecommerce = _n(_reports, 'ecommerceRevenue');
+    final orders    = _n(_reports, 'ordersRevenue');
+    final growth    = (_reports['growth'] ?? '+0%').toString();
+    final donCats   = _list('donationsByCategory');
 
     return ListView(padding: const EdgeInsets.all(16), children: [
-      // Period header
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-            color: _primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _primary.withValues(alpha: 0.3))),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Period: This Month',
-              style: TextStyle(fontWeight: FontWeight.bold, color: _textDark)),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-            decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6)),
-            child: Text(growth,
-                style: const TextStyle(
-                    color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
-          ),
-        ]),
-      ),
-      const SizedBox(height: 16),
 
       // Total revenue card
       Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
               colors: [Color(0xFFFF9933), Color(0xFFFFB347)],
-              begin: Alignment.topLeft, end: Alignment.bottomRight),
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Total Revenue',
-              style: TextStyle(color: Colors.white70, fontSize: 13)),
-          const SizedBox(height: 6),
-          Text('₹${_fmt(total.toInt())}',
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-          Text('Growth: $growth vs last period',
-              style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        child: Row(children: [
+          Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              const Text('Total Revenue',
+                  style: TextStyle(color: Colors.white70, fontSize: 13)),
+              const SizedBox(height: 4),
+              Text('₹${_fmt(total)}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text('Growth: $growth vs last month',
+                  style:
+                      const TextStyle(color: Colors.white70, fontSize: 12)),
+            ]),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10)),
+            child: Text(growth,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16)),
+          ),
         ]),
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: 20),
 
       const Text('Revenue Breakdown',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _textDark)),
+          style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: _textDark)),
       const SizedBox(height: 12),
-      _revenueBar('Bookings',   bookings.toInt(),  total.toInt(), Colors.blue),
-      const SizedBox(height: 10),
-      _revenueBar('Donations',  donations.toInt(), total.toInt(), Colors.purple),
-      const SizedBox(height: 10),
-      _revenueBar('E-Commerce', ecommerce.toInt(), total.toInt(), Colors.teal),
-      const SizedBox(height: 10),
-      _revenueBar('Orders',     orders.toInt(),    total.toInt(), Colors.indigo),
 
-      if (_donationByCategory.isNotEmpty) ...[
+      _revenueBar('Bookings',   bookings,  total, Colors.blue),
+      const SizedBox(height: 10),
+      _revenueBar('Donations',  donations, total, Colors.purple),
+      const SizedBox(height: 10),
+      _revenueBar('E-Commerce', ecommerce, total, Colors.teal),
+      const SizedBox(height: 10),
+      _revenueBar('Orders',     orders,    total, Colors.indigo),
+
+      if (donCats.isNotEmpty) ...[
         const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _accent)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _card(
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             const Text('Donations by Category',
                 style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 14, color: _textDark)),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: _textDark)),
             const SizedBox(height: 14),
-            ..._donationByCategory.map((d) {
-              final categoryColors = {
-                'General':    Colors.blue,
-                'Renovation': Colors.brown,
-                'Annadhanam': Colors.orange,
-                'Festival':   Colors.purple,
-                'Cow Seva':   Colors.green,
-              };
-              final color = categoryColors[d['category']] ?? Colors.grey;
-              final amount  = (d['amount']  ?? 0) as num;
-              final percent = (d['percent'] ?? 0) as num;
+            ...donCats.map((d) {
+              final color   = _categoryColor(d['category']?.toString() ?? '');
+              final amount  = _n(d, 'amount');
+              final percent = _n(d, 'percent');
               return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.only(bottom: 12),
                 child: Column(children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
                     Row(children: [
                       Container(
-                          width: 10, height: 10,
+                          width: 10,
+                          height: 10,
                           decoration: BoxDecoration(
                               color: color, shape: BoxShape.circle)),
-                      const SizedBox(width: 6),
-                      Text(d['category'] ?? '',
-                          style: const TextStyle(fontSize: 13, color: _textDark)),
+                      const SizedBox(width: 8),
+                      Text(d['category']?.toString() ?? '',
+                          style: const TextStyle(
+                              fontSize: 13, color: _textDark)),
                     ]),
-                    Text('₹${_fmt(amount.toInt())}  (${percent.toInt()}%)',
+                    Text('₹${_fmt(amount)}  (${percent.toInt()}%)',
                         style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                             color: _textDark)),
                   ]),
-                  const SizedBox(height: 4),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: (percent / 100).clamp(0.0, 1.0),
-                      backgroundColor: _accent,
-                      color: color,
-                      minHeight: 6,
-                    ),
-                  ),
+                  const SizedBox(height: 6),
+                  _progressBar(percent.toDouble() / 100, color),
                 ]),
               );
             }),
@@ -289,19 +262,16 @@ class _AdminReportsAnalyticsPageState
     ]);
   }
 
-  Widget _revenueBar(String label, int amount, int total, Color color) {
-    final pct = total > 0 ? amount / total : 0.0;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _accent)),
+  Widget _revenueBar(String label, num amount, num total, Color color) {
+    final pct =
+        total > 0 ? (amount / total).clamp(0.0, 1.0) : 0.0;
+    return _card(
       child: Column(children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Row(children: [
             Container(
-                width: 10, height: 10,
+                width: 10,
+                height: 10,
                 decoration:
                     BoxDecoration(color: color, shape: BoxShape.circle)),
             const SizedBox(width: 8),
@@ -312,88 +282,93 @@ class _AdminReportsAnalyticsPageState
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text('₹${_fmt(amount)}',
                 style: TextStyle(
-                    fontWeight: FontWeight.bold, color: color, fontSize: 15)),
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                    fontSize: 16)),
             Text('${(pct * 100).toInt()}% of total',
                 style: const TextStyle(fontSize: 10, color: _textGrey)),
           ]),
         ]),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: pct.clamp(0.0, 1.0),
-            backgroundColor: _accent,
-            color: color,
-            minHeight: 8,
-          ),
-        ),
+        const SizedBox(height: 10),
+        _progressBar(pct.toDouble(), color),
       ]),
     );
   }
 
-  // ── BOOKINGS TAB ─────────────────────────────────────────────────────────
+  // ── BOOKINGS TAB ──────────────────────────────────────────────────────────
   Widget _bookingsTab() {
-    final breakdown = (_stats['bookingBreakdown'] ?? {}) as Map;
-    final darshan   = (breakdown['darshan']  ?? 0) as num;
-    final homam     = (breakdown['homam']    ?? 0) as num;
-    final marriage  = (breakdown['marriage'] ?? 0) as num;
-    final prasadam  = (breakdown['prasadam'] ?? 0) as num;
-    final total     = darshan + homam + marriage + prasadam;
+    // ✅ bookingBreakdown is inside _stats (from /admin/stats)
+    final bd       = (_stats['bookingBreakdown'] as Map?) ?? {};
+    final darshan  = _n(bd, 'darshan');
+    final homam    = _n(bd, 'homam');
+    final marriage = _n(bd, 'marriage');
+    final prasadam = _n(bd, 'prasadam');
+    final eventReg = _eventRegCount;
+    final total    = darshan + homam + marriage + prasadam + eventReg;
+    final trend    = _list('monthlyTrend');
 
     return ListView(padding: const EdgeInsets.all(16), children: [
+
       GridView.count(
         crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.7,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.7,
         children: [
-          _miniCard('Total',    '$total',           Icons.book_online,           Colors.blue),
-          _miniCard('Darshan',  '${darshan.toInt()}',  Icons.temple_hindu,          Colors.deepOrange),
-          _miniCard('Homam',    '${homam.toInt()}',    Icons.local_fire_department, Colors.red),
-          _miniCard('Marriage', '${marriage.toInt()}', Icons.favorite,              Colors.pink),
+          _miniStat('Total',      '${total.toInt()}',    Icons.book_online,           Colors.blue),
+          _miniStat('Darshan',    '${darshan.toInt()}',  Icons.temple_hindu,          Colors.deepOrange),
+          _miniStat('Homam',      '${homam.toInt()}',    Icons.local_fire_department, Colors.red),
+          _miniStat('Marriage',   '${marriage.toInt()}', Icons.favorite,              Colors.pink),
+          _miniStat('Event Regs', '$eventReg',           Icons.app_registration,      Colors.green),
         ],
       ),
       const SizedBox(height: 20),
 
-      // Monthly trend chart
-      if (_monthlyTrend.isNotEmpty) ...[
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _accent)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Monthly Booking Trend',
+      if (trend.isNotEmpty) ...[
+        _card(
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+            const Text('Monthly Trend',
                 style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 14, color: _textDark)),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: _textDark)),
             const SizedBox(height: 16),
             SizedBox(
-              height: 160,
+              height: 150,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                children: _monthlyTrend.map((m) {
-                  final t = (m['total'] ?? 0) as num;
-                  final maxVal = _monthlyTrend
-                      .map((x) => (x['total'] ?? 0) as num)
-                      .fold(0.0, (a, b) => a > b.toDouble() ? a : b.toDouble());
+                children: trend.map((m) {
+                  final t      = _n(m, 'total');
+                  final maxVal = trend
+                      .map((x) => _n(x, 'total').toDouble())
+                      .fold(0.0, (a, b) => a > b ? a : b);
                   final h = maxVal > 0
-                      ? (t.toDouble() / maxVal * 130).clamp(10.0, 130.0)
+                      ? (t.toDouble() / maxVal * 120).clamp(10.0, 120.0)
                       : 10.0;
                   return Expanded(
-                    child: Column(mainAxisAlignment: MainAxisAlignment.end,
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                       Text('${t.toInt()}',
                           style: const TextStyle(
-                              fontSize: 9, fontWeight: FontWeight.bold,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
                               color: _textDark)),
                       const SizedBox(height: 3),
                       Container(
                         height: h,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        margin:
+                            const EdgeInsets.symmetric(horizontal: 4),
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [_primary, Colors.orange.shade300],
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFFFF9933),
+                              Color(0xFFFFCC80)
+                            ],
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
                           ),
@@ -401,9 +376,9 @@ class _AdminReportsAnalyticsPageState
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(m['month'] ?? '',
+                      Text(m['month']?.toString() ?? '',
                           style: const TextStyle(
-                              fontSize: 10, color: _textGrey)),
+                              fontSize: 9, color: _textGrey)),
                     ]),
                   );
                 }).toList(),
@@ -414,180 +389,86 @@ class _AdminReportsAnalyticsPageState
         const SizedBox(height: 16),
       ],
 
-      // Booking type breakdown
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _accent)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Booking Type Breakdown',
+      _card(
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+          const Text('Booking Types',
               style: TextStyle(
-                  fontWeight: FontWeight.bold, fontSize: 14, color: _textDark)),
-          const SizedBox(height: 12),
-          _bookTypeRow('🙏 Darshan',   darshan.toInt(),  total.toInt(), Colors.deepOrange),
-          _bookTypeRow('🔥 Homam',     homam.toInt(),    total.toInt(), Colors.red),
-          _bookTypeRow('💍 Marriage',  marriage.toInt(), total.toInt(), Colors.pink),
-          _bookTypeRow('🍛 Prasadham', prasadam.toInt(), total.toInt(), Colors.orange),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: _textDark)),
+          const SizedBox(height: 14),
+          _bookTypeRow('🙏 Darshan',    darshan,  total, Colors.deepOrange),
+          _bookTypeRow('🔥 Homam',      homam,    total, Colors.red),
+          _bookTypeRow('💍 Marriage',   marriage, total, Colors.pink),
+          _bookTypeRow('🍛 Prasadham',  prasadam, total, Colors.orange),
+          _bookTypeRow('🎉 Event Regs', eventReg, total, Colors.green),
         ]),
       ),
     ]);
   }
 
-  Widget _bookTypeRow(String label, int count, int total, Color color) =>
+  Widget _bookTypeRow(String label, num count, num total, Color color) =>
       Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: 7),
         child: Row(children: [
           SizedBox(
               width: 110,
               child: Text(label,
-                  style: const TextStyle(fontSize: 13, color: _textDark))),
+                  style:
+                      const TextStyle(fontSize: 13, color: _textDark))),
           Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: total > 0 ? (count / total).clamp(0.0, 1.0) : 0.0,
-                backgroundColor: _accent,
-                color: color,
-                minHeight: 6,
-              ),
-            ),
+            child: _progressBar(
+                total > 0
+                    ? (count / total).clamp(0.0, 1.0).toDouble()
+                    : 0.0,
+                color),
           ),
           const SizedBox(width: 10),
-          Text('$count',
+          Text('${count.toInt()}',
               style: TextStyle(
-                  fontWeight: FontWeight.bold, color: color, fontSize: 14)),
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                  fontSize: 14)),
         ]),
       );
 
-  // ── TEMPLES TAB ──────────────────────────────────────────────────────────
-  Widget _templesTab() {
-    final totalTemples  = (_stats['temples']          ?? 0) as num;
-    final verified      = (_stats['verifiedTemples']  ?? 0) as num;
-    final pending       = (_stats['pendingTemples']   ?? 0) as num;
-    final states        = (_stats['statesCovered']    ?? 0) as num;
+  // ── Shared widgets ────────────────────────────────────────────────────────
+  Widget _card({required Widget child}) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _accent)),
+    child: child,
+  );
 
-    return ListView(padding: const EdgeInsets.all(16), children: [
-      GridView.count(
-        crossAxisCount: 2,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.7,
-        children: [
-          _miniCard('Total Temples',    '${totalTemples.toInt()}', Icons.temple_hindu,    Colors.deepOrange),
-          _miniCard('Verified',         '${verified.toInt()}',     Icons.verified,        Colors.green),
-          _miniCard('Pending Approval', '${pending.toInt()}',      Icons.pending_actions, Colors.orange),
-          _miniCard('States Covered',   '${states.toInt()}',       Icons.map_outlined,    Colors.blue),
-        ],
-      ),
-      const SizedBox(height: 20),
+  Widget _progressBar(double value, Color color) => ClipRRect(
+    borderRadius: BorderRadius.circular(4),
+    child: LinearProgressIndicator(
+      value: value.clamp(0.0, 1.0),
+      backgroundColor: _accent,
+      color: color,
+      minHeight: 8,
+    ),
+  );
 
-      if (_topTemples.isEmpty)
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _accent)),
-          child: const Column(children: [
-            Text('🛕', style: TextStyle(fontSize: 48)),
-            SizedBox(height: 12),
-            Text('No temple performance data yet',
-                style: TextStyle(color: Colors.grey, fontSize: 14)),
-            SizedBox(height: 6),
-            Text('Data will appear once bookings are recorded',
-                style: TextStyle(color: Colors.grey, fontSize: 12)),
-          ]),
-        )
-      else ...[
-        const Text('Top Performing Temples',
-            style: TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 15, color: _textDark)),
-        const SizedBox(height: 12),
-        ..._topTemples.asMap().entries.map((e) {
-          final i = e.key;
-          final t = e.value;
-          final bookings  = (t['bookings']  ?? 0) as num;
-          final donations = (t['donations'] ?? 0) as num;
-          final rating    = (t['rating']    ?? 0.0);
-          return Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _accent),
-                boxShadow: [
-                  BoxShadow(
-                      color: _primary.withValues(alpha: 0.04),
-                      blurRadius: 6)
-                ]),
-            child: Row(children: [
-              Container(
-                width: 32, height: 32,
-                decoration: BoxDecoration(
-                    color: _primary.withValues(alpha: 0.15),
-                    shape: BoxShape.circle),
-                child: Center(
-                    child: Text('#${i + 1}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                            color: _primary))),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text(t['name'] ?? '',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: _textDark)),
-                  const SizedBox(height: 3),
-                  Row(children: [
-                    const Icon(Icons.book_online, size: 11, color: _textGrey),
-                    const SizedBox(width: 3),
-                    Text('${bookings.toInt()} bookings',
-                        style: const TextStyle(fontSize: 11, color: _textGrey)),
-                    const SizedBox(width: 10),
-                    const Icon(Icons.volunteer_activism, size: 11, color: _textGrey),
-                    const SizedBox(width: 3),
-                    Text('₹${_fmt(donations.toInt())}',
-                        style: const TextStyle(fontSize: 11, color: _textGrey)),
-                  ]),
-                ]),
-              ),
-              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                const Icon(Icons.star, color: Colors.amber, size: 16),
-                Text('$rating',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: _textDark)),
-              ]),
-            ]),
-          );
-        }),
-      ],
-    ]);
-  }
-
-  Widget _miniCard(String label, String value, IconData icon, Color color) =>
+  Widget _miniStat(String label, String value, IconData icon, Color color) =>
       Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _accent),
             boxShadow: [
               BoxShadow(
-                  color: color.withValues(alpha: 0.1), blurRadius: 6)
+                  color: color.withValues(alpha: 0.08), blurRadius: 6)
             ]),
         child: Row(children: [
           Container(
-            width: 36, height: 36,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10)),
@@ -604,15 +485,19 @@ class _AdminReportsAnalyticsPageState
                       fontWeight: FontWeight.bold,
                       color: _textDark)),
               Text(label,
-                  style: const TextStyle(fontSize: 10, color: _textGrey)),
+                  style:
+                      const TextStyle(fontSize: 10, color: _textGrey)),
             ]),
           ),
         ]),
       );
 
-  String _fmt(int n) {
-    if (n >= 100000) return '${(n / 100000).toStringAsFixed(1)}L';
-    if (n >= 1000)   return '${(n / 1000).toStringAsFixed(1)}K';
-    return '$n';
-  }
+  Color _categoryColor(String cat) => switch (cat) {
+        'General'    => Colors.blue,
+        'Renovation' => Colors.brown,
+        'Annadhanam' => Colors.orange,
+        'Festival'   => Colors.purple,
+        'Cow Seva'   => Colors.green,
+        _            => Colors.grey,
+      };
 }

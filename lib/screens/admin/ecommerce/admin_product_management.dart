@@ -13,10 +13,6 @@ class _AdminProductManagementPageState
     extends State<AdminProductManagementPage> {
   static const Color _primary  = Color(0xFFFF9933);
   static const Color _bg       = Color(0xFFFFF8F0);
-  static const Color _textDark = Color(0xFF3E1F00);
-  static const Color _textGrey = Color(0xFF9E7A50);
-  static const Color _accent   = Color(0xFFFFE0B2);
-
   List<Map<String, dynamic>> _products = [];
   bool _isLoading = true;
   String? _error;
@@ -512,12 +508,10 @@ class _ProductFormPageState extends State<_ProductFormPage> {
     super.dispose();
   }
 
-  // ✅ FIXED _save: always loads token first, shows real error message
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
 
-    // ✅ FIX 1: Always load token from SharedPreferences before making request
     await ApiService.loadToken();
 
     final tags = _tagsCtrl.text.trim().isEmpty
@@ -553,7 +547,6 @@ class _ProductFormPageState extends State<_ProductFormPage> {
         final result = await ApiService.addProduct(data);
         if (!mounted) return;
         setState(() => _isSaving = false);
-        // ✅ FIX 2: result is the full response body — check for product._id
         final saved = result != null &&
             (result['product'] != null || result['_id'] != null || result['message'] != null);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -566,7 +559,6 @@ class _ProductFormPageState extends State<_ProductFormPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      // ✅ FIX 3: Show the REAL server error (401, 403, 404, validation, etc.)
       final msg = e.toString().replaceAll('Exception:', '').trim();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Error: $msg'),
@@ -689,7 +681,9 @@ class _ProductFormPageState extends State<_ProductFormPage> {
                 subtitle: const Text('Shows "BESTSELLER" badge on product',
                     style: TextStyle(fontSize: 12)),
                 value: _isBestseller,
-                activeColor: _primary,
+                // FIX line 688: replaced deprecated activeColor with activeThumbColor + activeTrackColor
+                activeThumbColor: _primary,
+                activeTrackColor: _primary.withValues(alpha: 0.4),
                 onChanged: (v) => setState(() => _isBestseller = v),
                 contentPadding: EdgeInsets.zero,
               ),
@@ -700,7 +694,9 @@ class _ProductFormPageState extends State<_ProductFormPage> {
                 subtitle: const Text('Product will be shown to users',
                     style: TextStyle(fontSize: 12)),
                 value: _isActive,
-                activeColor: Colors.green,
+                // FIX line 699: replaced deprecated activeColor with activeThumbColor + activeTrackColor
+                activeThumbColor: Colors.green,
+                activeTrackColor: Colors.green.withValues(alpha: 0.4),
                 onChanged: (v) => setState(() => _isActive = v),
                 contentPadding: EdgeInsets.zero,
               ),

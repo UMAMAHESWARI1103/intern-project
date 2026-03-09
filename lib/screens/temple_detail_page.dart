@@ -37,6 +37,7 @@ class _TempleDetailPageState extends State<TempleDetailPage> {
       );
       final templeLat = widget.temple.lat;
       final templeLon = widget.temple.lon;
+      // lat/lon are double? — null check required; Dart smart-casts after != null
       if (templeLat != null && templeLon != null &&
           templeLat != 0.0 && templeLon != 0.0) {
         double distanceInMeters = Geolocator.distanceBetween(
@@ -54,16 +55,28 @@ class _TempleDetailPageState extends State<TempleDetailPage> {
     }
   }
 
+  // ── Returns formatted two-session timing string ──────────────────────────
+  String _getTimingText(Temple temple) {
+    if (temple.timingDisplay.isNotEmpty) {
+      return temple.timingDisplay;
+    }
+    final open       = temple.openTime.isNotEmpty       ? temple.openTime       : '6:00 AM';
+    final close      = temple.closeTime.isNotEmpty      ? temple.closeTime      : '12:30 PM';
+    final reopen     = temple.reopenTime.isNotEmpty     ? temple.reopenTime     : '4:00 PM';
+    final finalClose = temple.finalCloseTime.isNotEmpty ? temple.finalCloseTime : '8:30 PM';
+    return '$open–$close  |  $reopen–$finalClose';
+  }
+
   // ── Wrap Wikipedia URL through wsrv.nl proxy to fix hotlink block ────────
   String _proxyImage(String url) {
     if (url.isEmpty) return '';
-    // wsrv.nl is a free image proxy/CDN that bypasses hotlink protection
     return 'https://wsrv.nl/?url=${Uri.encodeComponent(url)}&w=600&output=jpg';
   }
 
   // ── Open Google Maps directions ──────────────────────────────────────────
   Future<void> _openDirections() async {
     final temple = widget.temple;
+    // lat/lon are double? — null check required
     if (temple.lat == null || temple.lon == null ||
         temple.lat == 0.0  || temple.lon == 0.0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -95,16 +108,17 @@ class _TempleDetailPageState extends State<TempleDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final temple = widget.temple;
-    final hasImage = temple.imageUrl.isNotEmpty;
+    final temple     = widget.temple;
+    final hasImage   = temple.imageUrl.isNotEmpty;
     final proxiedUrl = _proxyImage(temple.imageUrl);
+    final timingText = _getTimingText(temple);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF3E0),
       body: CustomScrollView(
         slivers: [
 
-          // ── SliverAppBar — real temple photo via proxy ───────────────────
+          // ── SliverAppBar ─────────────────────────────────────────────────
           SliverAppBar(
             expandedHeight: 260,
             pinned: true,
@@ -130,7 +144,6 @@ class _TempleDetailPageState extends State<TempleDetailPage> {
                               progress == null ? child : _fallbackHeader(),
                           errorBuilder: (ctx, err, stack) => _fallbackHeader(),
                         ),
-                        // Dark gradient so title stays readable
                         const DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -153,10 +166,9 @@ class _TempleDetailPageState extends State<TempleDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  // ── Status Row ─────────────────────────────────────────
+                  // ── Status Row ───────────────────────────────────────────
                   Row(
                     children: [
-                      // Open / Closed
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -179,7 +191,6 @@ class _TempleDetailPageState extends State<TempleDetailPage> {
                         ]),
                       ),
                       const SizedBox(width: 12),
-                      // Distance
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -211,16 +222,15 @@ class _TempleDetailPageState extends State<TempleDetailPage> {
 
                   const SizedBox(height: 16),
 
-                  // ── Info Cards ─────────────────────────────────────────
-                  _infoCard(icon: Icons.place,             title: 'Location', value: temple.location),
-                  _infoCard(icon: Icons.self_improvement,  title: 'Deity',    value: temple.deity),
-                  _infoCard(icon: Icons.access_time,       title: 'Timings',  value: '${temple.openTime} - ${temple.closeTime}'),
+                  _infoCard(icon: Icons.place,           title: 'Location', value: temple.location),
+                  _infoCard(icon: Icons.self_improvement, title: 'Deity',    value: temple.deity),
+                  _timingsCard(temple, timingText),
 
-                  // ── About ──────────────────────────────────────────────
                   if (temple.description.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     const Text('About',
-                        style: TextStyle(fontSize: 18,
+                        style: TextStyle(
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFFFF6600))),
                     const SizedBox(height: 8),
@@ -228,11 +238,11 @@ class _TempleDetailPageState extends State<TempleDetailPage> {
                         style: const TextStyle(fontSize: 14, height: 1.5)),
                   ],
 
-                  // ── Festivals ──────────────────────────────────────────
                   if (temple.festivals.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     const Text('Festivals',
-                        style: TextStyle(fontSize: 18,
+                        style: TextStyle(
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFFFF6600))),
                     const SizedBox(height: 8),
@@ -248,7 +258,6 @@ class _TempleDetailPageState extends State<TempleDetailPage> {
 
                   const SizedBox(height: 24),
 
-                  // ── Get Directions Button ──────────────────────────────
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -280,7 +289,98 @@ class _TempleDetailPageState extends State<TempleDetailPage> {
     );
   }
 
-  // ── Fallback orange gradient + icon ───────────────────────────────────────
+  // ── Two-session timings card ───────────────────────────────────────────────
+  Widget _timingsCard(Temple temple, String timingText) {
+    final open       = temple.openTime.isNotEmpty       ? temple.openTime       : '6:00 AM';
+    final close      = temple.closeTime.isNotEmpty      ? temple.closeTime      : '12:30 PM';
+    final reopen     = temple.reopenTime.isNotEmpty     ? temple.reopenTime     : '4:00 PM';
+    final finalClose = temple.finalCloseTime.isNotEmpty ? temple.finalCloseTime : '8:30 PM';
+    final hasTwoSessions = temple.timingDisplay.isEmpty;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: 2,
+      color: const Color(0xFFFFF8F0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFCC80),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.access_time,
+                  color: Color(0xFFFF6600), size: 22),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Timings',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 6),
+                  if (!hasTwoSessions)
+                    Text(timingText,
+                        style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold))
+                  else ...[
+                    _sessionRow(
+                      label: 'Morning',
+                      time:  '$open – $close',
+                      color: const Color(0xFFFF9933),
+                    ),
+                    const SizedBox(height: 6),
+                    _sessionRow(
+                      label: 'Evening',
+                      time:  '$reopen – $finalClose',
+                      color: const Color(0xFF7B61FF),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sessionRow({
+    required String label,
+    required String time,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 8, height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Text(label,
+            style: TextStyle(
+                fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+        const SizedBox(width: 8),
+        Text(time,
+            style: const TextStyle(
+                fontSize: 13,
+                color: Colors.black87,
+                fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  // ── Fallback orange header ─────────────────────────────────────────────────
   Widget _fallbackHeader() {
     return Container(
       decoration: const BoxDecoration(
@@ -298,7 +398,7 @@ class _TempleDetailPageState extends State<TempleDetailPage> {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.35),
+                color: Colors.white.withValues(alpha: 0.35),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.temple_hindu,
@@ -310,7 +410,7 @@ class _TempleDetailPageState extends State<TempleDetailPage> {
     );
   }
 
-  // ── Info card widget ───────────────────────────────────────────────────────
+  // ── Generic info card ──────────────────────────────────────────────────────
   Widget _infoCard({
     required IconData icon,
     required String title,

@@ -15,7 +15,7 @@ class Event {
   final String imageUrl;
   final bool isActive;
 
-  // Aliases for any legacy code
+  // Aliases for legacy code
   double get registrationFee => price;
   int get maxParticipants => maxCapacity;
 
@@ -38,57 +38,75 @@ class Event {
   });
 
   factory Event.fromJson(Map<String, dynamic> json) {
+    // Parse price first — needed to derive isFree if backend field is missing
+    final double parsedPrice = ((json['registration_fee'] ??
+            json['price'] ??
+            json['registrationFee'] ??
+            0) as num)
+        .toDouble();
+
+    // FIX: Never default isFree to true.
+    // Priority: is_free → isFree → derive from price (price == 0 means free)
+    final bool parsedIsFree = json.containsKey('is_free')
+        ? (json['is_free'] == true || json['is_free'] == 1)
+        : json.containsKey('isFree')
+            ? (json['isFree'] == true || json['isFree'] == 1)
+            : parsedPrice == 0.0; // fallback: free only if price is 0
+
     return Event(
-      // id — handle both _id (Mongo) and id
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
 
-      title:       json['title'] ?? '',
-      description: json['description'] ?? '',
+      title:       json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
 
-      // Backend sends temple_name and templeId / temple_id
-      templeName: json['temple_name'] ?? json['templeName'] ?? '',
-      templeId:   json['temple_id']?.toString() ?? json['templeId']?.toString() ?? '',
+      templeName: json['temple_name']?.toString() ??
+          json['templeName']?.toString() ?? '',
+      templeId: json['temple_id']?.toString() ??
+          json['templeId']?.toString() ?? '',
 
       date: json['date'] != null
           ? DateTime.tryParse(json['date'].toString()) ?? DateTime.now()
           : DateTime.now(),
 
-      time:     json['time'] ?? '',
-      location: json['location'] ?? '',
-      category: json['category'] ?? 'Other',
+      time:     json['time']?.toString() ?? '',
+      location: json['location']?.toString() ?? '',
+      category: json['category']?.toString() ?? 'Other',
 
-      // Backend sends registration_fee — also accept price as fallback
-      price: ((json['registration_fee'] ?? json['price'] ?? json['registrationFee'] ?? 0) as num).toDouble(),
+      price:  parsedPrice,
+      isFree: parsedIsFree,
 
-      // Backend sends is_free
-      isFree: json['is_free'] ?? json['isFree'] ?? true,
+      maxCapacity: ((json['max_participants'] ??
+              json['maxCapacity'] ??
+              json['maxParticipants'] ??
+              100) as num)
+          .toInt(),
 
-      // Backend sends max_participants — also accept maxCapacity as fallback
-      maxCapacity: ((json['max_participants'] ?? json['maxCapacity'] ?? json['maxParticipants'] ?? 100) as num).toInt(),
+      registeredCount: ((json['registered_count'] ??
+              json['registeredCount'] ??
+              0) as num)
+          .toInt(),
 
-      // Backend sends registered_count
-      registeredCount: ((json['registered_count'] ?? json['registeredCount'] ?? 0) as num).toInt(),
-
-      imageUrl: json['image_url'] ?? json['imageUrl'] ?? '',
+      imageUrl: json['image_url']?.toString() ??
+          json['imageUrl']?.toString() ?? '',
       isActive: json['is_active'] ?? json['isActive'] ?? true,
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'id':               id,
-    'title':            title,
-    'description':      description,
-    'temple_name':      templeName,
-    'temple_id':        templeId,
-    'date':             date.toIso8601String(),
-    'time':             time,
-    'location':         location,
-    'category':         category,
-    'registration_fee': price,
-    'is_free':          isFree,
-    'max_participants': maxCapacity,
-    'registered_count': registeredCount,
-    'image_url':        imageUrl,
-    'is_active':        isActive,
-  };
+        'id':               id,
+        'title':            title,
+        'description':      description,
+        'temple_name':      templeName,
+        'temple_id':        templeId,
+        'date':             date.toIso8601String(),
+        'time':             time,
+        'location':         location,
+        'category':         category,
+        'registration_fee': price,
+        'is_free':          isFree,
+        'max_participants': maxCapacity,
+        'registered_count': registeredCount,
+        'image_url':        imageUrl,
+        'is_active':        isActive,
+      };
 }

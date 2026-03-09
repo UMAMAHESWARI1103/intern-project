@@ -135,14 +135,9 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // ── Navigate directly to AI page ──────────────────────────────────────────
   void _goToAIPage() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const AISuggestionsPage(),
-      ),
-    );
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const AiSuggestionsPage()));
   }
 
   Future<void> _getUserLocation() async {
@@ -165,8 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
       final Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+          desiredAccuracy: LocationAccuracy.high);
       final bool isEmulatorLocation =
           (position.latitude > 30 && position.longitude < 0) ||
           (position.latitude == 0 && position.longitude == 0);
@@ -188,10 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final parsed = raw
           .map((e) => Temple.fromJson(e as Map<String, dynamic>))
           .toList();
-      setState(() {
-        _apiTemples       = parsed;
-        _isLoadingTemples = false;
-      });
+      setState(() { _apiTemples = parsed; _isLoadingTemples = false; });
     } catch (e) {
       setState(() {
         _isLoadingTemples = false;
@@ -208,10 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() { _isSearching = true; _isSearchLoading = true; });
     try {
       final results = await ApiService.searchTemples(query.trim());
-      setState(() {
-        _searchResults = List<Temple>.from(results);
-        _isSearchLoading = false;
-      });
+      setState(() { _searchResults = List<Temple>.from(results); _isSearchLoading = false; });
     } catch (_) {
       final q = query.trim().toLowerCase();
       setState(() {
@@ -232,16 +220,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _goToEvents() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => EventsPage(
-          loggedInName:  widget.user?.name,
-          loggedInEmail: widget.user?.email,
-          loggedInPhone: widget.user?.phone,
-        ),
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => EventsPage(
+        loggedInName:  widget.user?.name,
+        loggedInEmail: widget.user?.email,
+        loggedInPhone: widget.user?.phone,
       ),
-    );
+    ));
   }
 
   @override
@@ -262,22 +247,21 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: const Icon(Icons.menu),
           onPressed: () => _scaffoldKey.currentState?.openDrawer()),
       title: Row(children: [
-        Image.asset('assets/temple_icon.png', height: 28, errorBuilder: (_, __, ___) =>
-            const Text('🛕', style: TextStyle(fontSize: 22))),
+        Image.asset('assets/temple_icon.png', height: 28,
+            errorBuilder: (_, __, ___) =>
+                const Text('🛕', style: TextStyle(fontSize: 22))),
         const SizedBox(width: 6),
         const Text('GodsConnect',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
       ]),
       actions: [
-        // ✅ Directly navigate to AI page — no bottom sheet
+        // AI planner
         IconButton(
           icon: const Icon(Icons.auto_awesome, size: 22),
           tooltip: 'AI Visit Planner',
           onPressed: _goToAIPage,
         ),
-        IconButton(
-            icon: const Icon(Icons.notifications_outlined, size: 22),
-            onPressed: () {}),
+        // User avatar
         if (widget.user != null)
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -309,14 +293,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 backgroundColor: Colors.white,
                 child: Text(
                   widget.user != null ? widget.user!.initials[0] : 'G',
-                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFFFF9933)),
+                  style: const TextStyle(
+                      fontSize: 28, fontWeight: FontWeight.bold,
+                      color: Color(0xFFFF9933)),
                 ),
               ),
               const SizedBox(height: 16),
               Text(widget.user != null ? widget.user!.name : 'GodsConnect',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
               if (widget.user != null)
-                Text(widget.user!.email, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+                Text(widget.user!.email,
+                    style: const TextStyle(fontSize: 13, color: Colors.white70)),
             ]),
           ),
         ),
@@ -324,22 +312,28 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListView.builder(
             itemCount: _menuItems.length,
             itemBuilder: (context, index) => ListTile(
-              leading: Icon(_menuItems[index]['icon'] as IconData, color: const Color(0xFFFF9933)),
+              leading: Icon(_menuItems[index]['icon'] as IconData,
+                  color: const Color(0xFFFF9933)),
               title: Text(_menuItems[index]['label'] as String,
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
               onTap: () {
                 Navigator.pop(context);
                 final label = _menuItems[index]['label'] as String;
                 if (label == 'Facilities') {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const FacilitiesPage()));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const FacilitiesPage()));
                 } else if (label == 'Do/Don\'t') {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const DosAndDontsPage()));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const DosAndDontsPage()));
                 } else if (label == 'E-commerce') {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const EcommercePage()));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const EcommercePage()));
                 } else if (label == 'Bakthi Padal') {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const BakthiPadalPage()));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const BakthiPadalPage()));
                 } else if (label == 'Settings') {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const SettingsPage()));
                 }
               },
             ),
@@ -397,7 +391,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildAIBanner() {
     return GestureDetector(
-      // ✅ Directly navigate — no bottom sheet
       onTap: _goToAIPage,
       child: Container(
         width: double.infinity,
@@ -405,28 +398,29 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFFFF9933), Color(0xFFFFCC80)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.orange.shade200, blurRadius: 8, offset: const Offset(0, 3)),
+            BoxShadow(
+                color: Colors.orange.shade200,
+                blurRadius: 8, offset: const Offset(0, 3)),
           ],
         ),
         child: Row(children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(12),
-            ),
+                color: Colors.white.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12)),
             child: const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
           ),
           const SizedBox(width: 14),
           const Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('✨ AI Visit Planner',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               SizedBox(height: 3),
               Text('Pick a temple & vehicle — get crowd, travel time & best visit time',
                   style: TextStyle(color: Colors.white, fontSize: 12)),
@@ -464,7 +458,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_isSearchLoading) {
       return const Padding(
           padding: EdgeInsets.all(24),
-          child: Center(child: CircularProgressIndicator(color: Color(0xFFFF9933))));
+          child: Center(
+              child: CircularProgressIndicator(color: Color(0xFFFF9933))));
     }
     final query = _searchController.text.trim().toLowerCase();
     if (_searchResults.isNotEmpty) {
@@ -477,11 +472,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ..._searchResults.map((temple) => GestureDetector(
               onTap: () {
                 _clearSearch();
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => TempleDetailPage(temple: temple)));
+                Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => TempleDetailPage(temple: temple)));
               },
               child: _TempleCardAPI(
-                temple: temple, userLat: _userLat, userLon: _userLon,
+                temple: temple,
+                userLat: _userLat,
+                userLon: _userLon,
                 locationGranted: _locationPermissionGranted,
               ),
             )),
@@ -502,13 +499,16 @@ class _HomeScreenState extends State<HomeScreen> {
         ElevatedButton.icon(
           onPressed: () {
             _clearSearch();
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const TempleListPage()));
+            Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const TempleListPage()));
           },
           icon: const Text('🏛️'),
           label: const Text('Browse All Temples'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFF9933), foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            backgroundColor: const Color(0xFFFF9933),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
           ),
         ),
       ]),
@@ -520,18 +520,23 @@ class _HomeScreenState extends State<HomeScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.9),
+          crossAxisCount: 4,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 0.9),
       itemCount: _quickActions.length,
       itemBuilder: (context, index) {
         return InkWell(
           onTap: () {
             final label = _quickActions[index]['label']!;
             if (label == 'Temples') {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const TempleListPage()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const TempleListPage()));
             } else if (label == 'Events') {
               _goToEvents();
             } else if (label == 'Prayers') {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const PrayersPage()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const PrayersPage()));
             } else if (label == 'Donate') {
               Navigator.push(context, MaterialPageRoute(
                   builder: (_) => DonationPage(user: widget.user)));
@@ -543,14 +548,21 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFFF9933)),
             ),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
-              Text(_quickActions[index]['icon']!, style: const TextStyle(fontSize: 30)),
+            child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+              Text(_quickActions[index]['icon']!,
+                  style: const TextStyle(fontSize: 30)),
               const SizedBox(height: 6),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2),
                 child: Text(_quickActions[index]['label']!,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                    maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center),
               ),
             ]),
           ),
@@ -581,11 +593,16 @@ class _HomeScreenState extends State<HomeScreen> {
         ]),
         const SizedBox(height: 16),
         Text(_todayQuote['quote']!,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, fontStyle: FontStyle.italic),
-            maxLines: 4, overflow: TextOverflow.ellipsis),
+            style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                fontStyle: FontStyle.italic),
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis),
         const SizedBox(height: 10),
         Text('— ${_todayQuote['author']}',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600)),
       ]),
     );
   }
@@ -593,11 +610,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildTemples() {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _sectionHeader('Featured Temples',
-          onViewAll: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TempleListPage()))),
+          onViewAll: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const TempleListPage()))),
       const SizedBox(height: 12),
       if (_isLoadingTemples)
-        const Center(child: Padding(padding: EdgeInsets.all(20),
-            child: CircularProgressIndicator(color: Color(0xFFFF9933))))
+        const Center(
+            child: Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(color: Color(0xFFFF9933))))
       else if (_errorMessage.isNotEmpty)
         Column(children: [
           Container(
@@ -611,22 +631,29 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(children: [
               const Icon(Icons.warning_amber, color: Colors.orange, size: 20),
               const SizedBox(width: 8),
-              Expanded(child: Text(_errorMessage,
-                  style: const TextStyle(color: Colors.orange, fontSize: 12))),
+              Expanded(
+                  child: Text(_errorMessage,
+                      style: const TextStyle(
+                          color: Colors.orange, fontSize: 12))),
             ]),
           ),
-          ...(_temples.map((t) => _TempleCard(key: ValueKey(t['name']), temple: t))),
+          ...(_temples.map(
+              (t) => _TempleCard(key: ValueKey(t['name']), temple: t))),
         ])
       else if (_apiTemples.isNotEmpty)
         ..._apiTemples.take(3).map((temple) => GestureDetector(
               key: ValueKey(temple.id),
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => TempleDetailPage(temple: temple))),
-              child: _TempleCardAPI(temple: temple, userLat: _userLat, userLon: _userLon,
+              onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => TempleDetailPage(temple: temple))),
+              child: _TempleCardAPI(
+                  temple: temple,
+                  userLat: _userLat,
+                  userLon: _userLon,
                   locationGranted: _locationPermissionGranted),
             ))
       else
-        ...(_temples.map((t) => _TempleCard(key: ValueKey(t['name']), temple: t))),
+        ...(_temples.map(
+            (t) => _TempleCard(key: ValueKey(t['name']), temple: t))),
     ]);
   }
 
@@ -651,8 +678,8 @@ class _HomeScreenState extends State<HomeScreen> {
           return InkWell(
             onTap: () {
               if (module['page'] != null) {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => module['page'] as Widget));
+                Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => module['page'] as Widget));
               }
             },
             borderRadius: BorderRadius.circular(18),
@@ -665,9 +692,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: const Color(0xFFFF9933).withValues(alpha: 0.4)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.orange.withValues(alpha: 0.08),
-                    blurRadius: 8, offset: const Offset(0, 3),
-                  ),
+                      color: Colors.orange.withValues(alpha: 0.08),
+                      blurRadius: 8, offset: const Offset(0, 3)),
                 ],
               ),
               child: Column(
@@ -679,11 +705,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: const TextStyle(fontSize: 30)),
                   const SizedBox(height: 8),
                   Text(module['label'] as String,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
                   Text(module['description'] as String,
-                      style: const TextStyle(fontSize: 11, color: Colors.black54),
+                      style: const TextStyle(
+                          fontSize: 11, color: Colors.black54),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
@@ -697,20 +725,26 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPrayers() {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _sectionHeader('Prayers',
-          onViewAll: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrayersPage()))),
+          onViewAll: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const PrayersPage()))),
       const SizedBox(height: 12),
       GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.85),
+            crossAxisCount: 4,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 0.85),
         itemCount: _prayers.length,
         itemBuilder: (context, index) {
           return InkWell(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrayersPage())),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const PrayersPage())),
             borderRadius: BorderRadius.circular(12),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFFF9933)),
@@ -723,8 +757,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Text('🙏', style: TextStyle(fontSize: 22)),
                   const SizedBox(height: 6),
                   Text(_prayers[index],
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
-                      maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 10),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center),
                 ],
               ),
             ),
@@ -755,12 +792,15 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        Text(title,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         if (onViewAll != null)
           TextButton(
             onPressed: onViewAll,
             child: const Text('View All →',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFF9933))),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFFF9933))),
           ),
       ],
     );
@@ -769,7 +809,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
 // ── Temple card from API ──────────────────────────────────────────────────────
 class _TempleCardAPI extends StatelessWidget {
-  const _TempleCardAPI({required this.temple, this.userLat, this.userLon, this.locationGranted = false});
+  const _TempleCardAPI({
+    required this.temple,
+    this.userLat,
+    this.userLon,
+    this.locationGranted = false,
+  });
   final Temple temple;
   final double? userLat;
   final double? userLon;
@@ -780,7 +825,9 @@ class _TempleCardAPI extends StatelessWidget {
     final String distanceText;
     if (locationGranted && userLat != null && userLon != null) {
       final double km = temple.distanceFromUser(userLat!, userLon!);
-      distanceText = km < 1 ? '${(km * 1000).toStringAsFixed(0)} m away' : '${km.toStringAsFixed(1)} km away';
+      distanceText = km < 1
+          ? '${(km * 1000).toStringAsFixed(0)} m away'
+          : '${km.toStringAsFixed(1)} km away';
     } else {
       distanceText = '📍 Tap to enable location';
     }
@@ -798,26 +845,37 @@ class _TempleCardAPI extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFFF9933)),
           ),
-          child: Center(child: Text(temple.icon, style: const TextStyle(fontSize: 32))),
+          child: Center(
+              child: Text(temple.icon, style: const TextStyle(fontSize: 32))),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
             Text(temple.name,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 15),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 3),
             Text('📍 ${temple.location}',
-                style: const TextStyle(fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                style: const TextStyle(fontSize: 13),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 3),
             Row(children: [
-              Icon(locationGranted ? Icons.directions_car : Icons.location_off,
-                  size: 13, color: locationGranted ? Colors.black54 : Colors.orange),
+              Icon(
+                  locationGranted ? Icons.directions_car : Icons.location_off,
+                  size: 13,
+                  color: locationGranted ? Colors.black54 : Colors.orange),
               const SizedBox(width: 4),
               Text(distanceText,
-                  style: TextStyle(fontSize: 12,
+                  style: TextStyle(
+                      fontSize: 12,
                       color: locationGranted ? Colors.black54 : Colors.orange,
-                      fontWeight: locationGranted ? FontWeight.normal : FontWeight.w500)),
+                      fontWeight: locationGranted
+                          ? FontWeight.normal
+                          : FontWeight.w500)),
               const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -826,7 +884,10 @@ class _TempleCardAPI extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(temple.isOpen ? 'Open' : 'Closed',
-                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
               ),
             ]),
           ]),
@@ -858,19 +919,27 @@ class _TempleCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFFF9933)),
           ),
-          child: Center(child: Text(temple['icon'] ?? '🛕', style: const TextStyle(fontSize: 32))),
+          child: Center(
+              child: Text(temple['icon'] ?? '🛕',
+                  style: const TextStyle(fontSize: 32))),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
             Text(temple['name'] ?? '',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 15),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 4),
             Text('📍 ${temple['location']}',
-                style: const TextStyle(fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                style: const TextStyle(fontSize: 13),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 4),
-            Text('🚗 ${temple['distance']} away', style: const TextStyle(fontSize: 12)),
+            Text('🚗 ${temple['distance']} away',
+                style: const TextStyle(fontSize: 12)),
           ]),
         ),
         const Icon(Icons.arrow_forward_ios, size: 16),

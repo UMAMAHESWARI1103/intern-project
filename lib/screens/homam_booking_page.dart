@@ -16,19 +16,27 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
 
   int _currentStep = 0;
 
-  String _venueType = '';
-  List<Temple> _temples = [];
-  Temple? _selectedTemple;
-  bool _loadingTemples = false;
+  // ── Venue ──────────────────────────────────
+  String       _venueType      = '';
+  List<Temple> _temples        = [];
+  Temple?      _selectedTemple;
+  bool         _loadingTemples = false;
 
-  final _formKey = GlobalKey<FormState>();
-  final _nameController          = TextEditingController();
-  final _phoneController         = TextEditingController();
-  final _emailController         = TextEditingController();
-  final _addressController       = TextEditingController();
-  final _gotraController         = TextEditingController();
-  final _nakshatraController     = TextEditingController();
-  final _specialRequestController= TextEditingController();
+  // ── Priest ─────────────────────────────────
+  List<dynamic>          _priests        = [];
+  Map<String, dynamic>?  _selectedPriest;
+  bool                   _loadingPriests = false;
+  bool                   _priestsLoaded  = false;
+
+  // ── Form ───────────────────────────────────
+  final _formKey                  = GlobalKey<FormState>();
+  final _nameController           = TextEditingController();
+  final _phoneController          = TextEditingController();
+  final _emailController          = TextEditingController();
+  final _addressController        = TextEditingController();
+  final _gotraController          = TextEditingController();
+  final _nakshatraController      = TextEditingController();
+  final _specialRequestController = TextEditingController();
 
   String   _selectedHomam = 'Ganapathi Homam';
   DateTime _selectedDate  = DateTime.now().add(const Duration(days: 3));
@@ -38,25 +46,25 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
   late Razorpay _razorpay;
 
   final Map<String, double> _homamPrices = {
-    'Ganapathi Homam':    1100,
-    'Navagraha Homam':    2100,
-    'Sudarshana Homam':   3100,
-    'Mrityunjaya Homam':  5100,
+    'Ganapathi Homam':      1100,
+    'Navagraha Homam':      2100,
+    'Sudarshana Homam':     3100,
+    'Mrityunjaya Homam':    5100,
     'Lakshmi Kubera Homam': 4100,
-    'Saraswathi Homam':   2100,
-    'Ayush Homam':        2500,
-    'Rudra Homam':        6100,
+    'Saraswathi Homam':     2100,
+    'Ayush Homam':          2500,
+    'Rudra Homam':          6100,
   };
 
   final Map<String, String> _homamDescriptions = {
-    'Ganapathi Homam':    'Removes obstacles & bestows success',
-    'Navagraha Homam':    'Pacifies 9 planets, removes malefic effects',
-    'Sudarshana Homam':   'Protection from enemies & evil forces',
-    'Mrityunjaya Homam':  'Long life, health & victory over death',
+    'Ganapathi Homam':      'Removes obstacles & bestows success',
+    'Navagraha Homam':      'Pacifies 9 planets, removes malefic effects',
+    'Sudarshana Homam':     'Protection from enemies & evil forces',
+    'Mrityunjaya Homam':    'Long life, health & victory over death',
     'Lakshmi Kubera Homam': 'Wealth, prosperity & financial growth',
-    'Saraswathi Homam':   'Education, arts & knowledge',
-    'Ayush Homam':        'Longevity & good health for children',
-    'Rudra Homam':        'Destroys sins & grants moksha',
+    'Saraswathi Homam':     'Education, arts & knowledge',
+    'Ayush Homam':          'Longevity & good health for children',
+    'Rudra Homam':          'Destroys sins & grants moksha',
   };
 
   final List<String> _availableTimes = [
@@ -66,6 +74,7 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
 
   Map<String, dynamic>? _pendingBookingData;
 
+  // ──────────────────────────────────────────
   @override
   void initState() {
     super.initState();
@@ -101,13 +110,32 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
   Future<void> _loadTemples() async {
     setState(() => _loadingTemples = true);
     try {
-      final raw = await ApiService.getAllTemples();
-      final temples = raw
-          .map((e) => Temple.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final raw     = await ApiService.getAllTemples();
+      final temples = raw.map((e) => Temple.fromJson(e as Map<String, dynamic>)).toList();
       if (mounted) setState(() { _temples = temples; _loadingTemples = false; });
     } catch (_) {
       if (mounted) setState(() => _loadingTemples = false);
+    }
+  }
+
+  // ✅ Load priests filtered by selected homam type
+  Future<void> _loadPriests() async {
+    setState(() { _loadingPriests = true; _priestsLoaded = false; _selectedPriest = null; });
+    try {
+      final priests = await ApiService.getPriests(homamType: _selectedHomam);
+      if (mounted) {
+        setState(() {
+          _priests        = priests;
+          _loadingPriests = false;
+          _priestsLoaded  = true;
+          if (_priests.isNotEmpty) {
+            _selectedPriest = Map<String, dynamic>.from(_priests[0] as Map);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Load priests error: $e');
+      if (mounted) setState(() { _loadingPriests = false; _priestsLoaded = true; });
     }
   }
 
@@ -133,26 +161,11 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
       return;
     }
     setState(() => _currentStep = 1);
+    if (!_priestsLoaded) _loadPriests();
   }
 
-  // ── Venue label used in booking data ────────────────────────────────────
-  String get _venueLabel {
-    if (_venueType == 'temple' && _selectedTemple != null) {
-      return _selectedTemple!.name;
-    }
-    if (_venueType == 'home') {
-      return _addressController.text.trim().isEmpty
-          ? 'At Home'
-          : _addressController.text.trim();
-    }
-    return '';
-  }
-
-  // ── Temple name (required field in backend schema) ───────────────────────
   String get _templeName {
-    if (_venueType == 'temple' && _selectedTemple != null) {
-      return _selectedTemple!.name;
-    }
+    if (_venueType == 'temple' && _selectedTemple != null) return _selectedTemple!.name;
     return 'Home - ${_nameController.text.trim()}';
   }
 
@@ -163,8 +176,7 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
       firstDate: DateTime.now().add(const Duration(days: 1)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-            colorScheme: const ColorScheme.light(primary: _primary)),
+        data: Theme.of(ctx).copyWith(colorScheme: const ColorScheme.light(primary: _primary)),
         child: child!,
       ),
     );
@@ -173,34 +185,39 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
 
   void _initiatePayment() {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
+    if (_selectedPriest == null) {
+      _showSnack('Please select a priest to continue', isError: true);
+      return;
+    }
 
+    setState(() => _isLoading = true);
     final dateStr =
         '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2,'0')}-${_selectedDate.day.toString().padLeft(2,'0')}';
 
-    // ✅ FIXED: Field names match HomamBooking schema in backend
     _pendingBookingData = {
-      // Required by backend schema
-      'userName':    _nameController.text.trim(),
-      'userEmail':   _emailController.text.trim(),
-      'userPhone':   _phoneController.text.trim(),
-      'templeName':  _templeName,          // ✅ REQUIRED field in schema
-      'templeId':    _venueType == 'temple' ? (_selectedTemple?.id ?? '') : '',
-      'homamType':   _selectedHomam,       // ✅ REQUIRED field in schema
-      'date':        dateStr,              // ✅ REQUIRED field in schema
-      'timeSlot':    _selectedTime,        // ✅ matches schema field 'timeSlot'
-      'iyer':        'To be assigned',
-      'specialNote': _specialRequestController.text.trim(),
-
-      // Extra info
-      'venueType':   _venueType,
-      'address':     _venueType == 'home' ? _addressController.text.trim() : '',
-      'gotra':       _gotraController.text.trim(),
-      'nakshatra':   _nakshatraController.text.trim(),
-      'totalAmount': _homamPrices[_selectedHomam],
-      'status':      'confirmed',
-      'bookingType': 'homam',
-      'paymentStatus': 'pending',
+      'userName':     _nameController.text.trim(),
+      'userEmail':    _emailController.text.trim(),
+      'userPhone':    _phoneController.text.trim(),
+      'templeName':   _templeName,
+      'templeId':     _venueType == 'temple' ? (_selectedTemple?.id ?? '') : '',
+      'homamType':    _selectedHomam,
+      'date':         dateStr,
+      'timeSlot':     _selectedTime,
+      // ✅ Priest details saved in booking
+      'priestId':     _selectedPriest!['_id']    ?? '',
+      'priestName':   _selectedPriest!['name']   ?? 'To be assigned',
+      'priestPhone':  _selectedPriest!['phone']  ?? '',
+      'priestRating': _selectedPriest!['rating'] ?? 0,
+      'iyer':         _selectedPriest!['name']   ?? 'To be assigned',
+      'specialNote':  _specialRequestController.text.trim(),
+      'venueType':    _venueType,
+      'address':      _venueType == 'home' ? _addressController.text.trim() : '',
+      'gotra':        _gotraController.text.trim(),
+      'nakshatra':    _nakshatraController.text.trim(),
+      'totalAmount':  _homamPrices[_selectedHomam],
+      'status':       'confirmed',
+      'bookingType':  'homam',
+      'paymentStatus':'pending',
     };
 
     try {
@@ -225,22 +242,15 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
   }
 
   void _onPaymentSuccess(PaymentSuccessResponse response) async {
-    if (_pendingBookingData == null) {
-      setState(() => _isLoading = false);
-      return;
-    }
-
-    // ✅ Add payment info matching schema fields
+    if (_pendingBookingData == null) { setState(() => _isLoading = false); return; }
     _pendingBookingData!['razorpayPaymentId'] = response.paymentId ?? '';
     _pendingBookingData!['razorpayOrderId']   = response.orderId  ?? '';
     _pendingBookingData!['paymentStatus']     = 'paid';
 
     String bookingId = 'BK${DateTime.now().millisecondsSinceEpoch}';
     try {
-      // ✅ FIXED: Uses correct endpoint 'bookings/homam'
       final result = await ApiService.saveHomamBooking(_pendingBookingData!);
       bookingId = result['booking']?['_id'] ?? result['_id'] ?? bookingId;
-      debugPrint('✅ Homam booking saved: $bookingId');
     } catch (e) {
       debugPrint('Save homam booking error: $e');
     }
@@ -255,9 +265,7 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
     setState(() => _isLoading = false);
     _pendingBookingData = null;
     _showSnack(
-      response.code == 2
-          ? 'Payment cancelled'
-          : 'Payment failed: ${response.message}',
+      response.code == 2 ? 'Payment cancelled' : 'Payment failed: ${response.message}',
       isError: true,
     );
   }
@@ -290,21 +298,20 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
             const Text('Homam Booked! 🙏',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            _infoTile('Homam', _selectedHomam),
-            _infoTile('Temple / Venue', _templeName),
+            _infoTile('Homam',        _selectedHomam),
+            _infoTile('Venue',        _templeName),
             _infoTile('Date',
                 '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'),
-            _infoTile('Time', _selectedTime),
-            _infoTile('Amount',
-                '₹${_homamPrices[_selectedHomam]!.toStringAsFixed(0)}'),
+            _infoTile('Time',         _selectedTime),
+            _infoTile('Priest',       _selectedPriest?['name'] ?? 'To be assigned'),
+            _infoTile('Priest Phone', _selectedPriest?['phone'] ?? '-'),
+            _infoTile('Amount',       '₹${_homamPrices[_selectedHomam]!.toStringAsFixed(0)}'),
             const Divider(height: 20),
             _infoTile('Payment ID',
-                paymentId.length > 20
-                    ? '${paymentId.substring(0, 20)}...'
-                    : paymentId),
+                paymentId.length > 20 ? '${paymentId.substring(0,20)}...' : paymentId),
             const SizedBox(height: 8),
             const Text(
-              'Our priest will contact you 24 hrs before the homam. 🙏',
+              'Your priest will contact you 24 hrs before the homam. 🙏',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
@@ -312,14 +319,12 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(context).popUntil((r) => r.isFirst),
+                onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: const Text('Back to Home',
                     style: TextStyle(fontWeight: FontWeight.bold)),
@@ -332,20 +337,16 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
   }
 
   Widget _infoTile(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
-          Flexible(
-              child: Text(value,
-                  textAlign: TextAlign.end,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600))),
-        ]),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+      Flexible(child: Text(value,
+          textAlign: TextAlign.end, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+    ]),
+  );
 
+  // ──────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -359,14 +360,16 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
         leading: _currentStep == 1
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _currentStep = 0),
-              )
+                onPressed: () => setState(() => _currentStep = 0))
             : null,
       ),
       body: _currentStep == 0 ? _buildVenueStep() : _buildFormStep(),
     );
   }
 
+  // ══════════════════════════════════════════
+  // STEP 1 — VENUE
+  // ══════════════════════════════════════════
   Widget _buildVenueStep() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -379,38 +382,27 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
         Text('Choose the venue for your homam ceremony',
             style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
         const SizedBox(height: 28),
-        _venueCard(
-          type: 'home',
-          emoji: '🏠',
-          title: 'At My Home',
-          subtitle: 'Priest visits your home & performs homam',
-          details: ['Comfortable & private', 'Priest brings samagri', 'You provide basic setup'],
-        ),
+        _venueCard(type: 'home',   emoji: '🏠', title: 'At My Home',
+            subtitle: 'Priest visits your home & performs homam',
+            details: ['Comfortable & private','Priest brings samagri','You provide basic setup']),
         const SizedBox(height: 14),
-        _venueCard(
-          type: 'temple',
-          emoji: '🛕',
-          title: 'At Temple',
-          subtitle: 'Homam performed at a temple by temple priests',
-          details: ['Sacred atmosphere', 'All samagri provided', 'Can attend in person'],
-        ),
+        _venueCard(type: 'temple', emoji: '🛕', title: 'At Temple',
+            subtitle: 'Homam performed at a temple by temple priests',
+            details: ['Sacred atmosphere','All samagri provided','Can attend in person']),
         if (_venueType == 'temple') ...[
           const SizedBox(height: 20),
           _sectionCard(
             title: '🛕 Select Temple',
             child: _loadingTemples
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(color: _primary),
-                    ))
+                ? const Center(child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator(color: _primary)))
                 : Column(children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        border: Border.all(color: _primary),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                          border: Border.all(color: _primary),
+                          borderRadius: BorderRadius.circular(10)),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<Temple>(
                           value: _selectedTemple,
@@ -418,32 +410,24 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
                           isExpanded: true,
                           selectedItemBuilder: (context) => _temples
                               .map((t) => Text(t.name,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1))
+                                    overflow: TextOverflow.ellipsis, maxLines: 1))
                               .toList(),
-                          items: _temples
-                              .map((t) => DropdownMenuItem(
-                                    value: t,
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(t.name,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 14),
-                                            overflow: TextOverflow.ellipsis),
-                                        Text(t.location,
-                                            style: const TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.grey),
-                                            overflow: TextOverflow.ellipsis),
-                                      ],
-                                    ),
-                                  ))
-                              .toList(),
-                          onChanged: (t) =>
-                              setState(() => _selectedTemple = t),
+                          items: _temples.map((t) => DropdownMenuItem(
+                            value: t,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(t.name,
+                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                    overflow: TextOverflow.ellipsis),
+                                Text(t.location,
+                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                    overflow: TextOverflow.ellipsis),
+                              ],
+                            ),
+                          )).toList(),
+                          onChanged: (t) => setState(() => _selectedTemple = t),
                         ),
                       ),
                     ),
@@ -452,16 +436,13 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8)),
                         child: Row(children: [
                           const Icon(Icons.location_on, color: _primary, size: 16),
                           const SizedBox(width: 6),
-                          Expanded(
-                              child: Text(_selectedTemple!.location,
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.deepOrange))),
+                          Expanded(child: Text(_selectedTemple!.location,
+                              style: const TextStyle(fontSize: 12, color: Colors.deepOrange))),
                         ]),
                       ),
                     ],
@@ -477,8 +458,7 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
               backgroundColor: _venueType.isEmpty ? Colors.grey.shade300 : _primary,
               foregroundColor: _venueType.isEmpty ? Colors.grey : Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             child: Text(
               _venueType.isEmpty ? 'Select a venue to continue' : 'Continue →',
@@ -491,97 +471,9 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
     );
   }
 
-  Widget _venueCard({
-    required String type,
-    required String emoji,
-    required String title,
-    required String subtitle,
-    required List<String> details,
-  }) {
-    final selected = _venueType == type;
-    return GestureDetector(
-      onTap: () => _selectVenueType(type),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFF3E0) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: selected ? _primary : Colors.grey.shade300,
-              width: selected ? 2 : 1),
-          boxShadow: [
-            BoxShadow(
-              color: selected
-                  ? Colors.orange.withOpacity(0.15)
-                  : Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            margin: const EdgeInsets.only(top: 2),
-            width: 22, height: 22,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                  color: selected ? _primary : Colors.grey, width: 2),
-            ),
-            child: selected
-                ? Center(
-                    child: Container(
-                      width: 12, height: 12,
-                      decoration: const BoxDecoration(
-                          shape: BoxShape.circle, color: _primary),
-                    ))
-                : null,
-          ),
-          const SizedBox(width: 14),
-          Container(
-            width: 52, height: 52,
-            decoration: BoxDecoration(
-              color: selected
-                  ? _primary.withOpacity(0.15)
-                  : Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 28))),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title,
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: selected ? _primary : Colors.black87)),
-              const SizedBox(height: 3),
-              Text(subtitle,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-              const SizedBox(height: 8),
-              ...details.map((d) => Padding(
-                    padding: const EdgeInsets.only(bottom: 3),
-                    child: Row(children: [
-                      Icon(Icons.check_circle,
-                          size: 13,
-                          color: selected ? _primary : Colors.grey),
-                      const SizedBox(width: 5),
-                      Expanded(
-                          child: Text(d,
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: selected ? Colors.black87 : Colors.grey))),
-                    ]),
-                  )),
-            ]),
-          ),
-        ]),
-      ),
-    );
-  }
-
+  // ══════════════════════════════════════════
+  // STEP 2 — BOOKING FORM
+  // ══════════════════════════════════════════
   Widget _buildFormStep() {
     final price = _homamPrices[_selectedHomam]!;
     return SingleChildScrollView(
@@ -591,6 +483,8 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _buildStepIndicator(),
           const SizedBox(height: 16),
+
+          // Venue badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
@@ -607,9 +501,7 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
                     ? 'Venue: At My Home'
                     : 'Venue: ${_selectedTemple!.name}',
                 style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.deepOrange),
+                    fontSize: 13, fontWeight: FontWeight.w600, color: Colors.deepOrange),
               ),
               const SizedBox(width: 8),
               GestureDetector(
@@ -619,13 +511,17 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
             ]),
           ),
           const SizedBox(height: 16),
+
+          // ── Homam selection ──
           _sectionCard(
             title: '🔥 Select Homam',
-            child: Column(
-                children: _homamPrices.keys.map((homam) {
+            child: Column(children: _homamPrices.keys.map((homam) {
               final selected = _selectedHomam == homam;
               return GestureDetector(
-                onTap: () => setState(() => _selectedHomam = homam),
+                onTap: () {
+                  setState(() { _selectedHomam = homam; _priestsLoaded = false; _selectedPriest = null; });
+                  _loadPriests(); // reload priests for new homam type
+                },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   margin: const EdgeInsets.only(bottom: 8),
@@ -638,31 +534,19 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
                         width: selected ? 2 : 1),
                   ),
                   child: Row(children: [
-                    Icon(
-                        selected
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                        color: selected ? _primary : Colors.grey,
-                        size: 20),
+                    Icon(selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                        color: selected ? _primary : Colors.grey, size: 20),
                     const SizedBox(width: 10),
-                    Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                      Text(homam,
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: selected ? _primary : Colors.black87)),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(homam, style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13,
+                          color: selected ? _primary : Colors.black87)),
                       Text(_homamDescriptions[homam] ?? '',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade600)),
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                     ])),
                     Text('₹${_homamPrices[homam]!.toStringAsFixed(0)}',
                         style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontWeight: FontWeight.bold, fontSize: 14,
                             color: selected ? _primary : Colors.black87)),
                   ]),
                 ),
@@ -670,6 +554,8 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
             }).toList()),
           ),
           const SizedBox(height: 16),
+
+          // ── Date & Time ──
           _sectionCard(
             title: '📅 Date & Time',
             child: Column(children: [
@@ -685,8 +571,7 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
                     const SizedBox(width: 10),
                     Text(
                         '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                        style: const TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w600)),
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                     const Spacer(),
                     const Icon(Icons.arrow_drop_down, color: Colors.grey),
                   ]),
@@ -697,14 +582,11 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
                 initialValue: _selectedTime,
                 decoration: InputDecoration(
                   labelText: 'Select Time',
-                  prefixIcon:
-                      const Icon(Icons.access_time, color: _primary),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                  prefixIcon: const Icon(Icons.access_time, color: _primary),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
-                          color: _primary, width: 1.5)),
+                      borderSide: const BorderSide(color: _primary, width: 1.5)),
                 ),
                 items: _availableTimes
                     .map((t) => DropdownMenuItem(value: t, child: Text(t)))
@@ -714,63 +596,229 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
             ]),
           ),
           const SizedBox(height: 16),
+
+          // ── Priest Selection ✅ NEW ──
+          _sectionCard(
+            title: '🧑‍⚕️ Select Priest',
+            child: _loadingPriests
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Column(children: [
+                        CircularProgressIndicator(color: _primary),
+                        SizedBox(height: 10),
+                        Text('Finding priests for your homam...',
+                            style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      ]),
+                    ))
+                : !_priestsLoaded
+                    ? Center(
+                        child: ElevatedButton.icon(
+                          onPressed: _loadPriests,
+                          icon: const Icon(Icons.search),
+                          label: const Text('Find Available Priests'),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: _primary,
+                              foregroundColor: Colors.white),
+                        ))
+                    : _priests.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                                color: Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(10)),
+                            child: Row(children: [
+                              const Icon(Icons.info_outline, color: _primary),
+                              const SizedBox(width: 10),
+                              Expanded(child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                const Text('No priests available',
+                                    style: TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                Text('No priests specializing in $_selectedHomam found. We will assign one for you.',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                              ])),
+                            ]),
+                          )
+                        : Column(
+                            children: [
+                              // Info banner
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                    color: Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.green.shade200)),
+                                child: Row(children: [
+                                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text(
+                                    '${_priests.length} priests available for $_selectedHomam',
+                                    style: TextStyle(fontSize: 12, color: Colors.green.shade700),
+                                  )),
+                                ]),
+                              ),
+                              // Priest cards
+                              ..._priests.map((p) {
+                                final priest   = Map<String, dynamic>.from(p as Map);
+                                final selected = _selectedPriest?['_id'] == priest['_id'];
+                                final langs    = (priest['languages'] as List?)?.join(', ') ?? '';
+                                final specs    = (priest['specializations'] as List?) ?? [];
+                                return GestureDetector(
+                                  onTap: () => setState(() => _selectedPriest = priest),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: selected ? const Color(0xFFFFF3E0) : Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                          color: selected ? _primary : Colors.grey.shade300,
+                                          width: selected ? 2 : 1),
+                                    ),
+                                    child: Row(children: [
+                                      // Avatar
+                                      Container(
+                                        width: 50, height: 50,
+                                        decoration: BoxDecoration(
+                                            color: selected ? _primary : Colors.orange.shade100,
+                                            shape: BoxShape.circle),
+                                        child: Center(
+                                          child: Text(
+                                            (priest['name'] as String).isNotEmpty
+                                                ? (priest['name'] as String)[0].toUpperCase()
+                                                : '?',
+                                            style: TextStyle(
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.bold,
+                                                color: selected ? Colors.white : _primary),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      // Details
+                                      Expanded(child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                        Text(priest['name'] ?? '',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                                color: selected ? _primary : Colors.black87)),
+                                        const SizedBox(height: 3),
+                                        Row(children: [
+                                          const Icon(Icons.work_outline, size: 12, color: Colors.grey),
+                                          const SizedBox(width: 4),
+                                          Text('${priest['experience']} yrs exp',
+                                              style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                          const SizedBox(width: 10),
+                                          const Icon(Icons.location_on, size: 12, color: Colors.grey),
+                                          const SizedBox(width: 4),
+                                          Text(priest['location'] ?? '',
+                                              style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                        ]),
+                                        const SizedBox(height: 4),
+                                        Text('🗣 $langs',
+                                            style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                        if (specs.isNotEmpty) ...[
+                                          const SizedBox(height: 4),
+                                          Wrap(spacing: 4, runSpacing: 4,
+                                            children: specs.take(2).map((s) => Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                  color: _primary.withValues(alpha:0.1),
+                                                  borderRadius: BorderRadius.circular(4)),
+                                              child: Text(s.toString(),
+                                                  style: const TextStyle(fontSize: 9, color: _primary)),
+                                            )).toList(),
+                                          ),
+                                        ],
+                                      ])),
+                                      // Rating & selection check
+                                      Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                          decoration: BoxDecoration(
+                                              color: Colors.amber.shade50,
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: Colors.amber.shade300)),
+                                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                            const Icon(Icons.star, color: Colors.amber, size: 13),
+                                            const SizedBox(width: 3),
+                                            Text('${priest['rating'] ?? 0}',
+                                                style: const TextStyle(
+                                                    fontSize: 12, fontWeight: FontWeight.bold)),
+                                          ]),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        if (selected)
+                                          const Icon(Icons.check_circle, color: _primary, size: 22)
+                                        else
+                                          const Icon(Icons.radio_button_unchecked,
+                                              color: Colors.grey, size: 22),
+                                      ]),
+                                    ]),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+          ),
+          const SizedBox(height: 16),
+
+          // ── Personal Details ──
           _sectionCard(
             title: '👤 Personal Details',
             child: Column(children: [
               if (widget.user != null) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200)),
                   child: Row(children: [
                     const Icon(Icons.check_circle, color: Colors.green, size: 16),
                     const SizedBox(width: 6),
                     Text('Auto-filled from your account',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.green.shade700)),
+                        style: TextStyle(fontSize: 12, color: Colors.green.shade700)),
                   ]),
                 ),
               ],
               _field('Full Name *', _nameController, Icons.person_outline,
-                  validator: (v) =>
-                      v!.trim().isEmpty ? 'Enter your name' : null),
+                  validator: (v) => v!.trim().isEmpty ? 'Enter your name' : null),
               const SizedBox(height: 12),
-              _field('Mobile Number *', _phoneController,
-                  Icons.phone_outlined,
+              _field('Mobile Number *', _phoneController, Icons.phone_outlined,
                   keyboardType: TextInputType.phone,
-                  validator: (v) =>
-                      v!.trim().length < 10 ? 'Enter valid number' : null),
+                  validator: (v) => v!.trim().length < 10 ? 'Enter valid number' : null),
               const SizedBox(height: 12),
               _field('Email *', _emailController, Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
-                  validator: (v) =>
-                      !v!.contains('@') ? 'Enter valid email' : null),
+                  validator: (v) => !v!.contains('@') ? 'Enter valid email' : null),
               if (_venueType == 'home') ...[
                 const SizedBox(height: 12),
-                _field('Home Address *', _addressController,
-                    Icons.location_on_outlined,
+                _field('Home Address *', _addressController, Icons.location_on_outlined,
                     maxLines: 3,
-                    validator: (v) =>
-                        v!.trim().isEmpty ? 'Enter address' : null),
+                    validator: (v) => v!.trim().isEmpty ? 'Enter address' : null),
               ],
               const SizedBox(height: 12),
-              _field('Gotra (Optional)', _gotraController,
-                  Icons.family_restroom),
+              _field('Gotra (Optional)',     _gotraController,     Icons.family_restroom),
               const SizedBox(height: 12),
-              _field('Nakshatra (Optional)', _nakshatraController,
-                  Icons.star_outline),
+              _field('Nakshatra (Optional)', _nakshatraController, Icons.star_outline),
               const SizedBox(height: 12),
-              _field('Special Request', _specialRequestController,
-                  Icons.note_outlined,
+              _field('Special Request',      _specialRequestController, Icons.note_outlined,
                   maxLines: 3),
             ]),
           ),
           const SizedBox(height: 16),
+
+          // ── Price Summary ──
           _sectionCard(
             title: '💰 Price Summary',
             child: Column(children: [
@@ -780,6 +828,10 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
               const SizedBox(height: 6),
               _summaryRow('Date & Time',
                   '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year} • $_selectedTime'),
+              if (_selectedPriest != null) ...[
+                const SizedBox(height: 6),
+                _summaryRow('Priest', _selectedPriest!['name'] ?? '-'),
+              ],
               const Divider(height: 20),
               _summaryRow('Total Amount', '₹${price.toStringAsFixed(0)}',
                   isBold: true, valueColor: _primary),
@@ -789,6 +841,7 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
             ]),
           ),
           const SizedBox(height: 24),
+
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -797,26 +850,91 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
                 backgroundColor: _primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               child: _isLoading
                   ? const SizedBox(
                       width: 24, height: 24,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2.5))
-                  : Text(
-                      'Book & Pay ₹${price.toStringAsFixed(0)} 🙏',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 17)),
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                  : Text('Book & Pay ₹${price.toStringAsFixed(0)} 🙏',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
             ),
           ),
           const SizedBox(height: 12),
-          const Center(
-              child: Text(
-                  'Secure payment via Razorpay • UPI • Cards • Net Banking',
-                  style: TextStyle(fontSize: 11, color: Colors.grey))),
+          const Center(child: Text(
+              'Secure payment via Razorpay • UPI • Cards • Net Banking',
+              style: TextStyle(fontSize: 11, color: Colors.grey))),
           const SizedBox(height: 40),
+        ]),
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────
+  // HELPERS
+  // ──────────────────────────────────────────
+
+  Widget _venueCard({
+    required String type, required String emoji,
+    required String title, required String subtitle,
+    required List<String> details,
+  }) {
+    final selected = _venueType == type;
+    return GestureDetector(
+      onTap: () => _selectVenueType(type),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFFFF3E0) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: selected ? _primary : Colors.grey.shade300,
+              width: selected ? 2 : 1),
+          boxShadow: [BoxShadow(
+              color: selected
+                  ? Colors.orange.withValues(alpha:0.15)
+                  : Colors.black.withValues(alpha:0.04),
+              blurRadius: 8, offset: const Offset(0, 3))],
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            margin: const EdgeInsets.only(top: 2),
+            width: 22, height: 22,
+            decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: selected ? _primary : Colors.grey, width: 2)),
+            child: selected
+                ? Center(child: Container(width: 12, height: 12,
+                    decoration: const BoxDecoration(shape: BoxShape.circle, color: _primary)))
+                : null,
+          ),
+          const SizedBox(width: 14),
+          Container(
+            width: 52, height: 52,
+            decoration: BoxDecoration(
+                color: selected ? _primary.withValues(alpha:0.15) : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12)),
+            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 28))),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.bold,
+                color: selected ? _primary : Colors.black87)),
+            const SizedBox(height: 3),
+            Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            const SizedBox(height: 8),
+            ...details.map((d) => Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Row(children: [
+                Icon(Icons.check_circle, size: 13, color: selected ? _primary : Colors.grey),
+                const SizedBox(width: 5),
+                Expanded(child: Text(d, style: TextStyle(
+                    fontSize: 11, color: selected ? Colors.black87 : Colors.grey))),
+              ]),
+            )),
+          ])),
         ]),
       ),
     );
@@ -825,10 +943,8 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
   Widget _buildStepIndicator() {
     return Row(children: [
       _stepDot(1, _currentStep >= 0, 'Venue'),
-      Expanded(
-          child: Container(
-              height: 2,
-              color: _currentStep >= 1 ? _primary : Colors.grey.shade300)),
+      Expanded(child: Container(height: 2,
+          color: _currentStep >= 1 ? _primary : Colors.grey.shade300)),
       _stepDot(2, _currentStep >= 1, 'Booking'),
     ]);
   }
@@ -838,23 +954,18 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
       Container(
         width: 32, height: 32,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: active ? _primary : Colors.grey.shade300,
-        ),
-        child: Center(
-          child: Text('$step',
-              style: TextStyle(
-                  color: active ? Colors.white : Colors.grey,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14)),
-        ),
+            shape: BoxShape.circle,
+            color: active ? _primary : Colors.grey.shade300),
+        child: Center(child: Text('$step',
+            style: TextStyle(
+                color: active ? Colors.white : Colors.grey,
+                fontWeight: FontWeight.bold, fontSize: 14))),
       ),
       const SizedBox(height: 4),
-      Text(label,
-          style: TextStyle(
-              fontSize: 11,
-              color: active ? _primary : Colors.grey,
-              fontWeight: active ? FontWeight.bold : FontWeight.normal)),
+      Text(label, style: TextStyle(
+          fontSize: 11,
+          color: active ? _primary : Colors.grey,
+          fontWeight: active ? FontWeight.bold : FontWeight.normal)),
     ]);
   }
 
@@ -865,24 +976,19 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2))
-          ],
+          boxShadow: [BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 14),
           child,
         ]),
       );
 
   Widget _field(String label, TextEditingController controller, IconData icon,
-      {TextInputType? keyboardType,
-      int maxLines = 1,
+      {TextInputType? keyboardType, int maxLines = 1,
       String? Function(String?)? validator}) =>
       TextFormField(
         controller: controller,
@@ -896,26 +1002,22 @@ class _HomamBookingPageState extends State<HomamBookingPage> {
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: _primary, width: 1.5)),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
       );
 
   Widget _summaryRow(String label, String value,
           {bool isBold = false, Color? valueColor}) =>
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label,
+        Text(label, style: TextStyle(
+            fontSize: 14,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: Colors.black87)),
+        Flexible(child: Text(value,
+            textAlign: TextAlign.end, overflow: TextOverflow.ellipsis,
             style: TextStyle(
                 fontSize: 14,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                color: Colors.black87)),
-        Flexible(
-            child: Text(value,
-                textAlign: TextAlign.end,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-                    color: valueColor ?? Colors.black87))),
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+                color: valueColor ?? Colors.black87))),
       ]);
 }
