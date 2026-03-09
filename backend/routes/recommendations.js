@@ -1,17 +1,6 @@
-// backend/routes/recommendations.js
-// ✅ Add this NEW file inside your existing: backend/routes/ folder
-// Then register it in server.js (see bottom of this file)
-
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-
-/**
- * GET /api/recommendations/:donorEmail
- *
- * Calls Python ML server → returns personalized temple suggestions
- * Flutter calls: GET http://YOUR_IP:3000/api/recommendations/uma@gmail.com
- */
 router.get('/:donorEmail', async (req, res) => {
   try {
     const { donorEmail } = req.params;
@@ -42,17 +31,3 @@ router.get('/:donorEmail', async (req, res) => {
 });
 
 module.exports = router;
-
-/*
-─────────────────────────────────────────
-ADD THESE 2 LINES TO YOUR server.js:
-─────────────────────────────────────────
-
-const recommendations = require('./routes/recommendations');
-app.use('/api/recommendations', recommendations);
-
-─────────────────────────────────────────
-Also run in backend folder:
-  npm install axios
-─────────────────────────────────────────
-*/
