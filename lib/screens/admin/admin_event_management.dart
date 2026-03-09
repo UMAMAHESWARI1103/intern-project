@@ -241,27 +241,6 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage> {
           ]),
         ),
 
-        // ── Stats row ────────────────────────────────────────────────────
-        if (!_isLoading && _error == null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-            child: Row(children: [
-              _chip('Total',    '${_events.length}', Colors.blue),
-              const SizedBox(width: 8),
-              _chip('Upcoming',
-                  '${_events.where((e) => _computeStatus(e) == 'Upcoming').length}',
-                  Colors.orange),
-              const SizedBox(width: 8),
-              _chip('Ongoing',
-                  '${_events.where((e) => _computeStatus(e) == 'Ongoing').length}',
-                  Colors.green),
-              const SizedBox(width: 8),
-              _chip('Done',
-                  '${_events.where((e) => _computeStatus(e) == 'Completed').length}',
-                  Colors.grey),
-            ]),
-          ),
-
         // ── List ─────────────────────────────────────────────────────────
         Expanded(
           child: _isLoading
@@ -318,8 +297,6 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage> {
     final templeName  = e['templeName'] ?? '';
     final date        = e['date']       ?? '';
     final time        = e['time']       ?? '';
-    final registered  = (e['registeredCount'] as num?)?.toInt() ?? 0;
-    final maxP        = (e['maxParticipants']  as num?)?.toInt() ?? 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -383,7 +360,7 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage> {
                     ]),
                   const SizedBox(height: 4),
 
-                  // Date / time / free badge — use Wrap to prevent overflow
+                  // Date / time / free badge
                   Wrap(
                     spacing: 6, runSpacing: 4,
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -424,14 +401,6 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage> {
                               color: isFree ? Colors.green : Colors.blue),
                         ),
                       ),
-                      if (maxP > 0)
-                        Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.people, size: 11, color: _textGrey),
-                          const SizedBox(width: 3),
-                          Text('$registered/$maxP',
-                              style: const TextStyle(
-                                  color: _textGrey, fontSize: 11)),
-                        ]),
                     ],
                   ),
                 ],
@@ -494,20 +463,6 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage> {
     child: Text(status,
         style: TextStyle(
             fontSize: 10, fontWeight: FontWeight.bold, color: color)),
-  );
-
-  Widget _chip(String label, String value, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3))),
-    child: Column(children: [
-      Text(value,
-          style: TextStyle(
-              fontSize: 14, fontWeight: FontWeight.bold, color: color)),
-      Text(label, style: TextStyle(fontSize: 10, color: color)),
-    ]),
   );
 
   // ── Add / Edit form bottom sheet ─────────────────────────────────────────
