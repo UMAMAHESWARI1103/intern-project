@@ -305,7 +305,6 @@ class _AdminReportsAnalyticsPageState
     final prasadam = _n(bd, 'prasadam');
     final eventReg = _eventRegCount;
     final total    = darshan + homam + marriage + prasadam + eventReg;
-    final trend    = _list('monthlyTrend');
 
     return ListView(padding: const EdgeInsets.all(16), children: [
 
@@ -325,69 +324,6 @@ class _AdminReportsAnalyticsPageState
         ],
       ),
       const SizedBox(height: 20),
-
-      if (trend.isNotEmpty) ...[
-        _card(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-            const Text('Monthly Trend',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: _textDark)),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 150,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: trend.map((m) {
-                  final t      = _n(m, 'total');
-                  final maxVal = trend
-                      .map((x) => _n(x, 'total').toDouble())
-                      .fold(0.0, (a, b) => a > b ? a : b);
-                  final h = maxVal > 0
-                      ? (t.toDouble() / maxVal * 120).clamp(10.0, 120.0)
-                      : 10.0;
-                  return Expanded(
-                    child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                      Text('${t.toInt()}',
-                          style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: _textDark)),
-                      const SizedBox(height: 3),
-                      Container(
-                        height: h,
-                        margin:
-                            const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFFFF9933),
-                              Color(0xFFFFCC80)
-                            ],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                          ),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(m['month']?.toString() ?? '',
-                          style: const TextStyle(
-                              fontSize: 9, color: _textGrey)),
-                    ]),
-                  );
-                }).toList(),
-              ),
-            ),
-          ]),
-        ),
-        const SizedBox(height: 16),
-      ],
 
       _card(
         child: Column(
