@@ -17,9 +17,9 @@ class _AdminEventRegistrationsPageState
   static const Color _textGrey = Color(0xFF9E7A50);
 
   final _searchCtrl = TextEditingController();
-  String _filter    = 'All';
+  String _filter = 'All';
 
-  List<Map<String, dynamic>> _events = [];
+  List<Map<String, dynamic>> _registrations = [];
   bool _isLoading = true;
   String? _error;
 
@@ -38,11 +38,11 @@ class _AdminEventRegistrationsPageState
   Future<void> _load() async {
     setState(() { _isLoading = true; _error = null; });
     try {
-      final raw = await ApiService.getAllEvents();
+      final raw = await ApiService.getAdminEventRegistrations();
       if (mounted) {
         setState(() {
-          _events    = raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-          _isLoading = false;
+          _registrations = raw;
+          _isLoading     = false;
         });
       }
     } catch (e) {
@@ -50,26 +50,46 @@ class _AdminEventRegistrationsPageState
     }
   }
 
-  String _computeStatus(Map<String, dynamic> e) {
-    final stored = e['status']?.toString() ?? '';
-    if (stored.isNotEmpty) return stored;
+  // Extract event info — handles both nested {event: {}} and flat fields
+  String _eventTitle(Map r) =>
+      (r['event']?['title'] ?? r['eventTitle'] ?? r['title'] ?? 'Event').toString();
+  String _eventDate(Map r) =>
+      (r['event']?['date'] ?? r['eventDate'] ?? r['date'] ?? '').toString();
+  String _eventTime(Map r) =>
+      (r['event']?['time'] ?? r['eventTime'] ?? r['time'] ?? '').toString();
+  String _eventCategory(Map r) =>
+      (r['event']?['category'] ?? r['category'] ?? '').toString();
+
+  // Extract registrant info — handles both nested {user: {}} and flat fields
+  String _userName(Map r) =>
+      (r['user']?['name'] ?? r['userName'] ?? r['name'] ?? 'Unknown').toString();
+  String _userEmail(Map r) =>
+      (r['user']?['email'] ?? r['userEmail'] ?? r['email'] ?? '').toString();
+  String _userPhone(Map r) =>
+      (r['user']?['phone'] ?? r['userPhone'] ?? r['phone'] ?? '').toString();
+
+  String _regStatus(Map r) =>
+      (r['status'] ?? 'Confirmed').toString();
+
+  String _shortDate(String raw) {
     try {
-      final d   = DateTime.parse(e['date']?.toString() ?? '');
-      final now = DateTime.now();
-      if (d.isAfter(now)) return 'Upcoming';
-      if (d.isAfter(now.subtract(const Duration(days: 1)))) return 'Ongoing';
-      return 'Completed';
-    } catch (_) { return 'Upcoming'; }
+      final d = DateTime.parse(raw);
+      const months = ['Jan','Feb','Mar','Apr','May','Jun',
+                      'Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${d.day} ${months[d.month - 1]} ${d.year}';
+    } catch (_) { return raw; }
   }
 
-  List<Map<String, dynamic>> get _filtered => _events.where((e) {
-    final q           = _searchCtrl.text.toLowerCase();
-    final matchSearch = q.isEmpty ||
-        (e['title']      ?? '').toString().toLowerCase().contains(q) ||
-        (e['templeName'] ?? '').toString().toLowerCase().contains(q);
-    final status      = _computeStatus(e);
-    final matchFilter = _filter == 'All' || status == _filter;
-    return matchSearch && matchFilter;
+  List<Map<String, dynamic>> get _filtered => _registrations.where((r) {
+    final q     = _searchCtrl.text.toLowerCase();
+    final match = q.isEmpty ||
+        _eventTitle(r).toLowerCase().contains(q) ||
+        _userName(r).toLowerCase().contains(q) ||
+        _userEmail(r).toLowerCase().contains(q);
+    final status      = _regStatus(r);
+    final matchFilter = _filter == 'All' ||
+        status.toLowerCase() == _filter.toLowerCase();
+    return match && matchFilter;
   }).toList();
 
   @override
@@ -86,7 +106,7 @@ class _AdminEventRegistrationsPageState
         ],
       ),
       body: Column(children: [
-        // ── Search + Filter bar ──────────────────────────────────────────
+        // ── Search + Filter ──────────────────────────────────────────────
         Container(
           color: Colors.white,
           padding: const EdgeInsets.all(12),
@@ -95,7 +115,7 @@ class _AdminEventRegistrationsPageState
               controller: _searchCtrl,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                hintText: 'Search events or temples...',
+                hintText: 'Search by event, name or email...',
                 prefixIcon: const Icon(Icons.search, color: _primary),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
@@ -116,7 +136,7 @@ class _AdminEventRegistrationsPageState
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: ['All', 'Upcoming', 'Ongoing', 'Completed'].map((f) {
+                children: ['All', 'Confirmed', 'Pending', 'Cancelled'].map((f) {
                   final active = _filter == f;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
@@ -136,6 +156,20 @@ class _AdminEventRegistrationsPageState
           ]),
         ),
 
+        // ── Count ────────────────────────────────────────────────────────
+        if (!_isLoading && _error == null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+            child: Row(children: [
+              const Icon(Icons.how_to_reg, size: 14, color: _textGrey),
+              const SizedBox(width: 6),
+              Text(
+                '${_filtered.length} registration${_filtered.length == 1 ? "" : "s"}',
+                style: const TextStyle(fontSize: 12, color: _textGrey),
+              ),
+            ]),
+          ),
+
         // ── List ─────────────────────────────────────────────────────────
         Expanded(
           child: _isLoading
@@ -146,12 +180,12 @@ class _AdminEventRegistrationsPageState
                       ? Center(child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('🎪', style: TextStyle(fontSize: 48)),
+                            const Text('📋', style: TextStyle(fontSize: 48)),
                             const SizedBox(height: 12),
                             Text(
-                              _events.isEmpty
+                              _registrations.isEmpty
                                   ? 'No registrations yet'
-                                  : 'No events found',
+                                  : 'No results found',
                               style: const TextStyle(
                                   color: _textGrey, fontSize: 15),
                             ),
@@ -164,7 +198,8 @@ class _AdminEventRegistrationsPageState
                             itemCount: _filtered.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 10),
-                            itemBuilder: (_, i) => _eventCard(_filtered[i]),
+                            itemBuilder: (_, i) =>
+                                _registrationCard(_filtered[i]),
                           ),
                         ),
         ),
@@ -172,16 +207,19 @@ class _AdminEventRegistrationsPageState
     );
   }
 
-  Widget _eventCard(Map<String, dynamic> e) {
-    final status      = _computeStatus(e);
+  // ── Registration card ─────────────────────────────────────────────────────
+  Widget _registrationCard(Map<String, dynamic> r) {
+    final eventTitle  = _eventTitle(r);
+    final eventDate   = _eventDate(r);
+    final eventTime   = _eventTime(r);
+    final category    = _eventCategory(r);
+    final userName    = _userName(r);
+    final userEmail   = _userEmail(r);
+    final userPhone   = _userPhone(r);
+    final status      = _regStatus(r);
     final statusColor = _statusColor(status);
-    final isFree      = e['isFree'] == true || (e['registrationFee'] ?? 0) == 0;
-    final maxP        = (e['maxParticipants'] as num?)?.toInt() ?? 0;
-    final registered  = (e['registeredCount'] as num?)?.toInt() ?? 0;
-    final title       = e['title']      ?? 'Event';
-    final templeName  = e['templeName'] ?? '';
-    final date        = e['date']       ?? '';
-    final time        = e['time']       ?? '';
+    final registeredAt =
+        (r['registeredAt'] ?? r['createdAt'] ?? '').toString();
 
     return Container(
       decoration: BoxDecoration(
@@ -192,137 +230,113 @@ class _AdminEventRegistrationsPageState
             color: _primary.withValues(alpha: 0.05),
             blurRadius: 6, offset: const Offset(0, 2))],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // ── Icon ──────────────────────────────────────────────────────
-          Container(
-            width: 48, height: 48,
-            decoration: BoxDecoration(
-                color: _primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12)),
-            child: Center(child: Text(
-              (e['category'] == 'Festival') ? '🪔' :
-              (e['category'] == 'Pooja')    ? '🛕' :
-              (e['category'] == 'Special')  ? '✨' :
-              (e['category'] == 'Cultural') ? '🎭' : '🎪',
-              style: const TextStyle(fontSize: 24))),
+      child: Column(children: [
+        // ── Event header ─────────────────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: _primary.withValues(alpha: 0.07),
+            borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14)),
           ),
-          const SizedBox(width: 10),
-
-          // ── Content ───────────────────────────────────────────────────
-          Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Title + status
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(
-                  child: Text(title,
-                      maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13, color: _textDark)),
-                ),
-                const SizedBox(width: 6),
-                _statusBadge(status, statusColor),
-              ]),
-              const SizedBox(height: 4),
-
-              // Temple name
-              if (templeName.isNotEmpty)
+          child: Row(children: [
+            Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                  color: _primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10)),
+              child: Center(child: Text(
+                category == 'Festival' ? '🪔' :
+                category == 'Pooja'    ? '🛕' :
+                category == 'Special'  ? '✨' :
+                category == 'Cultural' ? '🎭' : '🎪',
+                style: const TextStyle(fontSize: 20))),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(eventTitle,
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13, color: _textDark)),
+                const SizedBox(height: 2),
                 Row(children: [
-                  const Icon(Icons.temple_hindu, size: 12, color: _textGrey),
-                  const SizedBox(width: 3),
-                  Expanded(child: Text(templeName,
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: _textGrey, fontSize: 12))),
+                  if (eventDate.isNotEmpty) ...[
+                    const Icon(Icons.calendar_today,
+                        size: 10, color: _textGrey),
+                    const SizedBox(width: 3),
+                    Text(_shortDate(eventDate),
+                        style: const TextStyle(
+                            fontSize: 11, color: _textGrey)),
+                  ],
+                  if (eventTime.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    const Icon(Icons.access_time,
+                        size: 10, color: _textGrey),
+                    const SizedBox(width: 3),
+                    Text(eventTime,
+                        style: const TextStyle(
+                            fontSize: 11, color: _textGrey)),
+                  ],
                 ]),
-              const SizedBox(height: 3),
+              ]),
+            ),
+            _statusBadge(status, statusColor),
+          ]),
+        ),
 
-              // Date / time / free badge
-              Wrap(
-                spacing: 6, runSpacing: 4,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  if (date.isNotEmpty)
-                    Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.calendar_today,
-                          size: 11, color: _textGrey),
-                      const SizedBox(width: 3),
-                      Text(date,
-                          style: const TextStyle(
-                              color: _textGrey, fontSize: 11)),
-                    ]),
-                  if (time.isNotEmpty)
-                    Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.access_time,
-                          size: 11, color: _textGrey),
-                      const SizedBox(width: 3),
-                      Text(time,
-                          style: const TextStyle(
-                              color: _textGrey, fontSize: 11)),
-                    ]),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: isFree
-                          ? Colors.green.withValues(alpha: 0.12)
-                          : Colors.blue.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(isFree ? 'Free' : 'Paid',
-                        style: TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.bold,
-                            color: isFree ? Colors.green : Colors.blue)),
-                  ),
-                ],
-              ),
-
-              // Participants progress bar — only shown when maxP > 0
-              // AND at least 1 person has registered
-              if (maxP > 0 && registered > 0) ...[
-                const SizedBox(height: 8),
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                  Text('Participants: $registered/$maxP',
-                      style: const TextStyle(
-                          fontSize: 12, color: _textGrey)),
-                  Text(
-                    '${((registered / maxP) * 100).clamp(0, 100).toInt()}%',
-                    style: TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.bold,
-                        color: registered >= maxP ? Colors.red : _primary),
-                  ),
-                ]),
-                const SizedBox(height: 4),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: (registered / maxP).clamp(0.0, 1.0),
-                    backgroundColor: _accent,
-                    color: registered >= maxP ? Colors.red : _primary,
-                    minHeight: 6,
-                  ),
-                ),
-              ],
-            ]),
-          ),
-        ]),
-      ),
+        // ── Registrant details ───────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(children: [
+            _detailRow(Icons.person_outline, userName,
+                _textDark, bold: true),
+            if (userEmail.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              _detailRow(Icons.email_outlined, userEmail, _textGrey),
+            ],
+            if (userPhone.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              _detailRow(Icons.phone_outlined, userPhone, _textGrey),
+            ],
+            if (registeredAt.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              _detailRow(Icons.access_time_outlined,
+                  'Registered on ${_shortDate(registeredAt)}', _textGrey),
+            ],
+          ]),
+        ),
+      ]),
     );
   }
 
-  Color _statusColor(String status) => switch (status) {
-    'Upcoming'  => Colors.orange,
-    'Ongoing'   => Colors.green,
-    'Completed' => Colors.grey,
+  Widget _detailRow(IconData icon, String text, Color color,
+      {bool bold = false}) =>
+      Row(children: [
+        Icon(icon, size: 13, color: _textGrey),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(text,
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight:
+                      bold ? FontWeight.w600 : FontWeight.normal)),
+        ),
+      ]);
+
+  Color _statusColor(String status) => switch (status.toLowerCase()) {
+    'confirmed' => Colors.green,
+    'pending'   => Colors.orange,
+    'cancelled' => Colors.red,
     _           => Colors.blue,
   };
 
   Widget _statusBadge(String status, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6)),

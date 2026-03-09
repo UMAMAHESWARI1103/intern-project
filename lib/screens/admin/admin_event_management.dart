@@ -157,13 +157,13 @@ class _AdminEventManagementPageState extends State<AdminEventManagementPage> {
     }
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Delete Event'),
         content: const Text('Are you sure you want to delete this event?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false),
               child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true),
+          ElevatedButton(onPressed: () => Navigator.pop(dialogCtx, true),
               style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red, foregroundColor: Colors.white),
               child: const Text('Delete')),
