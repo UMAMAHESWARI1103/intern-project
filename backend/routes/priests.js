@@ -1,11 +1,16 @@
+// routes/priests.js
 const express = require('express');
-const router = express.Router();
-const Priest = require('../models/Priest');
+const router  = express.Router();
+const Priest  = require('../models/Priest');
 
-// GET all available priests (optionally filter by homam type)
+// GET all approved + available priests (optionally filter by homam type)
 router.get('/', async (req, res) => {
   try {
-    const filter = { isAvailable: true };
+    // Only show priests that are BOTH approved by admin AND available
+    const filter = {
+      isApproved:  true,
+      isAvailable: true,
+    };
     if (req.query.homamType) {
       filter.specializations = { $in: [req.query.homamType] };
     }
@@ -20,27 +25,36 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const priest = await Priest.findById(req.params.id);
-    if (!priest) return res.status(404).json({ success: false, message: 'Priest not found' });
+    if (!priest) {
+      return res.status(404).json({ success: false, message: 'Priest not found' });
+    }
     res.json({ success: true, priest });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// POST add priest (admin only)
-router.post('/', async (req, res) => {
+// PUT update priest (availability, profile etc.)
+router.put('/:id', async (req, res) => {
   try {
-    const priest = await Priest.create(req.body);
-    res.status(201).json({ success: true, priest });
+    const priest = await Priest.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json({ success: true, priest });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// PUT update priest
-router.put('/:id', async (req, res) => {
+// PATCH availability toggle
+router.patch('/:id/availability', async (req, res) => {
   try {
-    const priest = await Priest.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const priest = await Priest.findByIdAndUpdate(
+      req.params.id,
+      { isAvailable: req.body.isAvailable },
+      { new: true }
+    );
+    if (!priest) {
+      return res.status(404).json({ success: false, message: 'Priest not found' });
+    }
     res.json({ success: true, priest });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

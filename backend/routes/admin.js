@@ -11,6 +11,7 @@ const User     = require('../models/User');
 const Temple   = require('../models/temple');
 const Event    = require('../models/Event');
 const Donation = require('../models/Donation');
+const Priest   = require('../models/Priest');
 
 // Product model (inline-safe: won't crash if file doesn't exist yet)
 let Product;
@@ -85,7 +86,7 @@ router.get('/stats', async (req, res) => {
       totalUsers, totalTemples, totalEvents, totalProducts,
       totalDonationsAgg, darshanCount, homamCount,
       marriageCount, prasadamCount, totalOrders,
-      totalEventReg, todayRevenueAgg,
+      totalEventReg, totalPriests, todayRevenueAgg,
     ] = await Promise.all([
       User.countDocuments(),
       Temple.countDocuments(),
@@ -101,6 +102,7 @@ router.get('/stats', async (req, res) => {
       _PrasadamOrder.countDocuments(),
       Order.countDocuments(),
       EventRegistration ? EventRegistration.countDocuments() : Promise.resolve(0),
+      Priest.countDocuments(),
       Promise.all([
         _DarshanBooking.aggregate([{ $match: { createdAt: { $gte: today } } }, { $group: { _id: null, t: { $sum: '$totalAmount' } } }]),
         _HomamBooking.aggregate([{ $match: { createdAt: { $gte: today } } }, { $group: { _id: null, t: { $sum: '$totalAmount' } } }]),
@@ -117,7 +119,7 @@ router.get('/stats', async (req, res) => {
         totalUsers, totalTemples, totalEvents, totalProducts,
         totalDonations:   totalDonationsAgg[0]?.total || 0,
         totalBookings:    darshanCount + homamCount + marriageCount + prasadamCount,
-        totalOrders, totalEventReg,
+        totalOrders, totalEventReg, totalPriests,
         todayRevenue:     todayRevenueAgg || 0,
         bookingBreakdown: { darshan: darshanCount, homam: homamCount, marriage: marriageCount, prasadam: prasadamCount },
       }
@@ -129,27 +131,23 @@ router.get('/stats', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// USERS  ← only this section was updated
+// USERS
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/users', async (req, res) => {
   try {
     const users = await User.find({}, '-password').sort({ createdAt: -1 }).lean();
 
-    // ── Count donations per user email ──────────────────────────────────────
     const donationAgg = await Donation.aggregate([
       { $group: { _id: { $toLower: '$donorEmail' }, count: { $sum: 1 } } },
     ]);
     const donationMap = {};
     donationAgg.forEach(d => { if (d._id) donationMap[d._id] = d.count; });
 
-    // ── Count bookings per user — checks all booking collections ───────────
-    // We match on userId field (stored as string or ObjectId)
     const bookingColls = [_DarshanBooking, _HomamBooking, _MarriageBooking, _PrasadamOrder];
     const bookingMap   = {};
 
     await Promise.all(
       bookingColls.map(async (Model) => {
-        // Try both 'userId' and 'user' field names
         const agg = await Model.aggregate([
           { $group: { _id: '$userId', count: { $sum: 1 } } },
         ]);
@@ -161,7 +159,6 @@ router.get('/users', async (req, res) => {
       })
     );
 
-    // ── Attach counts to each user ──────────────────────────────────────────
     const enriched = users.map(u => ({
       ...u,
       bookingsCount:  bookingMap[u._id?.toString()] ?? 0,
@@ -556,6 +553,59 @@ router.delete('/prayers/:id', async (req, res) => {
   try {
     await Prayer.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Prayer deleted' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRIESTS (admin CRUD)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET all priests (approved + pending)
+router.get('/priests', async (req, res) => {
+  try {
+    const priests = await Priest.find().sort({ createdAt: -1 }).lean();
+    res.json({ success: true, priests });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST add new priest (from admin form OR priest registration form)
+router.post('/priests', async (req, res) => {
+  try {
+    const existing = await Priest.findOne({ email: req.body.email });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Email already registered' });
+    }
+    const priest = await Priest.create(req.body);
+    res.status(201).json({ success: true, priest });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PATCH approve / revoke a priest
+router.patch('/priests/:id/approve', async (req, res) => {
+  try {
+    const priest = await Priest.findByIdAndUpdate(
+      req.params.id,
+      { isApproved: req.body.isApproved },
+      { new: true }
+    );
+    if (!priest) return res.status(404).json({ success: false, message: 'Priest not found' });
+    res.json({ success: true, priest });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE a priest
+router.delete('/priests/:id', async (req, res) => {
+  try {
+    await Priest.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Priest deleted' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

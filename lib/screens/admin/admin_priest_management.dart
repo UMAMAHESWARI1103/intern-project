@@ -45,31 +45,10 @@ class _AdminPriestManagementPageState
     if (_search.isEmpty) return _priests;
     final q = _search.toLowerCase();
     return _priests.where((p) {
-      return (p['name'] ?? '').toString().toLowerCase().contains(q) ||
-          (p['location'] ?? '').toString().toLowerCase().contains(q) ||
-          (p['email'] ?? '').toString().toLowerCase().contains(q);
+      return (p['name']     ?? '').toString().toLowerCase().contains(q) ||
+             (p['location'] ?? '').toString().toLowerCase().contains(q) ||
+             (p['email']    ?? '').toString().toLowerCase().contains(q);
     }).toList();
-  }
-
-  Future<void> _toggleApproval(Map<String, dynamic> priest) async {
-    final id       = priest['_id']?.toString() ?? '';
-    final approved = priest['isApproved'] == true;
-    final ok = await ApiService.updatePriestApproval(id, !approved);
-    if (ok) {
-      _load();
-      _showSnack(!approved ? 'Priest approved ✅' : 'Approval revoked');
-    }
-  }
-
-  Future<void> _toggleAvailability(Map<String, dynamic> priest) async {
-    final id        = priest['_id']?.toString() ?? '';
-    final available = priest['isAvailable'] == true;
-    final ok =
-        await ApiService.updatePriestAvailability(id, !available);
-    if (ok) {
-      _load();
-      _showSnack(!available ? 'Marked available' : 'Marked unavailable');
-    }
   }
 
   Future<void> _delete(Map<String, dynamic> priest) async {
@@ -77,10 +56,8 @@ class _AdminPriestManagementPageState
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Priest'),
-        content: Text(
-            'Remove ${priest['name']} permanently?'),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Text('Remove ${priest['name']} permanently?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -140,7 +117,7 @@ class _AdminPriestManagementPageState
       ),
       body: Column(
         children: [
-          // ── Search bar ──────────────────────────────────────────────
+          // ── Search bar ─────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
@@ -159,7 +136,7 @@ class _AdminPriestManagementPageState
             ),
           ),
 
-          // ── Summary chips ───────────────────────────────────────────
+          // ── Summary chips ───────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
@@ -176,7 +153,7 @@ class _AdminPriestManagementPageState
           ),
           const SizedBox(height: 10),
 
-          // ── List ────────────────────────────────────────────────────
+          // ── List ────────────────────────────────────────────
           Expanded(
             child: _loading
                 ? const Center(
@@ -190,7 +167,8 @@ class _AdminPriestManagementPageState
                         color: _primary,
                         onRefresh: _load,
                         child: ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                          padding:
+                              const EdgeInsets.fromLTRB(16, 0, 16, 100),
                           itemCount: _filtered.length,
                           itemBuilder: (_, i) =>
                               _priestCard(_filtered[i]),
@@ -216,12 +194,11 @@ class _AdminPriestManagementPageState
       );
 
   Widget _priestCard(Map<String, dynamic> p) {
-    final approved  = p['isApproved'] == true;
-    final available = p['isAvailable'] == true;
-    final specs     = (p['specializations'] as List?)?.join(', ') ?? '';
-    final langs     = (p['languages'] as List?)?.join(', ') ?? '';
-    final rating    = p['rating']?.toString() ?? '0';
-    final exp       = p['experience']?.toString() ?? '0';
+    final approved = p['isApproved'] == true;
+    final specs    = (p['specializations'] as List?)?.join(', ') ?? '';
+    final langs    = (p['languages'] as List?)?.join(', ') ?? '';
+    final rating   = p['rating']?.toString() ?? '0';
+    final exp      = p['experience']?.toString() ?? '0';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -237,7 +214,7 @@ class _AdminPriestManagementPageState
       ),
       child: Column(
         children: [
-          // ── Header row ─────────────────────────────────────────────
+          // ── Header row ──────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(14),
             child: Row(
@@ -326,6 +303,33 @@ class _AdminPriestManagementPageState
                                 fontSize: 11, color: _textGrey),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
+                      if (p['phone'] != null &&
+                          p['phone'].toString().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Row(children: [
+                            const Icon(Icons.phone,
+                                size: 12, color: Color(0xFF9E7A50)),
+                            const SizedBox(width: 4),
+                            Text(p['phone'].toString(),
+                                style: const TextStyle(
+                                    fontSize: 11, color: _textGrey)),
+                          ]),
+                        ),
+                      if (p['email'] != null &&
+                          p['email'].toString().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Row(children: [
+                            const Icon(Icons.email,
+                                size: 12, color: Color(0xFF9E7A50)),
+                            const SizedBox(width: 4),
+                            Text(p['email'].toString(),
+                                style: const TextStyle(
+                                    fontSize: 11, color: _textGrey),
+                                overflow: TextOverflow.ellipsis),
+                          ]),
+                        ),
                     ],
                   ),
                 ),
@@ -333,74 +337,28 @@ class _AdminPriestManagementPageState
             ),
           ),
 
-          // ── Action buttons ──────────────────────────────────────────
+          // ── Delete button only ──────────────────────────────
           Container(
             decoration: BoxDecoration(
               color: Colors.grey.withValues(alpha: 0.04),
               borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(14)),
             ),
-            child: Row(children: [
-              // Approve toggle
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () => _toggleApproval(p),
-                  icon: Icon(
-                      approved
-                          ? Icons.cancel_outlined
-                          : Icons.check_circle_outline,
-                      size: 16,
-                      color:
-                          approved ? Colors.red : Colors.green),
-                  label: Text(
-                      approved ? 'Revoke' : 'Approve',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: approved ? Colors.red : Colors.green)),
-                ),
+            child: SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: () => _delete(p),
+                icon: const Icon(Icons.delete_outline,
+                    size: 16, color: Colors.red),
+                label: const Text('Delete Priest',
+                    style: TextStyle(fontSize: 12, color: Colors.red)),
               ),
-              _vDivider(),
-              // Availability toggle
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () => _toggleAvailability(p),
-                  icon: Icon(
-                      available
-                          ? Icons.toggle_on
-                          : Icons.toggle_off_outlined,
-                      size: 16,
-                      color: available
-                          ? Colors.blue
-                          : Colors.grey),
-                  label: Text(
-                      available ? 'Available' : 'Unavailable',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color:
-                              available ? Colors.blue : Colors.grey)),
-                ),
-              ),
-              _vDivider(),
-              // Delete
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () => _delete(p),
-                  icon: const Icon(Icons.delete_outline,
-                      size: 16, color: Colors.red),
-                  label: const Text('Delete',
-                      style:
-                          TextStyle(fontSize: 12, color: Colors.red)),
-                ),
-              ),
-            ]),
+            ),
           ),
         ],
       ),
     );
   }
-
-  Widget _vDivider() => Container(
-      width: 1, height: 30, color: Colors.grey.withValues(alpha: 0.2));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -419,14 +377,14 @@ class _AdminAddPriestPageState extends State<AdminAddPriestPage> {
   static const Color _bg       = Color(0xFFFFF8F0);
   static const Color _textDark = Color(0xFF3E1F00);
 
-  final _formKey = GlobalKey<FormState>();
-  final _name    = TextEditingController();
-  final _email   = TextEditingController();
-  final _phone   = TextEditingController();
-  final _password= TextEditingController();
-  final _location= TextEditingController();
-  final _exp     = TextEditingController();
-  final _bio     = TextEditingController();
+  final _formKey  = GlobalKey<FormState>();
+  final _name     = TextEditingController();
+  final _email    = TextEditingController();
+  final _phone    = TextEditingController();
+  final _password = TextEditingController();
+  final _location = TextEditingController();
+  final _exp      = TextEditingController();
+  final _bio      = TextEditingController();
 
   final List<String> _allSpecs = [
     'Homam', 'Marriage', 'Grihapravesam', 'Seemantham',
@@ -501,13 +459,13 @@ class _AdminAddPriestPageState extends State<AdminAddPriestPage> {
           padding: const EdgeInsets.all(16),
           children: [
             _section('Basic Info'),
-            _field(_name,     'Full Name',    Icons.person,       required: true),
-            _field(_email,    'Email',        Icons.email,        required: true, keyboard: TextInputType.emailAddress),
-            _field(_phone,    'Phone Number', Icons.phone,        required: true, keyboard: TextInputType.phone),
-            _field(_password, 'Password',     Icons.lock,         required: true, obscure: true),
-            _field(_location, 'Location (City)', Icons.location_on, required: true),
-            _field(_exp,      'Years of Experience', Icons.work, required: true, keyboard: TextInputType.number),
-            _field(_bio,      'Short Bio',    Icons.info_outline,  maxLines: 3),
+            _field(_name,     'Full Name',          Icons.person,      required: true),
+            _field(_email,    'Email',               Icons.email,       required: true, keyboard: TextInputType.emailAddress),
+            _field(_phone,    'Phone Number',        Icons.phone,       required: true, keyboard: TextInputType.phone),
+            _field(_password, 'Password',            Icons.lock,        required: true, obscure: true),
+            _field(_location, 'Location (City)',     Icons.location_on, required: true),
+            _field(_exp,      'Years of Experience', Icons.work,        required: true, keyboard: TextInputType.number),
+            _field(_bio,      'Short Bio',           Icons.info_outline, maxLines: 3),
             const SizedBox(height: 16),
 
             _section('Specializations'),
@@ -576,16 +534,16 @@ class _AdminAddPriestPageState extends State<AdminAddPriestPage> {
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: TextFormField(
-          controller:  ctrl,
-          obscureText: obscure,
-          maxLines:    maxLines,
+          controller:   ctrl,
+          obscureText:  obscure,
+          maxLines:     maxLines,
           keyboardType: keyboard,
           decoration: InputDecoration(
-            labelText:   label,
-            prefixIcon:  Icon(icon, color: _primary),
-            filled:      true,
-            fillColor:   Colors.white,
-            border:      OutlineInputBorder(
+            labelText:  label,
+            prefixIcon: Icon(icon, color: _primary),
+            filled:     true,
+            fillColor:  Colors.white,
+            border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none),
             focusedBorder: OutlineInputBorder(
@@ -615,9 +573,7 @@ class _AdminAddPriestPageState extends State<AdminAddPriestPage> {
               padding: const EdgeInsets.symmetric(
                   horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: sel
-                    ? _primary
-                    : Colors.white,
+                color: sel ? _primary : Colors.white,
                 border: Border.all(
                     color: sel ? _primary : Colors.grey.shade300),
                 borderRadius: BorderRadius.circular(20),
@@ -626,9 +582,8 @@ class _AdminAddPriestPageState extends State<AdminAddPriestPage> {
                   style: TextStyle(
                       color: sel ? Colors.white : Colors.grey.shade700,
                       fontSize: 12,
-                      fontWeight: sel
-                          ? FontWeight.w600
-                          : FontWeight.normal)),
+                      fontWeight:
+                          sel ? FontWeight.w600 : FontWeight.normal)),
             ),
           );
         }).toList(),
