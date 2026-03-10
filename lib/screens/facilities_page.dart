@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 // ─── UPDATE THIS to your backend IP/host ───────────────────────────────────
-const String _baseUrl = 'http://10.95.142.70:5000';
+const String _baseUrl = 'http://10.52.36.70:5000';
 // ───────────────────────────────────────────────────────────────────────────
 
 class FacilitiesPage extends StatefulWidget {

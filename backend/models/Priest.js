@@ -1,17 +1,28 @@
+// models/Priest.js
 const mongoose = require('mongoose');
 
-const priestSchema = new mongoose.Schema({
-  name:         { type: String, required: true },
-  phone:        { type: String, required: true },
-  email:        { type: String, default: '' },
-  photo:        { type: String, default: '' },
-  languages:    [String],           // ['Tamil', 'Sanskrit', 'Telugu']
-  specializations: [String],        // ['Ganapathi Homam', 'Navagraha Homam', ...]
-  experience:   { type: Number, default: 0 },  // years
-  location:     { type: String, default: '' }, // city/area
-  isAvailable:  { type: Boolean, default: true },
-  rating:       { type: Number, default: 5.0 },
-  totalBookings:{ type: Number, default: 0 },
-}, { timestamps: true });
+const priestSchema = new mongoose.Schema(
+  {
+    name:            { type: String, required: true },
+    email:           { type: String, required: true, unique: true },
+    phone:           { type: String, default: '' },
+    password:        { type: String, default: '' },
+    photo:           { type: String, default: '' },
+    bio:             { type: String, default: '' },
+    location:        { type: String, default: '' },
+    experience:      { type: Number, default: 0 },
+    specializations: [{ type: String }],
+    languages:       [{ type: String }],
+    isAvailable:     { type: Boolean, default: true },
+    isApproved:      { type: Boolean, default: true },
+    rating:          { type: Number, default: 0 },
+    totalBookings:   { type: Number, default: 0 },
+    role:            { type: String, default: 'priest' },
+  },
+  {
+    timestamps: true,
+    collection: 'priests', // ← explicitly maps to 'priests' collection in MongoDB
+  }
+);
 
-module.exports = mongoose.models.Priest || mongoose.model('Priest', priestSchema);
+module.exports = mongoose.model('Priest', priestSchema);

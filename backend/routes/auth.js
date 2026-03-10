@@ -1,28 +1,26 @@
+// routes/auth.js
+
 const express = require('express');
-const router = express.Router();
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const Priest = require('../models/Priest');
+const router  = express.Router();
+const bcrypt  = require('bcryptjs');
+const jwt     = require('jsonwebtoken');
+const User    = require('../models/User');
+const Priest  = require('../models/Priest');
 
 // ─────────────────────────────────────────
-// SIGN UP
-// POST /api/auth/signup
+// SIGN UP  —  POST /api/auth/signup
 // ─────────────────────────────────────────
 router.post('/signup', async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user (role defaults to 'user')
     const user = new User({
       name,
       email,
@@ -32,7 +30,6 @@ router.post('/signup', async (req, res) => {
     });
 
     await user.save();
-
     res.status(201).json({ message: 'Account created successfully!' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -40,31 +37,28 @@ router.post('/signup', async (req, res) => {
 });
 
 // ─────────────────────────────────────────
-// LOGIN
-// POST /api/auth/login
-// Checks: User collection first, then Priest collection
+// LOGIN  —  POST /api/auth/login
+// Step 1: Check users collection (user / admin)
+// Step 2: Check priests collection (common priest login)
 // ─────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // ── 1. Check User collection ─────────────────────────────
+    // ── STEP 1: Check users collection ───────────────────────
     const user = await User.findOne({ email });
     if (user) {
-      // Check if blocked
       if (user.isBlocked) {
         return res.status(403).json({
           message: 'Your account has been blocked. Contact support.',
         });
       }
 
-      // Check password
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         return res.status(401).json({ message: 'Incorrect password' });
       }
 
-      // Generate JWT
       const token = jwt.sign(
         { id: user._id, email: user.email, role: user.role },
         process.env.JWT_SECRET,
@@ -74,7 +68,7 @@ router.post('/login', async (req, res) => {
       return res.status(200).json({
         message: 'Login successful!',
         token,
-        role: user.role, // 'user' or 'admin'
+        role: user.role,
         user: {
           id:    user._id,
           name:  user.name,
@@ -85,23 +79,20 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // ── 2. Check Priest collection ───────────────────────────
+    // ── STEP 2: Check priests collection ─────────────────────
     const priest = await Priest.findOne({ email });
     if (priest) {
-      // Not yet approved by admin
-      if (!priest.isApproved) {
-        return res.status(403).json({
-          message: 'Your priest account is pending admin approval. Please wait.',
+      if (!priest.password) {
+        return res.status(500).json({
+          message: 'Priest account has no password set. Contact admin.',
         });
       }
 
-      // Check password
       const isMatch = await bcrypt.compare(password, priest.password);
       if (!isMatch) {
         return res.status(401).json({ message: 'Incorrect password' });
       }
 
-      // Generate JWT with role: 'priest'
       const token = jwt.sign(
         { id: priest._id, email: priest.email, role: 'priest' },
         process.env.JWT_SECRET,
@@ -112,28 +103,23 @@ router.post('/login', async (req, res) => {
         message: 'Login successful!',
         token,
         role: 'priest',
-        priest: {
-          id:              priest._id,
-          name:            priest.name,
-          email:           priest.email,
-          phone:           priest.phone,
-          location:        priest.location,
-          specializations: priest.specializations,
-          languages:       priest.languages,
-          experience:      priest.experience,
-          rating:          priest.rating,
-          isAvailable:     priest.isAvailable,
-          role:            'priest',
+        user: {
+          id:    priest._id,
+          name:  priest.name,
+          email: priest.email,
+          phone: priest.phone || '',
+          role:  'priest',
         },
       });
     }
 
-    // ── 3. Not found in either collection ───────────────────
+    // ── STEP 3: Not found anywhere ────────────────────────────
     return res.status(404).json({
       message: 'No account found with this email',
     });
 
   } catch (err) {
+    console.error('Login error:', err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
