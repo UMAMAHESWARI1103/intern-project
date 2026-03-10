@@ -136,22 +136,7 @@ class _AdminPriestManagementPageState
             ),
           ),
 
-          // ── Summary chips ───────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(children: [
-              _chip('Total ${_priests.length}', Colors.orange),
-              const SizedBox(width: 8),
-              _chip(
-                  'Approved ${_priests.where((p) => p['isApproved'] == true).length}',
-                  Colors.green),
-              const SizedBox(width: 8),
-              _chip(
-                  'Pending ${_priests.where((p) => p['isApproved'] != true).length}',
-                  Colors.red),
-            ]),
-          ),
-          const SizedBox(height: 10),
+
 
           // ── List ────────────────────────────────────────────
           Expanded(
@@ -180,21 +165,9 @@ class _AdminPriestManagementPageState
     );
   }
 
-  Widget _chip(String label, Color color) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(20)),
-        child: Text(label,
-            style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w600)),
-      );
+
 
   Widget _priestCard(Map<String, dynamic> p) {
-    final approved = p['isApproved'] == true;
     final specs    = (p['specializations'] as List?)?.join(', ') ?? '';
     final langs    = (p['languages'] as List?)?.join(', ') ?? '';
     final rating   = p['rating']?.toString() ?? '0';
@@ -240,35 +213,13 @@ class _AdminPriestManagementPageState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(children: [
-                        Expanded(
-                          child: Text(
-                            p['name'] ?? 'Unknown',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: _textDark),
-                          ),
-                        ),
-                        // Approval badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                              color: approved
-                                  ? Colors.green.withValues(alpha: 0.12)
-                                  : Colors.red.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20)),
-                          child: Text(
-                              approved ? 'Approved' : 'Pending',
-                              style: TextStyle(
-                                  color: approved
-                                      ? Colors.green
-                                      : Colors.red,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600)),
-                        ),
-                      ]),
+                      Text(
+                        p['name'] ?? 'Unknown',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: _textDark),
+                      ),
                       const SizedBox(height: 3),
                       Row(children: [
                         const Icon(Icons.location_on,
