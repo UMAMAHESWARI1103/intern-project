@@ -7,9 +7,6 @@ const Priest  = require('../models/Priest');
 router.get('/', async (req, res) => {
   try {
     const filter = {};
-    if (req.query.homamType) {
-      filter.specializations = { $in: [req.query.homamType] };
-    }
     const priests = await Priest.find(filter).sort({ rating: -1 });
     res.json({ success: true, priests });
   } catch (err) {
