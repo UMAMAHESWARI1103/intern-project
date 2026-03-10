@@ -409,7 +409,7 @@ class _MgmtItem {
 
 // ════════════════════════════════════════════════════════════════
 // PRIEST-ONLY VIEW
-// Shown when role == 'priest' — only sees their own profile tab
+// Shown when role == 'priest' — form to add priest details to DB
 // ════════════════════════════════════════════════════════════════
 
 class _PriestOnlyView extends StatefulWidget {
@@ -428,15 +428,16 @@ class _PriestOnlyViewState extends State<_PriestOnlyView> {
   static const Color _textDark = Color(0xFF3E1F00);
   static const Color _textGrey = Color(0xFF9E7A50);
 
-  Map<String, dynamic> _profile = {};
-  bool _loading = true;
-  bool _saving  = false;
+  final _formKey     = GlobalKey<FormState>();
+  final _nameCtrl    = TextEditingController();
+  final _emailCtrl   = TextEditingController();
+  final _phoneCtrl   = TextEditingController();
+  final _locationCtrl= TextEditingController();
+  final _expCtrl     = TextEditingController();
+  final _bioCtrl     = TextEditingController();
 
-  // Form controllers
-  final _bioCtrl      = TextEditingController();
-  final _locationCtrl = TextEditingController();
-  final _expCtrl      = TextEditingController();
-  final _phoneCtrl    = TextEditingController();
+  bool _saving    = false;
+  bool _submitted = false;
 
   final List<String> _allSpecs = [
     'Homam', 'Marriage', 'Grihapravesam', 'Seemantham',
@@ -452,320 +453,305 @@ class _PriestOnlyViewState extends State<_PriestOnlyView> {
   final List<String> _selectedLangs = [];
 
   @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-  }
-
-  @override
   void dispose() {
-    _bioCtrl.dispose();
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
     _locationCtrl.dispose();
     _expCtrl.dispose();
-    _phoneCtrl.dispose();
+    _bioCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadProfile() async {
-    setState(() => _loading = true);
-    try {
-      // Find this priest by email from the priests collection
-      final email = widget.priestUser?['email']?.toString() ?? '';
-      final priests = await ApiService.getAdminPriests();
-      final match = priests.firstWhere(
-        (p) => p['email'] == email,
-        orElse: () => <String, dynamic>{},
-      );
-
-      if (match.isNotEmpty) {
-        _profile = match;
-        _bioCtrl.text      = match['bio']?.toString() ?? '';
-        _locationCtrl.text = match['location']?.toString() ?? '';
-        _expCtrl.text      = match['experience']?.toString() ?? '';
-        _phoneCtrl.text    = match['phone']?.toString() ?? '';
-
-        _selectedSpecs
-          ..clear()
-          ..addAll(List<String>.from(match['specializations'] ?? []));
-        _selectedLangs
-          ..clear()
-          ..addAll(List<String>.from(match['languages'] ?? []));
-      }
-      setState(() => _loading = false);
-    } catch (_) {
-      setState(() => _loading = false);
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedSpecs.isEmpty) {
+      _snack('Please select at least one specialization');
+      return;
     }
-  }
-
-  Future<void> _saveProfile() async {
     setState(() => _saving = true);
-    final id = _profile['_id']?.toString() ?? '';
-    final ok = await ApiService.updatePriestProfile(id, {
-      'bio':             _bioCtrl.text.trim(),
+
+    final ok = await ApiService.adminAddPriest({
+      'name':            _nameCtrl.text.trim(),
+      'email':           _emailCtrl.text.trim(),
+      'phone':           _phoneCtrl.text.trim(),
       'location':        _locationCtrl.text.trim(),
       'experience':      int.tryParse(_expCtrl.text.trim()) ?? 0,
-      'phone':           _phoneCtrl.text.trim(),
+      'bio':             _bioCtrl.text.trim(),
       'specializations': _selectedSpecs,
       'languages':       _selectedLangs,
+      'isApproved':      false,
+      'isAvailable':     false,
     });
+
     setState(() => _saving = false);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(ok ? 'Profile updated ✅' : 'Update failed, try again'),
-      backgroundColor: ok ? Colors.green : Colors.red,
-      behavior: SnackBarBehavior.floating,
-    ));
-    if (ok) _loadProfile();
+
+    if (ok) {
+      setState(() => _submitted = true);
+    } else {
+      _snack('Submission failed. Please try again.');
+    }
   }
 
-  Future<void> _toggleAvailability() async {
-    final current = _profile['isAvailable'] == true;
-    final id = _profile['_id']?.toString() ?? '';
-    final ok = await ApiService.updatePriestAvailability(id, !current);
-    if (ok) {
-      setState(() => _profile['isAvailable'] = !current);
-    }
+  void _snack(String msg) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+      ));
+
+  void _resetForm() {
+    _formKey.currentState?.reset();
+    _nameCtrl.clear();
+    _emailCtrl.clear();
+    _phoneCtrl.clear();
+    _locationCtrl.clear();
+    _expCtrl.clear();
+    _bioCtrl.clear();
+    _selectedSpecs.clear();
+    _selectedLangs.clear();
+    setState(() => _submitted = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final name = widget.priestUser?['name']?.toString() ?? 'Pandit';
-    final available = _profile['isAvailable'] == true;
-
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: _primary,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
-        title: const Text('My Priest Profile',
+        title: const Text('Priest Registration',
             style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
-          // Availability toggle chip
-          GestureDetector(
-            onTap: _toggleAvailability,
-            child: Container(
-              margin: const EdgeInsets.symmetric(
-                  vertical: 10, horizontal: 6),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 2),
-              decoration: BoxDecoration(
-                color: available
-                    ? Colors.green.withValues(alpha: 0.85)
-                    : Colors.red.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(children: [
-                Icon(
-                    available ? Icons.circle : Icons.circle_outlined,
-                    size: 9,
-                    color: Colors.white),
-                const SizedBox(width: 4),
-                Text(available ? 'Available' : 'Offline',
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 11)),
-              ]),
-            ),
-          ),
           IconButton(
               icon: const Icon(Icons.logout),
               tooltip: 'Logout',
               onPressed: widget.onLogout),
         ],
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: _primary))
-          : RefreshIndicator(
-              color: _primary,
-              onRefresh: _loadProfile,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // ── Profile header card ───────────────────
-                  _profileHeader(name, available),
-                  const SizedBox(height: 20),
-
-                  // ── Edit form card ────────────────────────
-                  _formCard(),
-                  const SizedBox(height: 16),
-
-                  // ── Specializations ───────────────────────
-                  _chipCard(
-                    title: 'My Specializations',
-                    subtitle: 'Select services you perform',
-                    icon: Icons.star_outline,
-                    options: _allSpecs,
-                    selected: _selectedSpecs,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ── Languages ─────────────────────────────
-                  _chipCard(
-                    title: 'Languages I Speak',
-                    subtitle: 'Select languages you know',
-                    icon: Icons.language,
-                    options: _allLangs,
-                    selected: _selectedLangs,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // ── Save button ───────────────────────────
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: _primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(14)),
-                          elevation: 2),
-                      onPressed: _saving ? null : _saveProfile,
-                      icon: _saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2))
-                          : const Icon(Icons.save),
-                      label: Text(
-                          _saving
-                              ? 'Saving...'
-                              : 'Save My Details',
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ── Info note ─────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.07),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: Colors.blue.withValues(alpha: 0.3)),
-                    ),
-                    child: const Row(children: [
-                      Icon(Icons.info_outline,
-                          size: 16, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Your details will be shown to users on the Homam Booking page so they can choose you.',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.blue),
-                        ),
-                      ),
-                    ]),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
+      body: _submitted ? _successView() : _formView(),
     );
   }
 
-  // ── Profile header ──────────────────────────────────────────
-  Widget _profileHeader(String name, bool available) => Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-              colors: [Color(0xFFFF9933), Color(0xFFFFB74D)]),
-          borderRadius: BorderRadius.circular(16),
+  // ── Success screen ──────────────────────────────────────────
+  Widget _successView() => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle,
+                    color: Colors.green, size: 52),
+              ),
+              const SizedBox(height: 24),
+              const Text('Details Submitted!',
+                  style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF3E1F00))),
+              const SizedBox(height: 12),
+              Text(
+                'Your profile has been submitted for admin review.\nYou will be notified once approved.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                    height: 1.5),
+              ),
+              const SizedBox(height: 32),
+              OutlinedButton.icon(
+                onPressed: _resetForm,
+                icon: const Icon(Icons.add, color: Color(0xFFFF9933)),
+                label: const Text('Add Another Priest',
+                    style: TextStyle(color: Color(0xFFFF9933))),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFFF9933)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 12),
+                ),
+              ),
+            ],
+          ),
         ),
-        child: Row(children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Colors.white24,
-            child: Text(
-              name[0].toUpperCase(),
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold)),
-                  Text(
-                      _selectedSpecs.isEmpty
-                          ? 'No specializations set'
-                          : _selectedSpecs.join(', '),
-                      style: const TextStyle(
-                          color: Colors.white70, fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 4),
-                  Row(children: [
-                    Icon(
-                        available
-                            ? Icons.check_circle
-                            : Icons.cancel,
-                        size: 13,
-                        color: available
-                            ? Colors.greenAccent
-                            : Colors.redAccent),
-                    const SizedBox(width: 4),
-                    Text(
-                        available
-                            ? 'Available for bookings'
-                            : 'Currently unavailable',
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 11)),
-                  ]),
-                ]),
-          ),
-        ]),
       );
 
-  // ── Edit form card ──────────────────────────────────────────
-  Widget _formCard() => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.orange.withValues(alpha: 0.06),
-                blurRadius: 6,
-                offset: const Offset(0, 2))
+  // ── Registration form ───────────────────────────────────────
+  Widget _formView() => Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Header banner
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF9933), Color(0xFFFFB74D)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.person_add_alt_1,
+                      color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Add Priest Details',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16)),
+                      SizedBox(height: 4),
+                      Text('Details will be stored and reviewed by admin',
+                          style:
+                              TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ]),
+            ),
+
+            _sectionLabel('Basic Information'),
+            _field(_nameCtrl,     'Full Name',           Icons.person,      required: true),
+            _field(_emailCtrl,    'Email Address',        Icons.email,       required: true, keyboard: TextInputType.emailAddress),
+            _field(_phoneCtrl,    'Phone Number',         Icons.phone,       required: true, keyboard: TextInputType.phone),
+            _field(_locationCtrl, 'City / Location',      Icons.location_on, required: true),
+            _field(_expCtrl,      'Years of Experience',  Icons.work,        required: true, keyboard: TextInputType.number),
+            _field(_bioCtrl,      'About (Bio)',          Icons.info_outline, maxLines: 3),
+            const SizedBox(height: 16),
+
+            _chipCard(
+              title:    'Specializations',
+              subtitle: 'Select services this priest performs',
+              icon:     Icons.star_outline,
+              options:  _allSpecs,
+              selected: _selectedSpecs,
+            ),
+            const SizedBox(height: 16),
+
+            _chipCard(
+              title:    'Languages',
+              subtitle: 'Select languages this priest speaks',
+              icon:     Icons.language,
+              options:  _allLangs,
+              selected: _selectedLangs,
+            ),
+            const SizedBox(height: 28),
+
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _primary,
+                    foregroundColor: Colors.white,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14))),
+                onPressed: _saving ? null : _submit,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.save),
+                label: Text(
+                    _saving ? 'Saving...' : 'Save to Database',
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Info note
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.07),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: Colors.blue.withValues(alpha: 0.3)),
+              ),
+              child: const Row(children: [
+                Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'After admin approval, this priest will be visible to users on the Homam Booking page.',
+                    style: TextStyle(fontSize: 12, color: Colors.blue),
+                  ),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 16),
           ],
         ),
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('My Details',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: _textDark)),
-              const SizedBox(height: 14),
-              _field(_locationCtrl, 'City / Location',
-                  Icons.location_on),
-              _field(_phoneCtrl, 'Phone Number', Icons.phone,
-                  keyboard: TextInputType.phone),
-              _field(_expCtrl, 'Years of Experience', Icons.work,
-                  keyboard: TextInputType.number),
-              _field(_bioCtrl, 'About Me (Bio)', Icons.info_outline,
-                  maxLines: 3),
-            ]),
       );
 
-  // ── Chip selector card ──────────────────────────────────────
+  Widget _sectionLabel(String title) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Text(title,
+            style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: _textDark)),
+      );
+
+  Widget _field(
+    TextEditingController ctrl,
+    String label,
+    IconData icon, {
+    bool required    = false,
+    int maxLines     = 1,
+    TextInputType keyboard = TextInputType.text,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextFormField(
+          controller:   ctrl,
+          maxLines:     maxLines,
+          keyboardType: keyboard,
+          decoration: InputDecoration(
+            labelText:  label,
+            prefixIcon: Icon(icon, color: _primary),
+            filled:     true,
+            fillColor:  Colors.white,
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    const BorderSide(color: _primary, width: 1.5)),
+          ),
+          validator: required
+              ? (v) => (v == null || v.trim().isEmpty)
+                  ? '$label is required'
+                  : null
+              : null,
+        ),
+      );
+
   Widget _chipCard({
     required String title,
     required String subtitle,
@@ -791,7 +777,8 @@ class _PriestOnlyViewState extends State<_PriestOnlyView> {
               Row(children: [
                 Icon(icon, size: 18, color: _primary),
                 const SizedBox(width: 8),
-                Column(crossAxisAlignment: CrossAxisAlignment.start,
+                Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                   Text(title,
                       style: const TextStyle(
@@ -838,34 +825,5 @@ class _PriestOnlyViewState extends State<_PriestOnlyView> {
                 }).toList(),
               ),
             ]),
-      );
-
-  Widget _field(
-    TextEditingController ctrl,
-    String label,
-    IconData icon, {
-    int maxLines = 1,
-    TextInputType keyboard = TextInputType.text,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: TextField(
-          controller: ctrl,
-          maxLines: maxLines,
-          keyboardType: keyboard,
-          decoration: InputDecoration(
-            labelText: label,
-            prefixIcon: Icon(icon, color: _primary),
-            filled: true,
-            fillColor: const Color(0xFFFFF8F0),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none),
-            focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    const BorderSide(color: _primary, width: 1.5)),
-          ),
-        ),
       );
 }
