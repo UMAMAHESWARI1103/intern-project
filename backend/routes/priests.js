@@ -6,11 +6,7 @@ const Priest  = require('../models/Priest');
 // GET all approved + available priests (optionally filter by homam type)
 router.get('/', async (req, res) => {
   try {
-    // Only show priests that are BOTH approved by admin AND available
-    const filter = {
-      isApproved:  true,
-      isAvailable: true,
-    };
+    const filter = {};
     if (req.query.homamType) {
       filter.specializations = { $in: [req.query.homamType] };
     }
