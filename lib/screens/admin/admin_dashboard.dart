@@ -33,9 +33,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final results = await Future.wait([
         ApiService.getAdminStats(),
         ApiService.getAdminEventRegistrations(),
+        ApiService.getAdminPriests(),            // ← NEW
       ]);
       final stats    = results[0] as Map<String, dynamic>;
       final eventReg = results[1] as List;
+      final priests  = results[2] as List;       // ← NEW
+
       setState(() {
         _stats = {
           'temples':   stats['totalTemples']   ?? 0,
@@ -45,6 +48,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           'users':     stats['totalUsers']     ?? 0,
           'orders':    stats['totalOrders']    ?? 0,
           'eventRegs': stats['totalEventReg']  ?? eventReg.length,
+          'priests':   stats['totalPriests']   ?? priests.length, // ← NEW
         };
         _loading = false;
       });
@@ -187,6 +191,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _miniStat('Users',      '${_stats['users']     ?? 0}', Icons.people,             Colors.indigo),
       _miniStat('Orders',     '${_stats['orders']    ?? 0}', Icons.shopping_bag,       Colors.pink),
       _miniStat('Event Regs', '${_stats['eventRegs'] ?? 0}', Icons.app_registration,   Colors.green),
+      _miniStat('Priests',    '${_stats['priests']   ?? 0}', Icons.person,             Colors.brown), // ← NEW
     ],
   );
 
@@ -237,7 +242,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         const Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [                          // ✅ FIX: removed redundant const
+            children: [
               Text('Reports & Analytics',
                   style: TextStyle(
                       color: Colors.white,
@@ -265,6 +270,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _MgmtItem('Prayers',    '🙏', Colors.orange,     () => _go(const AdminPrayerManagementPage())),
       _MgmtItem('Users',      '👥', Colors.indigo,     () => _go(const AdminUserManagementPage())),
       _MgmtItem('Event Reg.', '✅', Colors.green,      () => _go(const AdminEventRegistrationsPage())),
+      _MgmtItem('Priests',    '🧘', Colors.brown,      () => _go(const AdminPriestManagementPage())), // ← NEW
     ];
 
     return GridView.count(

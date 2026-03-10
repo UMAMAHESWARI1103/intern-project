@@ -3,7 +3,8 @@ import '../services/api_service.dart';
 import '../models/user.dart';
 import 'signup_page.dart';
 import 'home_screen.dart';
-import 'admin/admin_dashboard.dart'; 
+import 'admin/admin_dashboard.dart';
+import 'priest/priest_dashboard.dart'; // ← NEW
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -44,57 +45,83 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       setState(() => _isLoading = false);
 
-      final token   = result['token'];
-      final rawUser = result['user'];
+      final token    = result['token'];
+      final role     = result['role']?.toString() ?? '';
+      final rawUser  = result['user'];
+      final rawPriest= result['priest'];
 
-      if (token != null) {
-        await ApiService.setToken(token as String);
-        if (!mounted) return;
+      if (token == null) {
+        // Login failed — show backend message (including "pending approval")
+        _snack(result['message'] ?? 'Login failed. Check credentials.', Colors.red);
+        return;
+      }
 
-        // ── Admin mode ─────────────────────────────────────────
-        if (_isAdminMode) {
-          if (rawUser != null && rawUser['role'] == 'admin') {
-            _snack('Admin login successful!', Colors.green);
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => AdminDashboard(
-                  adminUser: Map<String, dynamic>.from(rawUser),
-                ),
-              ),
-            );
-          } else {
-            ApiService.clearToken();
-            _snack('Access denied. Admin privileges required.', Colors.red);
-          }
-          return;
-        }
+      await ApiService.setToken(token as String);
+      if (!mounted) return;
 
-        // ── User mode ──────────────────────────────────────────
-        _snack(result['message'] ?? 'Login successful!', Colors.green);
-
-        if (rawUser != null && rawUser['role'] == 'admin') {
+      // ── Admin mode (pill toggled ON) ───────────────────────
+      if (_isAdminMode) {
+        if (role == 'admin') {
+          _snack('Admin login successful!', Colors.green);
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => AdminDashboard(
-                  adminUser: Map<String, dynamic>.from(rawUser)),
+                adminUser: rawUser != null
+                    ? Map<String, dynamic>.from(rawUser)
+                    : null,
+              ),
             ),
           );
         } else {
-          final user = User(
-            id: rawUser?['id'] != null
-                ? int.tryParse(rawUser!['id'].toString())
-                : null,
-            name:  rawUser?['name']  ?? '',
-            email: rawUser?['email'] ?? _emailController.text.trim(),
-            phone: rawUser?['phone'] ?? '',
-          );
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => HomeScreen(user: user)),
-          );
+          // Priest or normal user tried admin mode
+          await ApiService.clearToken();
+          _snack('Access denied. Admin privileges required.', Colors.red);
         }
-      } else {
-        _snack(result['message'] ?? 'Login failed. Check credentials.', Colors.red);
+        return;
       }
+
+      // ── Normal login mode — route by role ──────────────────
+      if (role == 'admin') {
+        _snack('Welcome Admin!', Colors.green);
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => AdminDashboard(
+              adminUser: rawUser != null
+                  ? Map<String, dynamic>.from(rawUser)
+                  : null,
+            ),
+          ),
+        );
+
+      } else if (role == 'priest') {
+        // ── PRIEST → PriestDashboard ─────────────────────────
+        _snack('Welcome, ${rawPriest?['name'] ?? 'Pandit'}!', Colors.green);
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => PriestDashboard(
+              priestUser: rawPriest != null
+                  ? Map<String, dynamic>.from(rawPriest)
+                  : null,
+            ),
+          ),
+        );
+
+      } else {
+        // ── Normal user → HomeScreen ─────────────────────────
+        _snack(result['message'] ?? 'Login successful!', Colors.green);
+        final user = User(
+          id: rawUser?['id'] != null
+              ? int.tryParse(rawUser!['id'].toString())
+              : null,
+          name:  rawUser?['name']  ?? '',
+          email: rawUser?['email'] ?? _emailController.text.trim(),
+          phone: rawUser?['phone'] ?? '',
+        );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => HomeScreen(user: user)),
+        );
+      }
+
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -236,10 +263,10 @@ class _LoginPageState extends State<LoginPage> {
                           horizontal: 16, vertical: 10),
                       margin: const EdgeInsets.only(bottom: 20),
                       decoration: BoxDecoration(
-                        color: _purple.withValues(alpha: 0.08),  // ✅ FIXED
+                        color: _purple.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: _purple.withValues(alpha: 0.4)),  // ✅ FIXED
+                            color: _purple.withValues(alpha: 0.4)),
                       ),
                       child: const Row(children: [
                         Icon(Icons.info_outline, size: 16, color: _purple),

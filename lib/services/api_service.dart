@@ -106,16 +106,17 @@ class ApiService {
   }
 
   // ════════════════════════════════════════════
-  // PRIESTS  ✅ NEW
+  // PRIESTS — PUBLIC (user side)
   // ════════════════════════════════════════════
 
-  /// Fetch all available priests.
-  /// Pass [homamType] to filter priests who specialise in that homam.
+  /// Fetch all approved/available priests.
+  /// Pass [homamType] to filter by specialization.
   static Future<List<dynamic>> getPriests({String? homamType}) async {
     try {
       final token = await loadToken();
       final uri = homamType != null && homamType.isNotEmpty
-          ? Uri.parse('$baseUrl/priests?homamType=${Uri.encodeComponent(homamType)}')
+          ? Uri.parse(
+              '$baseUrl/priests?homamType=${Uri.encodeComponent(homamType)}')
           : Uri.parse('$baseUrl/priests');
 
       final response = await http.get(
@@ -125,7 +126,6 @@ class ApiService {
           if (token != null) 'Authorization': 'Bearer $token',
         },
       );
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['priests'] ?? [];
@@ -134,6 +134,215 @@ class ApiService {
     } catch (e) {
       debugPrint('getPriests error: $e');
       return [];
+    }
+  }
+
+  // ════════════════════════════════════════════
+  // PRIESTS — ADMIN CRUD
+  // ════════════════════════════════════════════
+
+  /// Get ALL priests (approved + pending) for admin dashboard.
+  static Future<List<Map<String, dynamic>>> getAdminPriests() async {
+    try {
+      final token = await loadToken();
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/priests'),
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List raw = data is List ? data : (data['priests'] ?? []);
+        return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('getAdminPriests error: $e');
+      return [];
+    }
+  }
+
+  /// Admin adds a new priest account.
+  static Future<bool> adminAddPriest(Map<String, dynamic> data) async {
+    try {
+      final token = await loadToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/admin/priests'),
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(data),
+      );
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      debugPrint('adminAddPriest error: $e');
+      return false;
+    }
+  }
+
+  /// Admin approves or revokes a priest account.
+  static Future<bool> updatePriestApproval(String id, bool approved) async {
+    try {
+      final token = await loadToken();
+      final response = await http.patch(
+        Uri.parse('$baseUrl/admin/priests/$id/approve'),
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'isApproved': approved}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('updatePriestApproval error: $e');
+      return false;
+    }
+  }
+
+  /// Toggle priest availability — used by both admin and priest self-portal.
+  static Future<bool> updatePriestAvailability(
+      String id, bool available) async {
+    try {
+      final token = await loadToken();
+      final response = await http.patch(
+        Uri.parse('$baseUrl/priests/$id/availability'),
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'isAvailable': available}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('updatePriestAvailability error: $e');
+      return false;
+    }
+  }
+
+  /// Admin permanently deletes a priest.
+  static Future<bool> deletePriest(String id) async {
+    try {
+      final token = await loadToken();
+      final response = await http.delete(
+        Uri.parse('$baseUrl/admin/priests/$id'),
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('deletePriest error: $e');
+      return false;
+    }
+  }
+
+  // ════════════════════════════════════════════
+  // PRIESTS — PRIEST SELF-PORTAL
+  // ════════════════════════════════════════════
+
+  /// Priest-specific login. Returns token with role: 'priest'.
+  static Future<Map<String, dynamic>> priestLogin(
+      String email, String password) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/priests/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'password': password}),
+    );
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if ((response.statusCode == 200 || response.statusCode == 201) &&
+        data['token'] != null) {
+      await saveToken(data['token'] as String);
+    }
+    return data;
+  }
+
+  /// Priest fetches their own profile.
+  static Future<Map<String, dynamic>?> getPriestProfile() async {
+    try {
+      final token = await loadToken();
+      if (token == null) return null;
+      final response = await http.get(
+        Uri.parse('$baseUrl/priests/profile/me'),
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['priest'] ?? data;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('getPriestProfile error: $e');
+      return null;
+    }
+  }
+
+  /// Priest updates their own profile (bio, location, languages, specializations).
+  static Future<bool> updatePriestProfile(
+      String id, Map<String, dynamic> data) async {
+    try {
+      final token = await loadToken();
+      final response = await http.put(
+        Uri.parse('$baseUrl/priests/$id'),
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(data),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('updatePriestProfile error: $e');
+      return false;
+    }
+  }
+
+  /// Priest fetches all bookings assigned to them.
+  static Future<List<dynamic>> getPriestBookings() async {
+    try {
+      final token = await loadToken();
+      if (token == null) return [];
+      final response = await http.get(
+        Uri.parse('$baseUrl/priests/my-bookings'),
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data is List ? data : (data['bookings'] ?? []);
+      }
+      return [];
+    } catch (e) {
+      debugPrint('getPriestBookings error: $e');
+      return [];
+    }
+  }
+
+  /// Priest accepts or declines a booking.
+  static Future<bool> updatePriestBookingStatus(
+      String bookingId, String status) async {
+    try {
+      final token = await loadToken();
+      final response = await http.patch(
+        Uri.parse('$baseUrl/priests/bookings/$bookingId/status'),
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'status': status}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('updatePriestBookingStatus error: $e');
+      return false;
     }
   }
 

@@ -13,6 +13,5 @@ export 'admin_reports_analytics.dart';
 export 'admin_content_management.dart';
 export 'ecommerce/admin_product_management.dart';
 export 'ecommerce/admin_order_management.dart';
-
-// admin_event_registrations.dart now correctly defines AdminEventRegistrationsPage
 export 'admin_event_registrations.dart';
+export 'admin_priest_management.dart'; // ← NEW
