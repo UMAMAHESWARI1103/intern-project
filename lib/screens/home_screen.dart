@@ -20,6 +20,7 @@ import '../screens/profile_page.dart';
 import '../screens/bakthi_padal.dart';
 import '../screens/settings.dart';
 import '../screens/ai_suggestions_page.dart';
+import '../screens/chatbot_page.dart'; // ← ADDED
 
 final List<Map<String, String>> _allQuotes = [
   {'quote': 'You have a right to perform your prescribed duties, but you are not entitled to the fruits of your actions.', 'author': 'Lord Krishna'},
@@ -236,6 +237,22 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: _buildAppBar(),
       drawer: _buildDrawer(),
       body: _buildBody(),
+      // ── ADDED: Chatbot floating button ──────────────────────────
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton.extended(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChatbotPage()),
+              ),
+              backgroundColor: const Color(0xFFFF9933),
+              foregroundColor: Colors.white,
+              icon: const Text('🛕', style: TextStyle(fontSize: 20)),
+              label: const Text('Ask AI',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              elevation: 4,
+            )
+          : null,
+      // ────────────────────────────────────────────────────────────
       bottomNavigationBar: _buildBottomNav(),
     );
   }
@@ -255,13 +272,11 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
       ]),
       actions: [
-        // AI planner
         IconButton(
           icon: const Icon(Icons.auto_awesome, size: 22),
           tooltip: 'AI Visit Planner',
           onPressed: _goToAIPage,
         ),
-        // User avatar
         if (widget.user != null)
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -601,8 +616,7 @@ class _HomeScreenState extends State<HomeScreen> {
             overflow: TextOverflow.ellipsis),
         const SizedBox(height: 10),
         Text('— ${_todayQuote['author']}',
-            style: const TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w600)),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
       ]),
     );
   }
