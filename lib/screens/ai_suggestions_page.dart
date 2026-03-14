@@ -82,7 +82,6 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
       _goodTimeList = [];
     });
 
-    // Get position
     Position pos;
     try {
       var perm = await Geolocator.checkPermission();
@@ -102,7 +101,6 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
       if (mounted) setState(() => _gpsError = 'GPS unavailable — using Chennai as default.');
     }
 
-    // Fetch temples
     List<Map<String, dynamic>> temples = [];
     try {
       final raw = await ApiService.getAllTemples();
@@ -173,7 +171,7 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
   }
 
   // ══════════════════════════════════════════════════════════════
-  //  ML
+  //  ML — Node.js backend, no Python needed
   // ══════════════════════════════════════════════════════════════
   Future<void> _loadML() async {
     setState(() { _mlLoading = true; _mlError = null; });
@@ -189,7 +187,12 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
       } catch (_) {}
 
       if (email.isEmpty) {
-        if (mounted) setState(() { _mlLoading = false; _mlError = 'Login to get personalised recommendations.'; });
+        if (mounted) {
+          setState(() {
+            _mlLoading = false;
+            _mlError   = 'Login to get personalised recommendations.';
+          });
+        }
         return;
       }
 
@@ -200,32 +203,57 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
       final res = await http.get(uri, headers: {
         'Content-Type': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
-      }).timeout(const Duration(seconds: 10));
+      }).timeout(const Duration(seconds: 15));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         if (data['success'] == true) {
-          final temples = (data['temples'] as List? ?? [])
+
+          // ✅ New Node.js format: separate forYou and popular lists
+          final forYouRaw = (data['forYou'] as List? ?? [])
               .map((e) => Map<String, dynamic>.from(e as Map))
               .toList();
-          final type = (data['type'] ?? 'popular').toString();
+          final popularRaw = (data['popular'] as List? ?? [])
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+
+          // Fallback: old format used combined 'temples' list
+          if (forYouRaw.isEmpty && popularRaw.isEmpty) {
+            final temples = (data['temples'] as List? ?? [])
+                .map((e) => Map<String, dynamic>.from(e as Map))
+                .toList();
+            if (mounted) {
+              setState(() {
+                _popularList = temples.take(8).toList();
+                _mlLoading   = false;
+              });
+            }
+            return;
+          }
+
           if (mounted) {
             setState(() {
-              if (type == 'popular') {
-                _popularList = temples.take(6).toList();
-              } else {
-                _forYouList  = temples.take(4).toList();
-                _popularList = temples.skip(4).take(4).toList();
-              }
-              _mlLoading = false;
+              _forYouList  = forYouRaw;
+              _popularList = popularRaw;
+              _mlLoading   = false;
             });
           }
           return;
         }
       }
-      if (mounted) setState(() { _mlLoading = false; _mlError = 'Could not load recommendations.\nMake sure python app.py is running.'; });
+      if (mounted) {
+        setState(() {
+          _mlLoading = false;
+          _mlError   = 'Could not load recommendations. Try again later.';
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() { _mlLoading = false; _mlError = 'Could not reach ML server.\nRun: python app.py'; });
+      if (mounted) {
+        setState(() {
+          _mlLoading = false;
+          _mlError   = 'Could not load recommendations. Try again later.';
+        });
+      }
     }
   }
 
@@ -292,7 +320,7 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
     if (t.deity.contains('Murugan'))   return 'A sacred Murugan temple near you.';
     if (t.deity.contains('Shiva') || t.deity.contains('Siva')) return 'A revered Shiva temple close to you.';
     if (t.deity.contains('Vishnu') || t.deity.contains('Perumal')) return 'A sacred Vishnu temple near your location.';
-    if (t.isOpen)                      return '${t.session} — ${t.travelMin} min away by ${_vehicleLabel[_vehicle]}.';
+    if (t.isOpen) return '${t.session} — ${t.travelMin} min away by ${_vehicleLabel[_vehicle]}.';
     return 'Recommended for your next visit.';
   }
 
@@ -304,26 +332,29 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
 
   String _forYouReason(Map<String, dynamic> t, int rank) {
     final deity = (t['deity'] ?? '').toString();
-    if (rank == 1) return 'You may like this temple based on your activity.';
-    if (deity.contains('Murugan')) return 'People interested in Murugan temples often visit here.';
-    if (deity.contains('Shiva') || deity.contains('Siva')) return 'Popular among Shiva devotees. Recommended for you.';
-    if (deity.contains('Vishnu') || deity.contains('Perumal')) return 'Devotees interested in Vishnu temples often visit here.';
-    return 'People with similar interests recommended this.';
+    if (rank == 1) return 'Top pick based on your temple activity.';
+    if (deity.toLowerCase().contains('murugan')) return 'Matches your interest in Murugan temples.';
+    if (deity.toLowerCase().contains('shiva') || deity.toLowerCase().contains('siva')) return 'Recommended based on your Shiva temple visits.';
+    if (deity.toLowerCase().contains('vishnu') || deity.toLowerCase().contains('perumal')) return 'Matches your interest in Vishnu temples.';
+    if (deity.toLowerCase().contains('devi') || deity.toLowerCase().contains('amman')) return 'Based on your visits to Devi temples.';
+    return 'Recommended based on your temple activity.';
   }
 
   String _popularReason(Map<String, dynamic> t) {
     final deity = (t['deity'] ?? '').toString();
-    if (deity.contains('Murugan')) return 'Highly visited Murugan temple among devotees.';
-    if (deity.isNotEmpty)          return 'Popular $deity temple this season.';
+    if (deity.toLowerCase().contains('murugan')) return 'Highly visited Murugan temple among devotees.';
+    if (deity.isNotEmpty) return 'Popular $deity temple this season.';
     return 'Trending temple visited by many devotees.';
   }
 
   String _ds(double km) =>
       km < 1 ? '${(km * 1000).round()} m' : '${km.toStringAsFixed(1)} km';
-  Color  _crowdColor(String c) => const {
+
+  Color _crowdColor(String c) => const {
     'low': Colors.green, 'medium': Colors.orange,
     'high': Colors.red,  'very_high': Colors.purple,
   }[c] ?? Colors.grey;
+
   String _crowdText(String c) => const {
     'low': 'Less crowd', 'medium': 'Moderate crowd',
     'high': 'Busy',      'very_high': 'Very crowded',
@@ -377,7 +408,6 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
     padding: const EdgeInsets.all(16),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-      // ── Vehicle Picker ───────────────────────────────────────
       Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -398,9 +428,9 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
             return Expanded(
               child: GestureDetector(
                 onTap: () => setState(() {
-                  _vehicle    = v;
-                  _gpsDone    = false;
-                  _nearbyList = [];
+                  _vehicle      = v;
+                  _gpsDone      = false;
+                  _nearbyList   = [];
                   _goodTimeList = [];
                 }),
                 child: AnimatedContainer(
@@ -427,7 +457,6 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
             );
           }).toList()),
           const SizedBox(height: 14),
-          // Find button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -457,23 +486,17 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
         ]),
       ),
 
-      // ── GPS Error ────────────────────────────────────────────
       if (_gpsError != null) ...[
         const SizedBox(height: 12),
         _errorBox(_gpsError!),
       ],
 
-      // ── Results ──────────────────────────────────────────────
       if (_gpsDone && !_gpsLoading) ...[
-
-        // Temples Near You
         if (_nearbyList.isNotEmpty) ...[
           _sectionTitle('📍 Temples Near You',
               'Sorted by distance · via ${_vehicleLabel[_vehicle]}'),
           ..._nearbyList.map(_buildNearbyCard),
         ],
-
-        // Good Time To Visit
         if (_goodTimeList.isNotEmpty) ...[
           _sectionTitle('⏰ Good Time To Visit Now', 'Open now with comfortable crowd'),
           SizedBox(
@@ -485,10 +508,8 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
             ),
           ),
         ],
-
         if (_nearbyList.isEmpty && _goodTimeList.isEmpty)
           _emptyBox('😕', 'No temples found', 'Enable location and make sure backend is running.'),
-
       ],
 
       const SizedBox(height: 60),
@@ -510,13 +531,11 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
 
       if (!_mlLoading && _mlError == null) ...[
 
-        // Recommended For You
         if (_forYouList.isNotEmpty) ...[
-          _sectionTitle('⭐ Recommended For You', 'Based on your temple donations'),
+          _sectionTitle('⭐ Recommended For You', 'Based on your temple activity'),
           ..._forYouList.asMap().entries.map((e) => _buildMLCard(e.value, e.key + 1, forYou: true)),
         ],
 
-        // Popular Temples Today
         if (_popularList.isNotEmpty) ...[
           _sectionTitle('🔥 Popular Temples Today', 'Trending among devotees'),
           ..._popularList.asMap().entries.map((e) => _buildMLCard(e.value, e.key + 1)),
@@ -524,7 +543,7 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
 
         if (_forYouList.isEmpty && _popularList.isEmpty)
           _emptyBox('🧠', 'No recommendations yet',
-              'Donate to temples to get personalised suggestions!'),
+              'Book darshan or donate to temples to get personalised suggestions!'),
       ],
 
       const SizedBox(height: 60),
@@ -544,7 +563,6 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
     child: Padding(
       padding: const EdgeInsets.all(16),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Icon + open badge
         Column(children: [
           Container(
             width: 56, height: 56,
@@ -647,18 +665,18 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
   );
 
   // ══════════════════════════════════════════════════════════════
-  //  CARD — ML (For You + Popular)
+  //  CARD — ML
   // ══════════════════════════════════════════════════════════════
   Widget _buildMLCard(Map<String, dynamic> t, int rank, {bool forYou = false}) {
-    final name   = (t['name']     ?? 'Temple').toString();
-    final loc    = (t['location'] ?? '').toString();
-    final deity  = (t['deity']    ?? '').toString();
-    final fests  = t['festivals'];
+    final name  = (t['name']     ?? 'Temple').toString();
+    final loc   = (t['location'] ?? '').toString();
+    final deity = (t['deity']    ?? '').toString();
+    final fests = t['festivals'];
     String festStr = '';
     if (fests is List && fests.isNotEmpty) {
       festStr = '✨ Popular during ${fests.first}';
     }
-    final isTop = rank == 1 && forYou;
+    final isTop       = rank == 1 && forYou;
     final accentColor = forYou ? _orange : Colors.red.shade400;
 
     return Container(
@@ -678,7 +696,6 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Icon
           Stack(clipBehavior: Clip.none, children: [
             Container(
               width: 56, height: 56,
