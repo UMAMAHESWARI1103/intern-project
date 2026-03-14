@@ -1,6 +1,7 @@
 // lib/screens/login_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../models/user.dart';
 import 'signup_page.dart';
@@ -34,7 +35,6 @@ class _LoginPageState extends State<LoginPage> {
 
   Color get _activeColor => _isAdminMode ? _purple : _orange;
 
-  // ── LOGIN ────────────────────────────────────────────────────
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -53,40 +53,36 @@ class _LoginPageState extends State<LoginPage> {
       final role    = rawUser?['role']?.toString() ?? '';
 
       if (token == null) {
-        _snack(result['message'] ?? 'Login failed. Check credentials.',
-            Colors.red);
+        _snack(result['message'] ?? 'Login failed. Check credentials.', Colors.red);
         return;
       }
 
       await ApiService.setToken(token as String);
+
+      // ✅ Save email for ML recommendations
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userEmail', email);
+
       if (!mounted) return;
 
-      // ── Common priest email → AdminDashboard (priest tab only) ──
       if (email == 'priest@godsconnect.com') {
         _snack('Welcome to Priest Portal 🙏', Colors.green);
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => AdminDashboard(
-              adminUser: {
-                'name':  'Priest Portal',
-                'email': email,
-                'role':  'priest',
-              },
+              adminUser: {'name': 'Priest Portal', 'email': email, 'role': 'priest'},
             ),
           ),
         );
         return;
       }
 
-      // ── Admin mode pill — only allow admin role ──────────────
       if (_isAdminMode) {
         if (role == 'admin') {
           _snack('Admin login successful!', Colors.green);
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => AdminDashboard(
-                adminUser: Map<String, dynamic>.from(rawUser),
-              ),
+              builder: (_) => AdminDashboard(adminUser: Map<String, dynamic>.from(rawUser)),
             ),
           );
         } else {
@@ -96,22 +92,17 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // ── Normal user / admin routing ──────────────────────────
       if (role == 'admin') {
         _snack('Welcome Admin!', Colors.green);
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => AdminDashboard(
-              adminUser: Map<String, dynamic>.from(rawUser),
-            ),
+            builder: (_) => AdminDashboard(adminUser: Map<String, dynamic>.from(rawUser)),
           ),
         );
       } else {
         _snack(result['message'] ?? 'Login successful!', Colors.green);
         final user = User(
-          id: rawUser?['id'] != null
-              ? int.tryParse(rawUser!['id'].toString())
-              : null,
+          id:    rawUser?['id'] != null ? int.tryParse(rawUser!['id'].toString()) : null,
           name:  rawUser?['name']  ?? '',
           email: rawUser?['email'] ?? email,
           phone: rawUser?['phone'] ?? '',
@@ -137,7 +128,6 @@ class _LoginPageState extends State<LoginPage> {
     ));
   }
 
-  // ── BUILD ────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -151,7 +141,6 @@ class _LoginPageState extends State<LoginPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
 
-                  // ── Top row ───────────────────────────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -163,102 +152,63 @@ class _LoginPageState extends State<LoginPage> {
                         }),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 250),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 7),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                           decoration: BoxDecoration(
-                            color: _isAdminMode
-                                ? _purple
-                                : Colors.transparent,
+                            color: _isAdminMode ? _purple : Colors.transparent,
                             borderRadius: BorderRadius.circular(20),
-                            border:
-                                Border.all(color: _purple, width: 1.5),
+                            border: Border.all(color: _purple, width: 1.5),
                           ),
-                          child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _isAdminMode
-                                      ? Icons.admin_panel_settings
-                                      : Icons.admin_panel_settings_outlined,
-                                  size: 15,
-                                  color: _isAdminMode
-                                      ? Colors.white
-                                      : _purple,
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  _isAdminMode
-                                      ? 'Admin Mode'
-                                      : 'Admin Login',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: _isAdminMode
-                                        ? Colors.white
-                                        : _purple,
-                                  ),
-                                ),
-                              ]),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(
+                              _isAdminMode ? Icons.admin_panel_settings : Icons.admin_panel_settings_outlined,
+                              size: 15,
+                              color: _isAdminMode ? Colors.white : _purple,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              _isAdminMode ? 'Admin Mode' : 'Admin Login',
+                              style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold,
+                                color: _isAdminMode ? Colors.white : _purple,
+                              ),
+                            ),
+                          ]),
                         ),
                       ),
                       TextButton(
-                        onPressed: () =>
-                            Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                    builder: (_) => const HomeScreen())),
+                        onPressed: () => Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(builder: (_) => const HomeScreen())),
                         child: const Text('Skip →',
-                            style: TextStyle(
-                                color: _orange,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16)),
+                            style: TextStyle(color: _orange, fontWeight: FontWeight.bold, fontSize: 16)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
 
-                  // ── Logo ──────────────────────────────────────
                   Center(
                     child: Column(children: [
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _activeColor,
-                        ),
-                        child: Center(
-                          child: Icon(
-                            _isAdminMode
-                                ? Icons.admin_panel_settings
-                                : Icons.account_balance,
-                            size: 48,
-                            color: Colors.white,
-                          ),
-                        ),
+                        width: 100, height: 100,
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: _activeColor),
+                        child: Center(child: Icon(
+                          _isAdminMode ? Icons.admin_panel_settings : Icons.account_balance,
+                          size: 48, color: Colors.white,
+                        )),
                       ),
                       const SizedBox(height: 16),
                       const Text('GodsConnect',
-                          style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1)),
+                          style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 1)),
                       const SizedBox(height: 8),
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
                         child: Text(
-                          _isAdminMode
-                              ? '🔐 Admin Portal'
-                              : 'Welcome Back!',
+                          _isAdminMode ? '🔐 Admin Portal' : 'Welcome Back!',
                           key: ValueKey(_isAdminMode),
                           style: TextStyle(
                             fontSize: 16,
-                            color: _isAdminMode
-                                ? _purple
-                                : Colors.grey,
-                            fontWeight: _isAdminMode
-                                ? FontWeight.bold
-                                : FontWeight.normal,
+                            color: _isAdminMode ? _purple : Colors.grey,
+                            fontWeight: _isAdminMode ? FontWeight.bold : FontWeight.normal,
                           ),
                         ),
                       ),
@@ -266,67 +216,46 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 40),
 
-                  // ── Admin warning banner ──────────────────────
                   if (_isAdminMode) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       margin: const EdgeInsets.only(bottom: 20),
                       decoration: BoxDecoration(
                         color: _purple.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: _purple.withValues(alpha: 0.4)),
+                        border: Border.all(color: _purple.withValues(alpha: 0.4)),
                       ),
                       child: const Row(children: [
-                        Icon(Icons.info_outline,
-                            size: 16, color: _purple),
+                        Icon(Icons.info_outline, size: 16, color: _purple),
                         SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Admin credentials required. Unauthorized access is prohibited.',
-                            style:
-                                TextStyle(fontSize: 12, color: _purple),
-                          ),
-                        ),
+                        Expanded(child: Text(
+                          'Admin credentials required. Unauthorized access is prohibited.',
+                          style: TextStyle(fontSize: 12, color: _purple),
+                        )),
                       ]),
                     ),
                   ],
 
-                  // ── Email ─────────────────────────────────────
-                  Text(
-                    _isAdminMode ? 'Admin Email' : 'Email',
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
+                  Text(_isAdminMode ? 'Admin Email' : 'Email',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: _inputDeco(
-                      hint: _isAdminMode
-                          ? 'Enter admin email'
-                          : 'Enter your email',
-                      icon: _isAdminMode
-                          ? Icons.admin_panel_settings_outlined
-                          : Icons.email_outlined,
+                      hint: _isAdminMode ? 'Enter admin email' : 'Enter your email',
+                      icon: _isAdminMode ? Icons.admin_panel_settings_outlined : Icons.email_outlined,
                     ),
                     validator: (v) {
-                      if (v == null || v.isEmpty) {
-                        return 'Please enter email';
-                      }
-                      if (!v.contains('@')) {
-                        return 'Enter a valid email';
-                      }
+                      if (v == null || v.isEmpty) return 'Please enter email';
+                      if (!v.contains('@')) return 'Enter a valid email';
                       return null;
                     },
                   ),
                   const SizedBox(height: 20),
 
-                  // ── Password ──────────────────────────────────
                   const Text('Password',
-                      style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600)),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _passwordController,
@@ -336,98 +265,64 @@ class _LoginPageState extends State<LoginPage> {
                       icon: Icons.lock_outlined,
                       suffix: IconButton(
                         icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
+                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                           color: Colors.grey,
                         ),
-                        onPressed: () => setState(() =>
-                            _obscurePassword = !_obscurePassword),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
                     ),
                     validator: (v) {
-                      if (v == null || v.isEmpty) {
-                        return 'Please enter password';
-                      }
-                      if (v.length < 6) {
-                        return 'Minimum 6 characters';
-                      }
+                      if (v == null || v.isEmpty) return 'Please enter password';
+                      if (v.length < 6) return 'Minimum 6 characters';
                       return null;
                     },
                   ),
                   const SizedBox(height: 28),
 
-                  // ── Login Button ──────────────────────────────
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _activeColor,
                       foregroundColor: Colors.white,
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 2,
                     ),
                     child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (_isAdminMode) ...[
-                                const Icon(
-                                    Icons.admin_panel_settings,
-                                    size: 18),
-                                const SizedBox(width: 8),
-                              ],
-                              Text(
-                                _isAdminMode
-                                    ? 'Login as Admin'
-                                    : 'Login',
-                                style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold),
-                              ),
+                        ? const SizedBox(height: 20, width: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            if (_isAdminMode) ...[
+                              const Icon(Icons.admin_panel_settings, size: 18),
+                              const SizedBox(width: 8),
                             ],
-                          ),
+                            Text(
+                              _isAdminMode ? 'Login as Admin' : 'Login',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                          ]),
                   ),
                   const SizedBox(height: 16),
 
                   if (_isAdminMode)
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: () =>
-                            setState(() => _isAdminMode = false),
-                        icon: const Icon(Icons.person_outline,
-                            size: 15, color: Colors.grey),
-                        label: const Text('Switch to User Login',
-                            style: TextStyle(
-                                color: Colors.grey, fontSize: 13)),
-                      ),
-                    ),
+                    Center(child: TextButton.icon(
+                      onPressed: () => setState(() => _isAdminMode = false),
+                      icon: const Icon(Icons.person_outline, size: 15, color: Colors.grey),
+                      label: const Text('Switch to User Login',
+                          style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    )),
 
                   if (!_isAdminMode) ...[
                     const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text("Don't have an account? ",
-                            style: TextStyle(color: Colors.grey)),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                  builder: (_) => const SignUpPage())),
-                          child: const Text('Sign Up',
-                              style: TextStyle(
-                                  color: _orange,
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      const Text("Don't have an account? ", style: TextStyle(color: Colors.grey)),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SignUpPage())),
+                        child: const Text('Sign Up',
+                            style: TextStyle(color: _orange, fontWeight: FontWeight.bold)),
+                      ),
+                    ]),
                   ],
                 ],
               ),
@@ -438,29 +333,15 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  InputDecoration _inputDeco({
-    required String hint,
-    required IconData icon,
-    Widget? suffix,
-  }) =>
+  InputDecoration _inputDeco({required String hint, required IconData icon, Widget? suffix}) =>
       InputDecoration(
         hintText: hint,
         prefixIcon: Icon(icon),
         suffixIcon: suffix,
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: _orange)),
-        enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: _activeColor)),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: _activeColor, width: 2)),
-        errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.red)),
-        focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.red, width: 2)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _orange)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _activeColor)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _activeColor, width: 2)),
+        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red)),
+        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red, width: 2)),
       );
 }

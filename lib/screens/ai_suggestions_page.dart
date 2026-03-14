@@ -69,7 +69,7 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
         accuracy: 0, altitude: 0, altitudeAccuracy: 0,
         heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0,
       );
-      if (mounted) setState(() => _gpsError = 'GPS unavailable — using Chennai as default.');
+      if (mounted) { setState(() => _gpsError = 'GPS unavailable — using Chennai as default.'); }
     }
 
     List<Map<String, dynamic>> temples = [];
