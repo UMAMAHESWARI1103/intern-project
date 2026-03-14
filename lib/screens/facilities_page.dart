@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 // ─── UPDATE THIS to your backend IP/host ───────────────────────────────────
-const String _baseUrl = 'https://godsconnect-backend.onrender.com';
+const String _baseUrl = 'https://godsconnect-backend.onrender.com/api';
 // ───────────────────────────────────────────────────────────────────────────
 
 class FacilitiesPage extends StatefulWidget {
@@ -107,7 +107,7 @@ class _FacilitiesPageState extends State<FacilitiesPage>
     });
 
     try {
-      String url = '$_baseUrl/api/facilities';
+      String url = '$_baseUrl/facilities';
       if (position != null) {
         url += '?lat=${position.latitude}&lon=${position.longitude}&radius=200';
       }

@@ -21,13 +21,11 @@ router.use(optionalAuth);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCHEMAS
-// ✅ FIX: userEmail is NOT required — it's filled from token or body,
-//         but we don't reject the booking if it's missing
 // ─────────────────────────────────────────────────────────────────────────────
 const baseFields = {
   userId:            { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  userEmail:         { type: String, default: '' },   // ✅ was required: true — now default: ''
-  userName:          { type: String, default: '' },   // ✅ was required: true — now default: ''
+  userEmail:         { type: String, default: '' },
+  userName:          { type: String, default: '' },
   userPhone:         { type: String, default: '' },
   razorpayPaymentId: { type: String, default: '' },
   razorpayOrderId:   { type: String, default: '' },
@@ -41,9 +39,9 @@ const DarshanBooking = mongoose.models.DarshanBooking || mongoose.model(
   'DarshanBooking',
   new mongoose.Schema({
     ...baseFields,
-    templeName:      { type: String, default: '' },  // ✅ was required
+    templeName:      { type: String, default: '' },
     templeId:        { type: String, default: '' },
-    date:            { type: String, default: '' },  // ✅ was required
+    date:            { type: String, default: '' },
     timeSlot:        { type: String, default: '' },
     numberOfPersons: { type: Number, default: 1 },
   }, { timestamps: true })
@@ -64,8 +62,8 @@ const HomamBooking = mongoose.models.HomamBooking || mongoose.model(
     ...baseFields,
     templeName:  { type: String, default: '' },
     templeId:    { type: String, default: '' },
-    homamType:   { type: String, default: '' },   // ✅ was required
-    date:        { type: String, default: '' },   // ✅ was required
+    homamType:   { type: String, default: '' },
+    date:        { type: String, default: '' },
     timeSlot:    { type: String, default: '' },
     iyer:        { type: String, default: 'To be assigned' },
     specialNote: { type: String, default: '' },
@@ -78,9 +76,9 @@ const MarriageBooking = mongoose.models.MarriageBooking || mongoose.model(
     ...baseFields,
     templeName:  { type: String, default: '' },
     templeId:    { type: String, default: '' },
-    groomName:   { type: String, default: '' },   // ✅ was required
-    brideName:   { type: String, default: '' },   // ✅ was required
-    weddingDate: { type: String, default: '' },   // ✅ was required
+    groomName:   { type: String, default: '' },
+    brideName:   { type: String, default: '' },
+    weddingDate: { type: String, default: '' },
     timeSlot:    { type: String, default: '' },
     guestCount:  { type: Number, default: 0 },
     specialNote: { type: String, default: '' },
@@ -88,11 +86,14 @@ const MarriageBooking = mongoose.models.MarriageBooking || mongoose.model(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HELPER
+// HELPER — converts JWT string id to proper ObjectId
 // ─────────────────────────────────────────────────────────────────────────────
 function getAuthInfo(req) {
-  const userId    = req.user?._id   || req.user?.id    || req.body.userId    || null;
-  const userEmail = req.user?.email                    || req.body.userEmail || '';
+  const rawId = req.user?._id || req.user?.id || req.body.userId || null;
+  const userId = rawId && mongoose.Types.ObjectId.isValid(rawId)
+    ? new mongoose.Types.ObjectId(rawId.toString())
+    : null;
+  const userEmail = req.user?.email || req.body.userEmail || '';
   return { userId, userEmail };
 }
 
@@ -165,7 +166,10 @@ router.post('/marriage', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/my-bookings', async (req, res) => {
   try {
-    const userId    = req.user?._id   || req.user?.id    || null;
+    const rawId     = req.user?._id || req.user?.id || null;
+    const userId    = rawId && mongoose.Types.ObjectId.isValid(rawId)
+      ? new mongoose.Types.ObjectId(rawId.toString())
+      : null;
     const userEmail = req.user?.email || req.query.email || null;
 
     if (!userId && !userEmail) {
