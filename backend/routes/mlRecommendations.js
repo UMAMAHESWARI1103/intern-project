@@ -1,247 +1,93 @@
 // backend/routes/mlRecommendations.js
-// ✅ Pure Node.js recommendation engine — no Python needed
-// Algorithm:
-//   1. Content-based filtering  — user's own booking/donation history
-//   2. Collaborative filtering  — what similar users booked
-//   3. Popularity scoring       — most booked temples get higher score
-//   4. Weighted final score     — combines all three
+const express = require('express');
+const router  = express.Router();
+const Temple  = require('../models/temple');
 
-const express  = require('express');
-const router   = express.Router();
-const mongoose = require('mongoose');
-const jwt      = require('jsonwebtoken');
-
-// ─────────────────────────────────────────────────────────────────────────────
-// IMPORT EXISTING MODELS — avoids OverwriteModelError
-// ─────────────────────────────────────────────────────────────────────────────
-const Temple   = require('../models/temple');
-const Donation = require('../models/Donation');
-
-// Booking models are registered by booking.js — reuse safely
-function getModel(name) {
-  return mongoose.models[name] || mongoose.model(name,
-    new mongoose.Schema({
-      userId:    mongoose.Schema.Types.ObjectId,
-      userEmail: String,
-      templeName: String,
-      templeId:   String,
-      totalAmount: Number,
-    }, { strict: false, timestamps: true })
-  );
-}
-const DarshanBooking  = getModel('DarshanBooking');
-const HomamBooking    = getModel('HomamBooking');
-const MarriageBooking = getModel('MarriageBooking');
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AUTH
-// ─────────────────────────────────────────────────────────────────────────────
-function optionalAuth(req, res, next) {
-  try {
-    const header = req.headers['authorization'] || '';
-    const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
-    if (token) req.user = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-  } catch (_) {}
-  next();
-}
-router.use(optionalAuth);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Recency weight: exponential decay over 30 days
-function recencyWeight(createdAt) {
-  const days = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24);
-  return Math.exp(-days / 30);
+function getHardcodedTemples() {
+  return [
+    { name: 'Palani Murugan Temple', location: 'Palani, Dindigul, Tamil Nadu', deity: 'Lord Murugan', festivals: ['Thaipusam', 'Skanda Shashti'], icon: '🛕' },
+    { name: 'Thiruchendur Murugan Temple', location: 'Thiruchendur, Thoothukudi, Tamil Nadu', deity: 'Lord Murugan', festivals: ['Skanda Shashti', 'Thaipusam'], icon: '🛕' },
+    { name: 'Swamimalai Murugan Temple', location: 'Swamimalai, Kumbakonam, Tamil Nadu', deity: 'Lord Murugan', festivals: ['Skanda Shashti', 'Thaipusam'], icon: '🛕' },
+    { name: 'Tiruttani Murugan Temple', location: 'Tiruttani, Ranipet, Tamil Nadu', deity: 'Lord Murugan', festivals: ['Skanda Shashti', 'Vaikasi Visakam'], icon: '🛕' },
+    { name: 'Pazhamudircholai Murugan Temple', location: 'Alagar Kovil, Madurai, Tamil Nadu', deity: 'Lord Murugan', festivals: ['Vaikasi Visakam', 'Panguni Uthiram'], icon: '🛕' },
+    { name: 'Thiruparankundram Murugan Temple', location: 'Thiruparankundram, Madurai, Tamil Nadu', deity: 'Lord Murugan', festivals: ['Skanda Shashti', 'Thaipusam'], icon: '🛕' },
+    { name: 'Nataraja Temple Chidambaram', location: 'Chidambaram, Cuddalore, Tamil Nadu', deity: 'Lord Nataraja', festivals: ['Natyanjali Festival', 'Maha Shivaratri'], icon: '🛕' },
+    { name: 'Ekambareswarar Temple', location: 'Kanchipuram, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Maha Shivaratri', 'Panguni Uthiram'], icon: '🛕' },
+    { name: 'Arunachaleswarar Temple', location: 'Thiruvannamalai, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Karthigai Deepam', 'Maha Shivaratri'], icon: '🛕' },
+    { name: 'Jambukeswarar Temple', location: 'Thiruvanaikaval, Tiruchirappalli, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Maha Shivaratri', 'Panguni Uthiram'], icon: '🛕' },
+    { name: 'Brihadeeswarar Temple', location: 'Thanjavur, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Maha Shivaratri', 'Karthigai Deepam'], icon: '🛕' },
+    { name: 'Ramanathaswamy Temple', location: 'Rameswaram, Ramanathapuram, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Maha Shivaratri', 'Brahmotsavam'], icon: '🛕' },
+    { name: 'Kapaleeshwarar Temple', location: 'Mylapore, Chennai, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Arubathimoovar Festival', 'Navarathri'], icon: '🛕' },
+    { name: 'Nellaiappar Temple', location: 'Tirunelveli, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Maha Shivaratri', 'Navarathri'], icon: '🛕' },
+    { name: 'Vaitheeswaran Koil', location: 'Vaitheeswaran Koil, Nagapattinam, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Maha Shivaratri', 'Skanda Shashti'], icon: '🛕' },
+    { name: 'Airavatheeswarar Temple', location: 'Darasuram, Kumbakonam, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Maha Shivaratri', 'Karthigai Deepam'], icon: '🛕' },
+    { name: 'Gangaikonda Cholapuram Temple', location: 'Gangaikonda Cholapuram, Ariyalur, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Maha Shivaratri'], icon: '🛕' },
+    { name: 'Kasi Viswanathar Temple Tenkasi', location: 'Tenkasi, Tirunelveli, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Maha Shivaratri', 'Karthigai Deepam'], icon: '🛕' },
+    { name: 'Kanchi Kailasanathar Temple', location: 'Kanchipuram, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Maha Shivaratri', 'Karthigai Deepam'], icon: '🛕' },
+    { name: 'Kumbeswarar Temple', location: 'Kumbakonam, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Maha Shivaratri', 'Mahamaham'], icon: '🛕' },
+    { name: 'Thirunageswaram Rahu Temple', location: 'Thirunageswaram, Kumbakonam, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Aadi Krithigai', 'Rahu Ketu Peyarchi'], icon: '🛕' },
+    { name: 'Ranganathaswamy Temple Srirangam', location: 'Srirangam, Tiruchirappalli, Tamil Nadu', deity: 'Lord Vishnu', festivals: ['Vaikunta Ekadasi', 'Brahmotsavam'], icon: '🛕' },
+    { name: 'Varadaraja Perumal Temple', location: 'Kanchipuram, Tamil Nadu', deity: 'Lord Vishnu', festivals: ['Brahmotsavam', 'Vaikunta Ekadasi'], icon: '🛕' },
+    { name: 'Parthasarathy Temple', location: 'Triplicane, Chennai, Tamil Nadu', deity: 'Lord Vishnu', festivals: ['Brahmotsavam', 'Krishna Jayanthi'], icon: '🛕' },
+    { name: 'Oppiliappan Temple', location: 'Thirunageswaram, Kumbakonam, Tamil Nadu', deity: 'Lord Vishnu', festivals: ['Vaikunta Ekadasi', 'Brahmotsavam'], icon: '🛕' },
+    { name: 'Sarangapani Temple', location: 'Kumbakonam, Tamil Nadu', deity: 'Lord Vishnu', festivals: ['Vaikunta Ekadasi', 'Brahmotsavam'], icon: '🛕' },
+    { name: 'Rajagopalaswamy Temple Mannargudi', location: 'Mannargudi, Tiruvarur, Tamil Nadu', deity: 'Lord Vishnu', festivals: ['Brahmotsavam', 'Vaikunta Ekadasi'], icon: '🛕' },
+    { name: 'Meenakshi Amman Temple', location: 'Madurai, Tamil Nadu', deity: 'Goddess Meenakshi', festivals: ['Meenakshi Thirukalyanam', 'Navarathri'], icon: '🛕' },
+    { name: 'Kamakshi Amman Temple', location: 'Kanchipuram, Tamil Nadu', deity: 'Goddess Kamakshi', festivals: ['Navarathri', 'Panguni Uthiram'], icon: '🛕' },
+    { name: 'Mariamman Temple Samayapuram', location: 'Samayapuram, Tiruchirappalli, Tamil Nadu', deity: 'Goddess Mariamman', festivals: ['Panguni Uthiram', 'Navarathri'], icon: '🛕' },
+    { name: 'Kanyakumari Bhagavathy Amman Temple', location: 'Kanyakumari, Tamil Nadu', deity: 'Goddess Kanyakumari', festivals: ['Navarathri', 'Vaikasi Visakam'], icon: '🛕' },
+    { name: 'Ashtalakshmi Temple', location: 'Besant Nagar, Chennai, Tamil Nadu', deity: 'Goddess Lakshmi', festivals: ['Navarathri', 'Varalakshmi Vratam'], icon: '🛕' },
+    { name: 'Uchipillaiyar Temple Rock Fort', location: 'Tiruchirappalli, Tamil Nadu', deity: 'Lord Ganesha', festivals: ['Ganesh Chaturthi', 'Karthigai Deepam'], icon: '🛕' },
+    { name: 'Karpaga Vinayagar Temple', location: 'Pillayarpatti, Sivaganga, Tamil Nadu', deity: 'Lord Ganesha', festivals: ['Ganesh Chaturthi'], icon: '🛕' },
+    { name: 'Shore Temple Mahabalipuram', location: 'Mahabalipuram, Chengalpattu, Tamil Nadu', deity: 'Lord Shiva', festivals: ['Maha Shivaratri', 'Dance Festival'], icon: '🛕' },
+    { name: 'Suchindram Thanumalayan Temple', location: 'Suchindram, Kanyakumari, Tamil Nadu', deity: 'Lord Shiva Vishnu Brahma', festivals: ['Maha Shivaratri', 'Vaikunta Ekadasi'], icon: '🛕' },
+  ];
 }
 
-// Map deity string to category
-function deityCategory(deity = '') {
-  const d = deity.toLowerCase();
-  if (d.includes('murugan') || d.includes('kartikeya') || d.includes('subramanya')) return 'murugan';
-  if (d.includes('shiva')   || d.includes('siva')      || d.includes('lingam') || d.includes('nataraja')) return 'shiva';
-  if (d.includes('vishnu')  || d.includes('perumal')   || d.includes('venkatesh') || d.includes('balaji')) return 'vishnu';
-  if (d.includes('devi')    || d.includes('amman')     || d.includes('durga') || d.includes('lakshmi') || d.includes('saraswati') || d.includes('kali')) return 'devi';
-  if (d.includes('ganesh')  || d.includes('ganesha')   || d.includes('vinayaka') || d.includes('pillayar')) return 'ganesh';
-  if (d.includes('hanuman') || d.includes('anjaneya')) return 'hanuman';
-  return 'other';
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/ml-recommendations/:userEmail
-// ─────────────────────────────────────────────────────────────────────────────
 router.get('/:userEmail', async (req, res) => {
   try {
     const { userEmail } = req.params;
-    const emailLower    = userEmail.toLowerCase();
 
-    // ── 1. Load all temples ───────────────────────────────────
-    const allTemples = await Temple.find({}).lean();
-    if (!allTemples.length) {
-      return res.json({ success: true, type: 'popular', forYou: [], popular: [], temples: [] });
-    }
-
-    // ── 2. Load user's own activity ───────────────────────────
-    // NOTE: Donation uses 'donorEmail', bookings use 'userEmail'
-    const bookingQuery  = { $or: [{ userEmail }, { userEmail: emailLower }] };
-    const donationQuery = { $or: [{ donorEmail: userEmail }, { donorEmail: emailLower }] };
-
-    const [myDarshans, myHomams, myMarriages, myDonations] = await Promise.all([
-      DarshanBooking.find(bookingQuery).lean(),
-      HomamBooking.find(bookingQuery).lean(),
-      MarriageBooking.find(bookingQuery).lean(),
-      Donation.find(donationQuery).lean(),
-    ]);
-
-    // Normalize donation fields to match booking shape
-    const normalizedDonations = myDonations.map(d => ({
-      ...d,
-      userEmail:   d.donorEmail,
-      templeName:  d.templeName,
-      totalAmount: d.amount,
+    // Get DB temples
+    const dbTemples = await Temple.find({}).lean();
+    const dbFormatted = dbTemples.map(t => ({
+      name:      t.name      || 'Temple',
+      location:  t.location  || '',
+      deity:     t.deity     || '',
+      festivals: t.festivals || [],
+      icon:      t.icon      || '🛕',
     }));
 
-    const myActivity = [...myDarshans, ...myHomams, ...myMarriages, ...normalizedDonations];
-    const hasHistory = myActivity.length > 0;
+    // Combine DB + hardcoded, DB first
+    const allTemples = [...dbFormatted, ...getHardcodedTemples()];
 
-    // ── 3. Load ALL activity for collaborative + popularity ───
-    const [allDarshans, allHomams, allMarriages, allDonations] = await Promise.all([
-      DarshanBooking.find({}).lean(),
-      HomamBooking.find({}).lean(),
-      MarriageBooking.find({}).lean(),
-      Donation.find({}).lean(),
-    ]);
-
-    const allNormalizedDonations = allDonations.map(d => ({
-      ...d,
-      userEmail:   d.donorEmail,
-      templeName:  d.templeName,
-      totalAmount: d.amount,
-    }));
-
-    const allActivity = [...allDarshans, ...allHomams, ...allMarriages, ...allNormalizedDonations];
-
-    // ── 4. POPULARITY SCORE ───────────────────────────────────
-    const popularityMap = {};
-    for (const a of allActivity) {
-      const key = (a.templeName || '').trim().toLowerCase();
-      if (!key) continue;
-      popularityMap[key] = (popularityMap[key] || 0) + 1
-        + (a.totalAmount || 0) * 0.001;
-    }
-    const maxPop = Math.max(...Object.values(popularityMap), 1);
-    for (const k in popularityMap) popularityMap[k] = (popularityMap[k] / maxPop) * 100;
-
-    // ── 5. CONTENT-BASED SCORE — user's preferred deity ──────
-    const myTempleNames  = new Set();
-    const myDeityWeights = {};
-
-    for (const a of myActivity) {
-      const tName = (a.templeName || '').trim().toLowerCase();
-      if (tName) myTempleNames.add(tName);
-      const temple = allTemples.find(t => (t.name || '').trim().toLowerCase() === tName);
-      if (temple) {
-        const cat = deityCategory(temple.deity || '');
-        const w   = recencyWeight(a.createdAt) * (1 + (a.totalAmount || 0) * 0.001);
-        myDeityWeights[cat] = (myDeityWeights[cat] || 0) + w;
-      }
-    }
-    const maxDeity = Math.max(...Object.values(myDeityWeights), 1);
-    for (const k in myDeityWeights) myDeityWeights[k] = (myDeityWeights[k] / maxDeity) * 100;
-
-    // ── 6. COLLABORATIVE SCORE — similar users ────────────────
-    const similarUserEmails = new Set();
-    for (const a of allActivity) {
-      const tName = (a.templeName || '').trim().toLowerCase();
-      if (myTempleNames.has(tName) && a.userEmail && a.userEmail !== emailLower) {
-        similarUserEmails.add(a.userEmail);
-      }
-    }
-    const collaborativeMap = {};
-    for (const a of allActivity) {
-      if (!similarUserEmails.has(a.userEmail)) continue;
-      const key = (a.templeName || '').trim().toLowerCase();
-      if (!key) continue;
-      collaborativeMap[key] = (collaborativeMap[key] || 0) + recencyWeight(a.createdAt);
-    }
-    const maxCollab = Math.max(...Object.values(collaborativeMap), 1);
-    for (const k in collaborativeMap) collaborativeMap[k] = (collaborativeMap[k] / maxCollab) * 100;
-
-    // ── 7. FINAL WEIGHTED SCORE ───────────────────────────────
-    const scored = allTemples.map(temple => {
-      const key  = (temple.name || '').trim().toLowerCase();
-      const cat  = deityCategory(temple.deity || '');
-
-      const popScore     = popularityMap[key]   || 0;
-      const contentScore = myDeityWeights[cat]  || 0;
-      const collabScore  = collaborativeMap[key] || 0;
-
-      const visitCount     = myActivity.filter(a =>
-        (a.templeName || '').trim().toLowerCase() === key).length;
-      const noveltyPenalty = Math.min(visitCount * 10, 40);
-
-      // Weights: popularity 40%, content-based 35%, collaborative 25%
-      const finalScore = hasHistory
-        ? popScore * 0.40 + contentScore * 0.35 + collabScore * 0.25 - noveltyPenalty
-        : popScore;
-
-      return { ...temple, _score: finalScore, _visitCount: visitCount };
+    // Remove duplicates by name
+    const seen   = new Set();
+    const unique = allTemples.filter(t => {
+      const key = (t.name || '').toLowerCase().trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
 
-    scored.sort((a, b) => b._score - a._score);
+    const popular = unique.slice(0, 8);
 
-    // ── 8. SPLIT forYou vs popular ────────────────────────────
-    let forYou  = [];
-    let popular = [];
-
-    if (hasHistory) {
-      forYou = scored
-        .filter(t => {
-          const cat = deityCategory(t.deity || '');
-          return (myDeityWeights[cat] || 0) > 20 && t._visitCount < 3;
-        })
-        .slice(0, 4);
-
-      const forYouNames = new Set(forYou.map(t => t.name));
-      popular = scored.filter(t => !forYouNames.has(t.name)).slice(0, 6);
-    } else {
-      popular = scored.slice(0, 8);
-    }
-
-    const cleanTemple = (t) => {
-      const cleaned = { ...t };
-      delete cleaned._score;
-      delete cleaned._visitCount;
-      delete cleaned.__v;
-      return cleaned;
-    };
-
-    console.log(`🧠 ML for ${userEmail}: forYou=${forYou.length} popular=${popular.length} similarUsers=${similarUserEmails.size} hasHistory=${hasHistory} myActivity=${myActivity.length}`);
+    console.log(`🧠 ML for ${userEmail}: returning ${popular.length} temples (db:${dbFormatted.length} hardcoded:${getHardcodedTemples().length})`);
 
     return res.json({
       success:   true,
-      type:      hasHistory ? 'personalized' : 'popular',
-      typeLabel: hasHistory ? 'Based on your temple activity' : 'Popular temples',
-      forYou:    forYou.map(cleanTemple),
-      popular:   popular.map(cleanTemple),
-      temples:   [...forYou, ...popular].map(cleanTemple),
-      count:     forYou.length + popular.length,
-      algorithm: {
-        hasHistory,
-        myTempleCount:    myTempleNames.size,
-        similarUserCount: similarUserEmails.size,
-        topDeity: Object.entries(myDeityWeights).sort((a, b) => b[1] - a[1])[0]?.[0] || 'none',
-      },
+      type:      'popular',
+      typeLabel: 'Popular Temples',
+      forYou:    [],
+      popular,
+      temples:   popular,
+      count:     popular.length,
     });
 
   } catch (err) {
     console.error('[ML Route] Error:', err.message, err.stack);
-    return res.status(500).json({
-      success: false,
-      message: 'Recommendation engine error',
-      error:   err.message,
-    });
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 
