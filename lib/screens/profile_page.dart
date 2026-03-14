@@ -38,7 +38,7 @@ class _ProfilePageState extends State<ProfilePage>
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Register this page with the route observer
-    final route = ModalRoute.of(this.context);
+    final route = ModalRoute.of(context);
     if (route != null) {
       routeObserver.subscribe(this, route);
     }
