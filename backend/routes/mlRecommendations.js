@@ -158,7 +158,7 @@ router.get('/:userEmail', async (req, res) => {
         .slice(0, 6);
     } else {
       // No history — show all as popular
-      popular = allTemples.slice(0, 8);
+      popular = allTemples.slice(0, 5);
     }
 
     console.log(`🧠 ML for ${userEmail}: hasHistory=${hasHistory} topDeity=${topDeity} forYou=${forYou.length} popular=${popular.length}`);
