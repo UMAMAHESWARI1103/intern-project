@@ -41,6 +41,7 @@ const DarshanBooking = mongoose.models.DarshanBooking || mongoose.model(
     ...baseFields,
     templeName:      { type: String, default: '' },
     templeId:        { type: String, default: '' },
+    darshanType:     { type: String, default: 'Normal' },
     date:            { type: String, default: '' },
     timeSlot:        { type: String, default: '' },
     numberOfPersons: { type: Number, default: 1 },
@@ -103,9 +104,15 @@ function getAuthInfo(req) {
 router.post('/darshan', async (req, res) => {
   try {
     const { userId, userEmail } = getAuthInfo(req);
-    const booking = new DarshanBooking({ ...req.body, userId, userEmail });
+    const booking = new DarshanBooking({
+      ...req.body,
+      userId,
+      userEmail,
+      totalAmount:     Number(req.body.totalAmount)     || 0,  // ✅ force Number
+      numberOfPersons: Number(req.body.numberOfPersons) || 1,  // ✅ force Number
+    });
     await booking.save();
-    console.log(`✅ Darshan saved: ${booking._id} | userId: ${userId} | email: ${userEmail}`);
+    console.log(`✅ Darshan saved: ${booking._id} | userId: ${userId} | email: ${userEmail} | amount: ${booking.totalAmount}`);
     res.status(201).json({ success: true, message: 'Darshan booking confirmed!', booking });
   } catch (err) {
     console.error('❌ Darshan error:', err.message);
@@ -119,9 +126,14 @@ router.post('/darshan', async (req, res) => {
 router.post('/prasadam', async (req, res) => {
   try {
     const { userId, userEmail } = getAuthInfo(req);
-    const order = new PrasadamOrder({ ...req.body, userId, userEmail });
+    const order = new PrasadamOrder({
+      ...req.body,
+      userId,
+      userEmail,
+      totalAmount: Number(req.body.totalAmount) || 0,  // ✅ force Number
+    });
     await order.save();
-    console.log(`✅ Prasadam saved: ${order._id} | userId: ${userId}`);
+    console.log(`✅ Prasadam saved: ${order._id} | userId: ${userId} | amount: ${order.totalAmount}`);
     res.status(201).json({ success: true, message: 'Prasadam order confirmed!', order });
   } catch (err) {
     console.error('❌ Prasadam error:', err.message);
@@ -135,9 +147,14 @@ router.post('/prasadam', async (req, res) => {
 router.post('/homam', async (req, res) => {
   try {
     const { userId, userEmail } = getAuthInfo(req);
-    const booking = new HomamBooking({ ...req.body, userId, userEmail });
+    const booking = new HomamBooking({
+      ...req.body,
+      userId,
+      userEmail,
+      totalAmount: Number(req.body.totalAmount) || 0,  // ✅ force Number
+    });
     await booking.save();
-    console.log(`✅ Homam saved: ${booking._id} | userId: ${userId} | email: ${userEmail}`);
+    console.log(`✅ Homam saved: ${booking._id} | userId: ${userId} | email: ${userEmail} | amount: ${booking.totalAmount}`);
     res.status(201).json({ success: true, message: 'Homam booking confirmed!', booking });
   } catch (err) {
     console.error('❌ Homam error:', err.message);
@@ -151,9 +168,15 @@ router.post('/homam', async (req, res) => {
 router.post('/marriage', async (req, res) => {
   try {
     const { userId, userEmail } = getAuthInfo(req);
-    const booking = new MarriageBooking({ ...req.body, userId, userEmail });
+    const booking = new MarriageBooking({
+      ...req.body,
+      userId,
+      userEmail,
+      totalAmount: Number(req.body.totalAmount) || 0,  // ✅ force Number
+      guestCount:  Number(req.body.guestCount)  || 0,  // ✅ force Number
+    });
     await booking.save();
-    console.log(`✅ Marriage saved: ${booking._id} | userId: ${userId} | email: ${userEmail}`);
+    console.log(`✅ Marriage saved: ${booking._id} | userId: ${userId} | email: ${userEmail} | amount: ${booking.totalAmount}`);
     res.status(201).json({ success: true, message: 'Marriage booking confirmed!', booking });
   } catch (err) {
     console.error('❌ Marriage error:', err.message);
