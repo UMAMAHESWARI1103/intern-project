@@ -12,7 +12,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RouteAware {
   late TabController _tabController;
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
@@ -23,6 +23,10 @@ class _ProfilePageState extends State<ProfilePage>
 
   static const _primary = Color(0xFFFF9933);
 
+  // RouteObserver to detect when user navigates back to this page
+  static final RouteObserver<ModalRoute<void>> routeObserver =
+      RouteObserver<ModalRoute<void>>();
+
   @override
   void initState() {
     super.initState();
@@ -31,34 +35,50 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Register this page with the route observer
+    final route = ModalRoute.of(this.context);
+    if (route != null) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  // Called when user navigates BACK to this page
+  @override
+  void didPopNext() {
+    super.didPopNext();
+    // Auto-refresh bookings when returning from booking page
+    if (_userData != null) {
+      _loadBookings();
+    }
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _tabController.dispose();
     super.dispose();
   }
 
   Future<void> _loadUserData() async {
-    // If userData passed directly (logged-in user from HomeScreen), use it
     if (widget.userData != null) {
       setState(() { _userData = widget.userData; _isLoading = false; });
       _loadBookings();
       return;
     }
 
-    // Guest / skipped login — check if a real user token exists
     final token = await ApiService.loadToken();
     if (token == null || token.isEmpty) {
-      // No token — show guest profile, never call the API
       setState(() { _userData = null; _isLoading = false; });
       return;
     }
 
-    // Token exists — try fetching the user profile
     try {
       final data = await ApiService.getUserProfile();
       setState(() { _userData = data; _isLoading = false; });
       if (data != null) _loadBookings();
     } catch (_) {
-      // Token invalid or network error — still show guest
       setState(() { _userData = null; _isLoading = false; });
     }
   }
