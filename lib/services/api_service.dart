@@ -32,6 +32,7 @@ class ApiService {
     _token = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
+    await prefs.remove('userEmail');
   }
 
   // ════════════════════════════════════════════
@@ -48,6 +49,12 @@ class ApiService {
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode == 200 && data['token'] != null) {
       await saveToken(data['token'] as String);
+      // ✅ Save email for ML recommendations
+      final prefs = await SharedPreferences.getInstance();
+      final userEmail = (data['user']?['email'] ?? email).toString();
+      if (userEmail.isNotEmpty) {
+        await prefs.setString('userEmail', userEmail);
+      }
     }
     return data;
   }
@@ -68,6 +75,9 @@ class ApiService {
     if ((response.statusCode == 200 || response.statusCode == 201) &&
         data['token'] != null) {
       await saveToken(data['token'] as String);
+      // ✅ Save email for ML recommendations
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userEmail', email);
     }
     return data;
   }
@@ -108,23 +118,16 @@ class ApiService {
   // PRIESTS — PUBLIC (user side)
   // ════════════════════════════════════════════
 
-  /// Fetch all approved/available priests.
-  /// Pass [homamType] to filter by specialization.
   static Future<List<dynamic>> getPriests({String? homamType}) async {
     try {
       final token = await loadToken();
       final uri = homamType != null && homamType.isNotEmpty
-          ? Uri.parse(
-              '$baseUrl/priests?homamType=${Uri.encodeComponent(homamType)}')
+          ? Uri.parse('$baseUrl/priests?homamType=${Uri.encodeComponent(homamType)}')
           : Uri.parse('$baseUrl/priests');
-
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await http.get(uri, headers: {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      });
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['priests'] ?? [];
@@ -140,7 +143,6 @@ class ApiService {
   // PRIESTS — ADMIN CRUD
   // ════════════════════════════════════════════
 
-  /// Get ALL priests (approved + pending) for admin dashboard.
   static Future<List<Map<String, dynamic>>> getAdminPriests() async {
     try {
       final token = await loadToken();
@@ -163,7 +165,6 @@ class ApiService {
     }
   }
 
-  /// Admin adds a new priest account.
   static Future<bool> adminAddPriest(Map<String, dynamic> data) async {
     try {
       final token = await loadToken();
@@ -182,7 +183,6 @@ class ApiService {
     }
   }
 
-  /// Admin approves or revokes a priest account.
   static Future<bool> updatePriestApproval(String id, bool approved) async {
     try {
       final token = await loadToken();
@@ -201,9 +201,7 @@ class ApiService {
     }
   }
 
-  /// Toggle priest availability — used by both admin and priest self-portal.
-  static Future<bool> updatePriestAvailability(
-      String id, bool available) async {
+  static Future<bool> updatePriestAvailability(String id, bool available) async {
     try {
       final token = await loadToken();
       final response = await http.patch(
@@ -221,7 +219,6 @@ class ApiService {
     }
   }
 
-  /// Admin permanently deletes a priest.
   static Future<bool> deletePriest(String id) async {
     try {
       final token = await loadToken();
@@ -243,7 +240,6 @@ class ApiService {
   // PRIESTS — PRIEST SELF-PORTAL
   // ════════════════════════════════════════════
 
-  /// Priest-specific login. Returns token with role: 'priest'.
   static Future<Map<String, dynamic>> priestLogin(
       String email, String password) async {
     final response = await http.post(
@@ -259,7 +255,6 @@ class ApiService {
     return data;
   }
 
-  /// Priest fetches their own profile.
   static Future<Map<String, dynamic>?> getPriestProfile() async {
     try {
       final token = await loadToken();
@@ -282,9 +277,7 @@ class ApiService {
     }
   }
 
-  /// Priest updates their own profile (bio, location, languages, specializations).
-  static Future<bool> updatePriestProfile(
-      String id, Map<String, dynamic> data) async {
+  static Future<bool> updatePriestProfile(String id, Map<String, dynamic> data) async {
     try {
       final token = await loadToken();
       final response = await http.put(
@@ -302,7 +295,6 @@ class ApiService {
     }
   }
 
-  /// Priest fetches all bookings assigned to them.
   static Future<List<dynamic>> getPriestBookings() async {
     try {
       final token = await loadToken();
@@ -325,9 +317,7 @@ class ApiService {
     }
   }
 
-  /// Priest accepts or declines a booking.
-  static Future<bool> updatePriestBookingStatus(
-      String bookingId, String status) async {
+  static Future<bool> updatePriestBookingStatus(String bookingId, String status) async {
     try {
       final token = await loadToken();
       final response = await http.patch(
@@ -369,9 +359,7 @@ class ApiService {
   // ADMIN — REPORTS
   // ════════════════════════════════════════════
 
-  static Future<Map<String, dynamic>> getAdminReports({
-    String period = 'month',
-  }) async {
+  static Future<Map<String, dynamic>> getAdminReports({String period = 'month'}) async {
     final token = await loadToken();
     final response = await http.get(
       Uri.parse('$baseUrl/admin/reports?period=$period'),
@@ -401,17 +389,12 @@ class ApiService {
     if (status != 'all')   params['status'] = status;
     if (type   != 'all')   params['type']   = type;
     if (search.isNotEmpty) params['search'] = search;
-
     final uri = Uri.parse('$baseUrl/admin/bookings')
         .replace(queryParameters: params.isNotEmpty ? params : null);
-
-    final response = await http.get(
-      uri,
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
+    final response = await http.get(uri, headers: {
+      'Content-Type':  'application/json',
+      'Authorization': 'Bearer $token',
+    });
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final List raw = data['bookings'] ?? [];
@@ -420,8 +403,7 @@ class ApiService {
     return [];
   }
 
-  static Future<bool> updateBookingStatus(
-      String id, String type, String status) async {
+  static Future<bool> updateBookingStatus(String id, String type, String status) async {
     final token = await loadToken();
     final response = await http.patch(
       Uri.parse('$baseUrl/admin/bookings/$id/status'),
@@ -448,17 +430,12 @@ class ApiService {
     if (status   != 'all') params['status']   = status;
     if (category != 'all') params['category'] = category;
     if (search.isNotEmpty) params['search']   = search;
-
     final uri = Uri.parse('$baseUrl/admin/donations')
         .replace(queryParameters: params.isNotEmpty ? params : null);
-
-    final response = await http.get(
-      uri,
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
+    final response = await http.get(uri, headers: {
+      'Content-Type':  'application/json',
+      'Authorization': 'Bearer $token',
+    });
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final List raw = data['donations'] ?? [];
@@ -497,13 +474,10 @@ class ApiService {
       if (status != 'all')   'status': status,
       if (search.isNotEmpty) 'search': search,
     });
-    final response = await http.get(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
-    );
+    final response = await http.get(uri, headers: {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    });
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final List raw = data['orders'] ?? [];
@@ -512,8 +486,7 @@ class ApiService {
     return [];
   }
 
-  static Future<bool> updateOrderStatus(String id, String status,
-      {String? trackingId}) async {
+  static Future<bool> updateOrderStatus(String id, String status, {String? trackingId}) async {
     final token = await loadToken();
     final response = await http.patch(
       Uri.parse('$baseUrl/orders/$id/status'),
@@ -638,8 +611,7 @@ class ApiService {
     return [];
   }
 
-  static Future<Map<String, dynamic>> addTemple(
-      Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> addTemple(Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/admin/temples'),
@@ -652,8 +624,7 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  static Future<bool> updateTemple(
-      String id, Map<String, dynamic> data) async {
+  static Future<bool> updateTemple(String id, Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.put(
       Uri.parse('$baseUrl/admin/temples/$id'),
@@ -716,8 +687,7 @@ class ApiService {
     return data;
   }
 
-  static Future<Map<String, dynamic>> registerSampleEvent(
-      Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> registerSampleEvent(Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/events/sample-register'),
@@ -734,8 +704,7 @@ class ApiService {
     return body;
   }
 
-  static Future<Map<String, dynamic>> addEvent(
-      Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> addEvent(Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/admin/events'),
@@ -752,8 +721,7 @@ class ApiService {
     return body;
   }
 
-  static Future<bool> updateEvent(
-      String id, Map<String, dynamic> data) async {
+  static Future<bool> updateEvent(String id, Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.put(
       Uri.parse('$baseUrl/admin/events/$id'),
@@ -806,8 +774,7 @@ class ApiService {
     return [];
   }
 
-  static Future<Map<String, dynamic>?> addPrayer(
-      Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>?> addPrayer(Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/admin/prayers'),
@@ -823,8 +790,7 @@ class ApiService {
     return null;
   }
 
-  static Future<bool> updatePrayer(
-      String id, Map<String, dynamic> data) async {
+  static Future<bool> updatePrayer(String id, Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.put(
       Uri.parse('$baseUrl/admin/prayers/$id'),
@@ -863,28 +829,20 @@ class ApiService {
     if (status != 'all')   params['status'] = status;
     if (type   != 'all')   params['type']   = type;
     if (search.isNotEmpty) params['search'] = search;
-
     final uri = Uri.parse('$baseUrl/admin/prayer-requests')
         .replace(queryParameters: params.isNotEmpty ? params : null);
-
-    final response = await http.get(
-      uri,
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
+    final response = await http.get(uri, headers: {
+      'Content-Type':  'application/json',
+      'Authorization': 'Bearer $token',
+    });
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data is List
-          ? data
-          : (data['requests'] ?? data['prayerRequests'] ?? []);
+      return data is List ? data : (data['requests'] ?? data['prayerRequests'] ?? []);
     }
     return [];
   }
 
-  static Future<bool> updatePrayerRequestStatus(
-      String id, String status) async {
+  static Future<bool> updatePrayerRequestStatus(String id, String status) async {
     final token = await loadToken();
     final response = await http.patch(
       Uri.parse('$baseUrl/admin/prayer-requests/$id/status'),
@@ -917,8 +875,7 @@ class ApiService {
     return [];
   }
 
-  static Future<Map<String, dynamic>?> addPrayerSchedule(
-      Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>?> addPrayerSchedule(Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/admin/prayer-schedules'),
@@ -934,8 +891,7 @@ class ApiService {
     return null;
   }
 
-  static Future<bool> updatePrayerScheduleStatus(
-      String id, String status) async {
+  static Future<bool> updatePrayerScheduleStatus(String id, String status) async {
     final token = await loadToken();
     final response = await http.patch(
       Uri.parse('$baseUrl/admin/prayer-schedules/$id/status'),
@@ -960,17 +916,12 @@ class ApiService {
     final params = <String, String>{};
     if (category != 'all') params['category'] = category;
     if (search.isNotEmpty) params['search']   = search;
-
     final uri = Uri.parse('$baseUrl/products')
         .replace(queryParameters: params.isNotEmpty ? params : null);
-
-    final response = await http.get(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
-    );
+    final response = await http.get(uri, headers: {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    });
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final List raw = data is List ? data : (data['products'] ?? []);
@@ -991,17 +942,12 @@ class ApiService {
     final params = <String, String>{};
     if (category != 'all') params['category'] = category;
     if (search.isNotEmpty) params['search']   = search;
-
     final uri = Uri.parse('$baseUrl/admin/products')
         .replace(queryParameters: params.isNotEmpty ? params : null);
-
-    final response = await http.get(
-      uri,
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
+    final response = await http.get(uri, headers: {
+      'Content-Type':  'application/json',
+      'Authorization': 'Bearer $token',
+    });
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final List raw = data is List ? data : (data['products'] ?? []);
@@ -1010,8 +956,7 @@ class ApiService {
     return [];
   }
 
-  static Future<Map<String, dynamic>?> addProduct(
-      Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>?> addProduct(Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/admin/products'),
@@ -1028,8 +973,7 @@ class ApiService {
     throw Exception(errBody['message'] ?? 'Server error ${response.statusCode}');
   }
 
-  static Future<bool> updateProduct(
-      String id, Map<String, dynamic> data) async {
+  static Future<bool> updateProduct(String id, Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.put(
       Uri.parse('$baseUrl/admin/products/$id'),
@@ -1061,9 +1005,7 @@ class ApiService {
   // ════════════════════════════════════════════
 
   static Future<Map<String, dynamic>> createRazorpayOrder(
-      double amountInRupees,
-      String receipt,
-      Map<String, dynamic> notes) async {
+      double amountInRupees, String receipt, Map<String, dynamic> notes) async {
     final token         = await loadToken();
     final amountInPaise = (amountInRupees * 100).toInt();
     final response = await http.post(
@@ -1081,28 +1023,20 @@ class ApiService {
     );
     final contentType = response.headers['content-type'] ?? '';
     if (!contentType.contains('application/json')) {
-      throw Exception(
-        'Payment server returned unexpected response '
-        '(status ${response.statusCode}). '
-        'Check your backend URL and server logs.',
-      );
+      throw Exception('Payment server returned unexpected response (status ${response.statusCode}).');
     }
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body);
     }
     final errBody = jsonDecode(response.body);
-    throw Exception(
-      errBody['message'] ??
-          'Failed to create Razorpay order (${response.statusCode})',
-    );
+    throw Exception(errBody['message'] ?? 'Failed to create Razorpay order (${response.statusCode})');
   }
 
   // ════════════════════════════════════════════
   // BOOKINGS (USER SIDE)
   // ════════════════════════════════════════════
 
-  static Future<Map<String, dynamic>> saveDarshanBooking(
-      Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> saveDarshanBooking(Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/bookings/darshan'),
@@ -1115,8 +1049,7 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  static Future<Map<String, dynamic>> savePrasadamOrder(
-      Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> savePrasadamOrder(Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/bookings/prasadam'),
@@ -1129,8 +1062,7 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  static Future<Map<String, dynamic>> saveHomamBooking(
-      Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> saveHomamBooking(Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/bookings/homam'),
@@ -1143,8 +1075,7 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  static Future<Map<String, dynamic>> saveMarriageBooking(
-      Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> saveMarriageBooking(Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/bookings/marriage'),
@@ -1201,17 +1132,12 @@ class ApiService {
     final params = <String, String>{};
     if (status != 'all')   params['status'] = status;
     if (search.isNotEmpty) params['search'] = search;
-
     final uri = Uri.parse('$baseUrl/admin/event-registrations')
         .replace(queryParameters: params.isNotEmpty ? params : null);
-
-    final response = await http.get(
-      uri,
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
+    final response = await http.get(uri, headers: {
+      'Content-Type':  'application/json',
+      'Authorization': 'Bearer $token',
+    });
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final List raw = data is List
@@ -1226,8 +1152,7 @@ class ApiService {
   // DONATIONS (USER SIDE)
   // ════════════════════════════════════════════
 
-  static Future<Map<String, dynamic>> saveDonation(
-      Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> saveDonation(Map<String, dynamic> data) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/donations'),
@@ -1257,8 +1182,7 @@ class ApiService {
     throw Exception('GET $endpoint failed: ${response.statusCode}');
   }
 
-  static Future<dynamic> post(
-      String endpoint, Map<String, dynamic> body) async {
+  static Future<dynamic> post(String endpoint, Map<String, dynamic> body) async {
     final token = await loadToken();
     final response = await http.post(
       Uri.parse('$baseUrl/$endpoint'),

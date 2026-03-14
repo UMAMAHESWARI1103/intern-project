@@ -106,14 +106,12 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
     final byDist  = List<_TempleResult>.from(results)..sort((a, b) => a.dist.compareTo(b.dist));
     final byScore = List<_TempleResult>.from(results)..sort((a, b) => b.score.compareTo(a.score));
     final goodTime = byScore.where((r) => r.isOpen && r.crowd != 'very_high').take(6).toList();
-    if (mounted) {
-      setState(() {
+    if (mounted) setState(() {
       _nearbyList   = byDist.take(6).toList();
       _goodTimeList = goodTime.isEmpty ? byDist.take(4).toList() : goodTime;
       _gpsLoading   = false;
       _gpsDone      = true;
     });
-    }
   }
 
   // ── ML — decode email from JWT token ────────────────────────────
