@@ -23,7 +23,6 @@ class _ProfilePageState extends State<ProfilePage>
 
   static const _primary = Color(0xFFFF9933);
 
-  // RouteObserver to detect when user navigates back to this page
   static final RouteObserver<ModalRoute<void>> routeObserver =
       RouteObserver<ModalRoute<void>>();
 
@@ -37,21 +36,14 @@ class _ProfilePageState extends State<ProfilePage>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Register this page with the route observer
     final route = ModalRoute.of(context);
-    if (route != null) {
-      routeObserver.subscribe(this, route);
-    }
+    if (route != null) routeObserver.subscribe(this, route);
   }
 
-  // Called when user navigates BACK to this page
   @override
   void didPopNext() {
     super.didPopNext();
-    // Auto-refresh bookings when returning from booking page
-    if (_userData != null) {
-      _loadBookings();
-    }
+    if (_userData != null) _loadBookings();
   }
 
   @override
@@ -67,13 +59,11 @@ class _ProfilePageState extends State<ProfilePage>
       _loadBookings();
       return;
     }
-
     final token = await ApiService.loadToken();
     if (token == null || token.isEmpty) {
       setState(() { _userData = null; _isLoading = false; });
       return;
     }
-
     try {
       final data = await ApiService.getUserProfile();
       setState(() { _userData = data; _isLoading = false; });
@@ -92,9 +82,7 @@ class _ProfilePageState extends State<ProfilePage>
       ]);
       setState(() {
         _bookings           = results[0];
-        _eventRegistrations = results[1]
-            .map((e) => {...e, 'type': 'event'})
-            .toList();
+        _eventRegistrations = results[1].map((e) => {...e, 'type': 'event'}).toList();
         _bookingsLoading    = false;
       });
     } catch (_) {
@@ -106,6 +94,264 @@ class _ProfilePageState extends State<ProfilePage>
     ApiService.clearToken();
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+  }
+
+  // ════════════════════════════════════════════
+  //  BOOKING DETAIL BOTTOM SHEET
+  // ════════════════════════════════════════════
+  void _showBookingDetail(BuildContext context, Map<String, dynamic> data) {
+    final type        = (data['type'] ?? data['bookingType'] ?? 'booking') as String;
+    final status      = (data['status'] ?? 'confirmed') as String;
+    final amount      = data['totalAmount'] ?? data['amount'] ?? 0;
+    final cfg         = _typeConfig(type);
+    final statusColor = _statusColor(status);
+
+    String fmtDate(dynamic raw) {
+      if (raw == null || raw.toString().isEmpty) return '—';
+      try {
+        final dt = DateTime.parse(raw.toString()).toLocal();
+        return '${dt.day}/${dt.month}/${dt.year}';
+      } catch (_) { return raw.toString(); }
+    }
+
+    List<_DetailRow> rows = [];
+
+    // ✅ FIX: added curly braces to all if statements
+    if ((data['userName'] ?? '').toString().isNotEmpty) {
+      rows.add(_DetailRow(Icons.person, 'Name', data['userName'].toString()));
+    }
+    if ((data['userEmail'] ?? '').toString().isNotEmpty) {
+      rows.add(_DetailRow(Icons.email, 'Email', data['userEmail'].toString()));
+    }
+    if ((data['userPhone'] ?? '').toString().isNotEmpty) {
+      rows.add(_DetailRow(Icons.phone, 'Phone', data['userPhone'].toString()));
+    }
+    // ✅ FIX: added const
+    rows.add(const _DetailRow(Icons.circle, '', ''));
+
+    // Type-specific
+    switch (type) {
+      case 'darshan':
+        rows.addAll([
+          _DetailRow(Icons.temple_hindu,   'Temple',       data['templeName'] ?? '—'),
+          _DetailRow(Icons.star,           'Darshan Type', data['darshanType'] ?? 'Normal'),
+          _DetailRow(Icons.calendar_today, 'Date',         fmtDate(data['date'])),
+          _DetailRow(Icons.access_time,    'Time Slot',    data['timeSlot'] ?? '—'),
+          _DetailRow(Icons.people,         'Persons',      '${data['numberOfPersons'] ?? 1}'),
+        ]);
+        break;
+      case 'homam':
+        rows.addAll([
+          _DetailRow(Icons.temple_hindu,          'Temple',     data['templeName'] ?? '—'),
+          _DetailRow(Icons.local_fire_department, 'Homam Type', data['homamType']  ?? '—'),
+          _DetailRow(Icons.calendar_today,        'Date',       fmtDate(data['date'])),
+          _DetailRow(Icons.access_time,           'Time Slot',  data['timeSlot']   ?? '—'),
+          _DetailRow(Icons.person,                'Priest',     data['iyer']       ?? 'To be assigned'),
+        ]);
+        // ✅ FIX: added curly braces
+        if ((data['specialNote'] ?? '').toString().isNotEmpty) {
+          rows.add(_DetailRow(Icons.note, 'Note', data['specialNote'].toString()));
+        }
+        break;
+      case 'marriage':
+        rows.addAll([
+          _DetailRow(Icons.temple_hindu,   'Temple',       data['templeName']  ?? '—'),
+          _DetailRow(Icons.man,            'Groom',        data['groomName']   ?? '—'),
+          _DetailRow(Icons.woman,          'Bride',        data['brideName']   ?? '—'),
+          _DetailRow(Icons.calendar_today, 'Wedding Date', fmtDate(data['weddingDate'])),
+          _DetailRow(Icons.access_time,    'Time Slot',    data['timeSlot']    ?? '—'),
+          _DetailRow(Icons.people,         'Guests',       '${data['guestCount'] ?? 0}'),
+        ]);
+        // ✅ FIX: added curly braces
+        if ((data['specialNote'] ?? '').toString().isNotEmpty) {
+          rows.add(_DetailRow(Icons.note, 'Note', data['specialNote'].toString()));
+        }
+        break;
+      case 'prasadam':
+        rows.add(_DetailRow(Icons.temple_hindu, 'Temple', data['templeName'] ?? '—'));
+        final items = data['items'];
+        if (items != null && items is List && items.isNotEmpty) {
+          for (final item in items) {
+            rows.add(_DetailRow(Icons.fastfood, 'Item',
+                '${item['name'] ?? item.toString()} × ${item['qty'] ?? item['quantity'] ?? 1}'));
+          }
+        }
+        break;
+      case 'event':
+        rows.addAll([
+          _DetailRow(Icons.event,          'Event',      data['eventTitle'] ?? data['title'] ?? '—'),
+          _DetailRow(Icons.temple_hindu,   'Temple',     data['templeName'] ?? '—'),
+          _DetailRow(Icons.calendar_today, 'Event Date', fmtDate(data['eventDate'])),
+        ]);
+        break;
+    }
+
+    rows.add(const _DetailRow(Icons.circle, '', '')); // ✅ FIX: added const
+    rows.add(_DetailRow(Icons.calendar_today, 'Booked On', fmtDate(data['createdAt'])));
+    // ✅ FIX: added curly braces
+    if ((data['razorpayPaymentId'] ?? '').toString().isNotEmpty) {
+      rows.add(_DetailRow(Icons.payment, 'Payment ID', data['razorpayPaymentId'].toString()));
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        minChildSize: 0.4,
+        builder: (__, ctrl) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: ListView(
+            controller: ctrl,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            children: [
+              // Handle
+              Center(child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2)),
+              )),
+              const SizedBox(height: 20),
+
+              // Header
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: (cfg['color'] as Color).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(cfg['icon'] as String,
+                      style: const TextStyle(fontSize: 30)),
+                ),
+                const SizedBox(width: 14),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_bookingTitle(type, data),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 17)),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(status.toUpperCase(),
+                          style: TextStyle(fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: statusColor)),
+                    ),
+                  ],
+                )),
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Text('₹$amount',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 22, color: _primary)),
+                  const Text('Paid',
+                      style: TextStyle(fontSize: 11, color: Colors.grey)),
+                ]),
+              ]),
+
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 4),
+
+              // Detail rows
+              ...rows.map((row) {
+                if (row.label.isEmpty) {
+                  return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Divider());
+                }
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(row.icon, size: 18, color: _primary),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 110,
+                        child: Text(row.label,
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 13)),
+                      ),
+                      Expanded(
+                        child: Text(row.value,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+
+              const SizedBox(height: 20),
+
+              // Copy payment ID
+              if ((data['razorpayPaymentId'] ?? '').toString().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(
+                          text: data['razorpayPaymentId'].toString()));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Payment ID copied!'),
+                            behavior: SnackBarBehavior.floating),
+                      );
+                    },
+                    icon: const Icon(Icons.copy, size: 16, color: _primary),
+                    label: const Text('Copy Payment ID',
+                        style: TextStyle(color: _primary)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _primary),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+
+              // Close
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Close 🙏',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _bookingTitle(String type, Map<String, dynamic> data) {
+    switch (type) {
+      case 'darshan':  return data['templeName'] ?? 'Darshan Booking';
+      case 'homam':    return data['homamType']  ?? 'Homam Booking';
+      case 'marriage': return 'Marriage Ceremony';
+      case 'prasadam': return 'Prasadam Order';
+      case 'event':    return data['eventTitle'] ?? data['title'] ?? 'Event';
+      default:         return 'Booking';
+    }
   }
 
   void _showLoginRequired(BuildContext context, String featureName) {
@@ -175,8 +421,7 @@ class _ProfilePageState extends State<ProfilePage>
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white : const Color(0xFF1A1A1A))),
           const SizedBox(height: 4),
-          Text('Version 1.0.0',
-              style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+          Text('Version 1.0.0', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
           const SizedBox(height: 16),
           Text(
             'GodsConnect is your complete digital companion for temple visits. '
@@ -201,10 +446,8 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   void _openPrivacyPolicy(BuildContext context) => _openTextSheet(
-    context,
-    title: 'Privacy Policy',
-    icon: Icons.privacy_tip_outlined,
-    iconColor: Colors.purple,
+    context, title: 'Privacy Policy',
+    icon: Icons.privacy_tip_outlined, iconColor: Colors.purple,
     content: '''
 **GodsConnect Privacy Policy**
 Last updated: January 2025
@@ -233,10 +476,8 @@ privacy@godsconnect.app
   );
 
   void _openTerms(BuildContext context) => _openTextSheet(
-    context,
-    title: 'Terms & Conditions',
-    icon: Icons.description_outlined,
-    iconColor: Colors.indigo,
+    context, title: 'Terms & Conditions',
+    icon: Icons.description_outlined, iconColor: Colors.indigo,
     content: '''
 **GodsConnect Terms & Conditions**
 Last updated: January 2025
@@ -357,10 +598,8 @@ legal@godsconnect.app
   }
 
   void _openTextSheet(BuildContext context, {
-    required String title,
-    required IconData icon,
-    required Color iconColor,
-    required String content,
+    required String title, required IconData icon,
+    required Color iconColor, required String content,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
@@ -483,9 +722,6 @@ legal@godsconnect.app
     );
   }
 
-  // ════════════════════════════════════════════
-  //  GUEST PROFILE
-  // ════════════════════════════════════════════
   Widget _buildGuestProfile(BuildContext context) {
     final isDark    = Theme.of(context).brightness == Brightness.dark;
     final bgColor   = isDark ? const Color(0xFF121212) : const Color(0xFFFFF8F0);
@@ -565,8 +801,8 @@ legal@godsconnect.app
                 Row(children: [
                   const Text('✨', style: TextStyle(fontSize: 16)),
                   const SizedBox(width: 8),
-                  Text('Why Login?', style: TextStyle(fontWeight: FontWeight.bold,
-                      fontSize: 14, color: textDark)),
+                  Text('Why Login?', style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14, color: textDark)),
                 ]),
                 const SizedBox(height: 12),
                 _benefitRow('🛕', 'Track your temple visits', textGrey),
@@ -587,8 +823,8 @@ legal@godsconnect.app
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                  child: Text('Quick Access', style: TextStyle(fontWeight: FontWeight.bold,
-                      fontSize: 14, color: textDark)),
+                  child: Text('Quick Access', style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14, color: textDark)),
                 ),
                 ...lockedFeatures.asMap().entries.map((e) {
                   final f = e.value;
@@ -638,8 +874,8 @@ legal@godsconnect.app
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                  child: Text('App Info', style: TextStyle(fontWeight: FontWeight.bold,
-                      fontSize: 14, color: textDark)),
+                  child: Text('App Info', style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14, color: textDark)),
                 ),
                 ...appInfoItems.asMap().entries.map((e) {
                   final item = e.value;
@@ -667,10 +903,12 @@ legal@godsconnect.app
               child: const Icon(Icons.temple_hindu, color: _primary, size: 28),
             ),
             const SizedBox(height: 8),
-            Text('GodsConnect', style: TextStyle(fontWeight: FontWeight.bold, color: textDark)),
+            Text('GodsConnect',
+                style: TextStyle(fontWeight: FontWeight.bold, color: textDark)),
             const SizedBox(height: 2),
             Text('Version 1.0.0', style: TextStyle(fontSize: 12, color: textGrey)),
-            Text('Built with ❤️ for Devotees', style: TextStyle(fontSize: 12, color: textGrey)),
+            Text('Built with ❤️ for Devotees',
+                style: TextStyle(fontSize: 12, color: textGrey)),
           ]),
           const SizedBox(height: 40),
         ]),
@@ -704,8 +942,8 @@ legal@godsconnect.app
                   fontWeight: FontWeight.bold, color: _primary)),
         ),
         const SizedBox(height: 12),
-        Text(name, style: const TextStyle(fontSize: 20,
-            fontWeight: FontWeight.bold, color: Colors.white)),
+        Text(name, style: const TextStyle(
+            fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
         const SizedBox(height: 3),
         Text(email, style: const TextStyle(fontSize: 13, color: Colors.white70)),
         if (phone.isNotEmpty) ...[
@@ -740,13 +978,14 @@ legal@godsconnect.app
       decoration: BoxDecoration(
         color: cardColor, borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _primary.withValues(alpha: 0.2)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+        boxShadow: [BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-          child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold,
-              fontSize: 15, color: _primary)),
+          child: Text(title, style: const TextStyle(
+              fontWeight: FontWeight.bold, fontSize: 15, color: _primary)),
         ),
         Divider(height: 1, color: divColor),
         ...rows,
@@ -758,8 +997,10 @@ legal@godsconnect.app
       child: Row(children: [
         Icon(icon, size: 18, color: _primary),
         const SizedBox(width: 12),
-        Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-        Expanded(child: Text(value, style: TextStyle(fontSize: 13, color: textColor))),
+        Text('$label: ',
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        Expanded(child: Text(value,
+            style: TextStyle(fontSize: 13, color: textColor))),
       ]),
     );
 
@@ -768,8 +1009,8 @@ legal@godsconnect.app
       child: Column(children: [
         const SizedBox(height: 8),
         infoCard('Personal Details', [
-          infoRow(Icons.person,  'Name',  name),
-          infoRow(Icons.email,   'Email', email),
+          infoRow(Icons.person, 'Name',  name),
+          infoRow(Icons.email,  'Email', email),
           if (phone.isNotEmpty) infoRow(Icons.phone, 'Phone', phone),
         ]),
         const SizedBox(height: 16),
@@ -790,7 +1031,8 @@ legal@godsconnect.app
     }
     final allDocs = [..._bookings, ..._eventRegistrations];
     if (allDocs.isEmpty) {
-      return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      return Center(child: Column(
+          mainAxisAlignment: MainAxisAlignment.center, children: [
         const Text('📋', style: TextStyle(fontSize: 56)),
         const SizedBox(height: 16),
         const Text('No bookings yet',
@@ -812,7 +1054,8 @@ legal@godsconnect.app
       ]));
     }
     return RefreshIndicator(
-      color: _primary, onRefresh: _loadBookings,
+      color: _primary,
+      onRefresh: _loadBookings,
       child: _buildBookingList(allDocs),
     );
   }
@@ -838,8 +1081,17 @@ legal@godsconnect.app
         const SizedBox(width: 8), _chip('Marriage', '$m', Colors.purple),
         const SizedBox(width: 8), _chip('Events',   '$e', Colors.indigo),
       ])),
-      const SizedBox(height: 16),
-      ...docs.map(_buildBookingCard),
+      const SizedBox(height: 8),
+      const Padding(
+        padding: EdgeInsets.only(bottom: 12, top: 4),
+        child: Row(children: [
+          Icon(Icons.touch_app, size: 14, color: Colors.grey),
+          SizedBox(width: 4),
+          Text('Tap any booking to view details',
+              style: TextStyle(fontSize: 12, color: Colors.grey)),
+        ]),
+      ),
+      ...docs.map((doc) => _buildBookingCard(doc)),
     ]);
   }
 
@@ -850,15 +1102,18 @@ legal@godsconnect.app
       border: Border.all(color: color.withValues(alpha: 0.3)),
     ),
     child: Column(children: [
-      Text(count, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color)),
-      Text(label, style: TextStyle(fontSize: 10, color: color), textAlign: TextAlign.center),
+      Text(count, style: TextStyle(
+          fontWeight: FontWeight.bold, fontSize: 18, color: color)),
+      Text(label, style: TextStyle(fontSize: 10, color: color),
+          textAlign: TextAlign.center),
     ]),
   );
 
+  // ── TAPPABLE Booking Card ────────────────────────────────────────────────
   Widget _buildBookingCard(Map<String, dynamic> data) {
     final type   = (data['type'] ?? data['bookingType'] ?? 'booking') as String;
     final status = (data['status'] ?? 'confirmed') as String;
-    final amount = data['amount'] ?? data['totalAmount'];
+    final amount = data['totalAmount'] ?? data['amount'];
 
     final rawDate = data['date'] ?? data['weddingDate'] ?? data['createdAt'] ?? '';
     String fmtDate = '';
@@ -866,9 +1121,7 @@ legal@godsconnect.app
       try {
         final dt = DateTime.parse(rawDate).toLocal();
         fmtDate = '${dt.day}/${dt.month}/${dt.year}';
-      } catch (_) {
-        fmtDate = rawDate;
-      }
+      } catch (_) { fmtDate = rawDate; }
     }
 
     String title = '', subtitle = '';
@@ -880,7 +1133,7 @@ legal@godsconnect.app
         break;
       case 'darshan':
         title    = data['templeName'] ?? 'Darshan Booking';
-        subtitle = '👥 Persons: ${data['numberOfPersons'] ?? 1}'
+        subtitle = '👥 ${data['numberOfPersons'] ?? 1} person(s)'
             '${(data['timeSlot'] ?? '').toString().isNotEmpty ? '  ·  🕐 ${data['timeSlot']}' : ''}';
         break;
       case 'marriage':
@@ -907,61 +1160,78 @@ legal@godsconnect.app
     final cfg         = _typeConfig(type);
     final statusColor = _statusColor(status);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
-      ),
-      child: Padding(padding: const EdgeInsets.all(14),
+    return GestureDetector(
+      onTap: () => _showBookingDetail(context, data),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-                color: (cfg['color'] as Color).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12)),
-            child: Text(cfg['icon'] as String, style: const TextStyle(fontSize: 22)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            if (subtitle.isNotEmpty)
-              Text(subtitle,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
-          ])),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20)),
-            child: Text(status.toUpperCase(),
-                style: TextStyle(fontSize: 10,
-                    fontWeight: FontWeight.bold, color: statusColor)),
-          ),
-        ]),
-        if (fmtDate.isNotEmpty || amount != null) ...[
-          const SizedBox(height: 10),
-          const Divider(height: 1),
-          const SizedBox(height: 10),
-          Row(children: [
-            if (fmtDate.isNotEmpty) ...[
-              const Icon(Icons.calendar_today, size: 13, color: Colors.grey),
-              const SizedBox(width: 4),
-              Text(fmtDate, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                    color: (cfg['color'] as Color).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12)),
+                child: Text(cfg['icon'] as String,
+                    style: const TextStyle(fontSize: 22)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 14)),
+                if (subtitle.isNotEmpty)
+                  Text(subtitle,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
+              ])),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Text(status.toUpperCase(),
+                      style: TextStyle(fontSize: 10,
+                          fontWeight: FontWeight.bold, color: statusColor)),
+                ),
+                const SizedBox(height: 4),
+                const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+              ]),
+            ]),
+            if (fmtDate.isNotEmpty || amount != null) ...[
+              const SizedBox(height: 10),
+              const Divider(height: 1),
+              const SizedBox(height: 10),
+              Row(children: [
+                if (fmtDate.isNotEmpty) ...[
+                  const Icon(Icons.calendar_today, size: 13, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(fmtDate,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+                const Spacer(),
+                if (amount != null && amount != 0)
+                  Text('₹$amount', style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16, color: _primary))
+                else
+                  const Text('FREE', style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14, color: Colors.green)),
+              ]),
             ],
-            const Spacer(),
-            if (amount != null && amount != 0)
-              Text('₹$amount', style: const TextStyle(fontWeight: FontWeight.bold,
-                  fontSize: 16, color: _primary))
-            else
-              const Text('FREE', style: TextStyle(fontWeight: FontWeight.bold,
-                  fontSize: 14, color: Colors.green)),
           ]),
-        ],
-      ])),
+        ),
+      ),
     );
   }
 
@@ -970,9 +1240,7 @@ legal@godsconnect.app
     try {
       final dt = DateTime.parse(raw.toString()).toLocal();
       return '${dt.day}/${dt.month}/${dt.year}';
-    } catch (_) {
-      return raw.toString();
-    }
+    } catch (_) { return raw.toString(); }
   }
 
   Map<String, dynamic> _typeConfig(String type) {
@@ -1011,7 +1279,16 @@ legal@godsconnect.app
         padding: const EdgeInsets.symmetric(vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+      child: Text(label,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
     ),
   );
+}
+
+// ── Helper class for detail rows ─────────────────────────────────────────────
+class _DetailRow {
+  final IconData icon;
+  final String   label;
+  final String   value;
+  const _DetailRow(this.icon, this.label, this.value);
 }

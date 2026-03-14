@@ -13,8 +13,7 @@ class DarshanBookingPage extends StatefulWidget {
 }
 
 class _DarshanBookingPageState extends State<DarshanBookingPage> {
-  // Temple data from API
-  List<Temple> _temples       = [];
+  List<Temple> _temples        = [];
   Temple?      _selectedTemple;
   bool         _loadingTemples = true;
 
@@ -60,7 +59,6 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
     _loadTemples();
   }
 
-  // ── Auto-fill from logged-in user ────────────────────────────────────────
   void _prefillUser() {
     if (widget.user != null) {
       _nameCtrl.text  = widget.user!.name;
@@ -69,7 +67,6 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
     }
   }
 
-  // ── Load temples from API ────────────────────────────────────────────────
   Future<void> _loadTemples() async {
     try {
       final raw = await ApiService.getAllTemples();
@@ -101,8 +98,7 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
       lastDate: DateTime.now().add(const Duration(days: 30)),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-            colorScheme:
-                const ColorScheme.light(primary: Color(0xFFFF9933))),
+            colorScheme: const ColorScheme.light(primary: Color(0xFFFF9933))),
         child: child!,
       ),
     );
@@ -130,16 +126,14 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
               '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'),
           _confirmRow('Time Slot',    _selectedTimeSlot!),
           _confirmRow('People',       '$_numberOfPeople'),
-          _confirmRow('Fee/person',
-              '₹${_feePerPerson.toStringAsFixed(0)}'),
+          _confirmRow('Fee/person',   '₹${_feePerPerson.toStringAsFixed(0)}'),
           const Divider(),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const Text('Total:',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             Text('₹${_totalAmount.toStringAsFixed(0)}',
                 style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
+                    fontWeight: FontWeight.bold, fontSize: 20,
                     color: Color(0xFFFF9933))),
           ]),
         ]),
@@ -195,26 +189,32 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
   }
 
   void _onPaymentSuccess(PaymentSuccessResponse response) async {
+    final bookingData = {
+      'templeName':        _selectedTemple!.name,
+      'templeId':          _selectedTemple!.id,
+      'darshanType':       _darshanType,
+      'date':
+          '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}',
+      'timeSlot':          _selectedTimeSlot,
+      'numberOfPersons':   _numberOfPeople,
+      'userName':          _nameCtrl.text.trim(),
+      'userEmail':         _emailCtrl.text.trim(),
+      'userPhone':         _phoneCtrl.text.trim(),
+      'totalAmount':       _totalAmount,
+      // ✅ FIX: removed dead ?? '' — paymentId/orderId/signature are non-nullable
+      'razorpayPaymentId': response.paymentId,
+      'razorpayOrderId':   response.orderId ?? _pendingOrderId ?? '',
+      'razorpaySignature': response.signature,
+      'status':            'confirmed',
+    };
+
     try {
-      await ApiService.saveDarshanBooking({
-        'templeName':        _selectedTemple!.name,
-        'darshanType':       _darshanType,
-        'date':
-            '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}',
-        'timeSlot':          _selectedTimeSlot,
-        'numberOfPeople':    _numberOfPeople,
-        'userName':          _nameCtrl.text.trim(),
-        'userEmail':         _emailCtrl.text.trim(),
-        'userPhone':         _phoneCtrl.text.trim(),
-        'amount':            _totalAmount,
-        'razorpayPaymentId': response.paymentId ?? '',
-        'razorpayOrderId':   response.orderId   ?? _pendingOrderId ?? '',
-        'razorpaySignature': response.signature  ?? '',
-      });
+      await ApiService.saveDarshanBooking(bookingData);
     } catch (e) {
       debugPrint('Save booking error: $e');
     }
-    if (mounted) _showSuccessDialog(response.paymentId ?? 'N/A');
+
+    if (mounted) _showSuccessDialog(response.paymentId ?? 'N/A', bookingData);
   }
 
   void _onPaymentError(PaymentFailureResponse r) {
@@ -235,7 +235,7 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
         SnackBar(content: Text(msg), backgroundColor: Colors.red));
   }
 
-  void _showSuccessDialog(String paymentId) {
+  void _showSuccessDialog(String paymentId, Map<String, dynamic> bookingData) {
     final bookingId =
         'DB${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
     showDialog(
@@ -243,26 +243,65 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 72),
-          const SizedBox(height: 16),
-          const Text('Booking Confirmed! 🙏',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          _confirmRow('Temple',       _selectedTemple!.name),
-          _confirmRow('Darshan Type', '$_darshanType Darshan'),
-          _confirmRow('Date',
-              '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'),
-          _confirmRow('Time Slot',    _selectedTimeSlot!),
-          _confirmRow('People',       '$_numberOfPeople'),
-          _confirmRow('Paid',         '₹${_totalAmount.toStringAsFixed(0)}'),
-          const SizedBox(height: 8),
-          Text('Booking ID: $bookingId',
-              style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          Text('Payment ID: $paymentId',
-              style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        ]),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 72),
+            const SizedBox(height: 16),
+            const Text('Booking Confirmed! 🙏',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            _confirmRow('Temple',       _selectedTemple!.name),
+            _confirmRow('Darshan Type', '$_darshanType Darshan'),
+            _confirmRow('Date',
+                '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'),
+            _confirmRow('Time Slot',    _selectedTimeSlot!),
+            _confirmRow('People',       '$_numberOfPeople'),
+            _confirmRow('Paid',         '₹${_totalAmount.toStringAsFixed(0)}'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(children: [
+                Text('Booking ID: $bookingId',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                const SizedBox(height: 2),
+                Text('Payment ID: $paymentId',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: const Row(children: [
+                Icon(Icons.info_outline, color: Colors.green, size: 14),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Booking saved! View in Profile → Bookings tab',
+                    style: TextStyle(fontSize: 11, color: Colors.green),
+                  ),
+                ),
+              ]),
+            ),
+          ]),
+        ),
         actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showBookingDetail(bookingData, paymentId);
+            },
+            child: const Text('View Details',
+                style: TextStyle(color: Color(0xFFFF9933))),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
@@ -278,6 +317,154 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
     );
   }
 
+  // ── Booking Detail Bottom Sheet ──────────────────────────────────────────
+  void _showBookingDetail(Map<String, dynamic> data, String paymentId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.92,
+        minChildSize: 0.4,
+        builder: (__, ctrl) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: ListView(
+            controller: ctrl,
+            padding: const EdgeInsets.all(24),
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Header
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Text('🙏', style: TextStyle(fontSize: 28)),
+                ),
+                const SizedBox(width: 14),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Darshan Booking',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text('CONFIRMED',
+                          style: TextStyle(fontSize: 11,
+                              fontWeight: FontWeight.bold, color: Colors.green)),
+                    ),
+                  ],
+                )),
+                Text('₹${_totalAmount.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 24,
+                        color: Color(0xFFFF9933))),
+              ]),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+
+              // Details
+              _detailRow(Icons.temple_hindu,      'Temple',       data['templeName'] ?? ''),
+              _detailRow(Icons.star,               'Type',         '${data['darshanType'] ?? _darshanType} Darshan'),
+              _detailRow(Icons.calendar_today,     'Date',
+                  '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'),
+              _detailRow(Icons.access_time,        'Time Slot',    data['timeSlot'] ?? ''),
+              _detailRow(Icons.people,             'Persons',      '${data['numberOfPersons'] ?? _numberOfPeople}'),
+              _detailRow(Icons.person,             'Name',         data['userName'] ?? ''),
+              _detailRow(Icons.email,              'Email',        data['userEmail'] ?? ''),
+              _detailRow(Icons.phone,              'Phone',        data['userPhone'] ?? ''),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 16),
+
+              // Payment info
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Column(children: [
+                  _detailRow(Icons.payment, 'Payment ID', paymentId,
+                      valueStyle: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  _detailRow(Icons.receipt, 'Amount Paid',
+                      '₹${_totalAmount.toStringAsFixed(0)}',
+                      valueStyle: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFF9933), fontSize: 16)),
+                ]),
+              ),
+              const SizedBox(height: 24),
+
+              // Done button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF9933),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Done 🙏',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value,
+      {TextStyle? valueStyle}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(children: [
+        Icon(icon, size: 18, color: const Color(0xFFFF9933)),
+        const SizedBox(width: 12),
+        Text('$label: ',
+            style: const TextStyle(color: Colors.grey, fontSize: 13)),
+        Expanded(
+          child: Text(value,
+              style: valueStyle ??
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              textAlign: TextAlign.end),
+        ),
+      ]),
+    );
+  }
+
   Widget _confirmRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
@@ -286,8 +473,7 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
             style: const TextStyle(color: Colors.grey, fontSize: 13)),
         Flexible(
             child: Text(value,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 13),
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 textAlign: TextAlign.end)),
       ]),
     );
@@ -316,7 +502,6 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
                   _sectionTitle('👤 Visitor Details'),
                   const SizedBox(height: 10),
 
-                  // Auto-fill banner
                   if (widget.user != null) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -325,8 +510,7 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
                       decoration: BoxDecoration(
                         color: Colors.green.shade50,
                         borderRadius: BorderRadius.circular(8),
-                        border:
-                            Border.all(color: Colors.green.shade200),
+                        border: Border.all(color: Colors.green.shade200),
                       ),
                       child: Row(children: [
                         const Icon(Icons.check_circle,
@@ -357,7 +541,7 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
 
                   const SizedBox(height: 24),
 
-                  // ── Temple Selection (from API) ───────────────────────
+                  // ── Temple Selection ─────────────────────────────────
                   _sectionTitle('🛕 Select Temple'),
                   const SizedBox(height: 8),
                   Container(
@@ -372,24 +556,18 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
                         hint: const Text('Choose a temple'),
                         isExpanded: true,
                         selectedItemBuilder: (context) => _temples
-                            .map((t) => Text(
-                                  t.name,
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ))
+                            .map((t) => Text(t.name,
+                                overflow: TextOverflow.ellipsis, maxLines: 1))
                             .toList(),
                         items: _temples
                             .map((t) => DropdownMenuItem(
                                   value: t,
-                                  child: Text(
-                                    t.name,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
+                                  child: Text(t.name,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1),
                                 ))
                             .toList(),
-                        onChanged: (v) =>
-                            setState(() => _selectedTemple = v),
+                        onChanged: (v) => setState(() => _selectedTemple = v),
                       ),
                     ),
                   ),
@@ -415,8 +593,7 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        border:
-                            Border.all(color: const Color(0xFFFF9933)),
+                        border: Border.all(color: const Color(0xFFFF9933)),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(children: [
@@ -445,22 +622,19 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
                   ..._timeSlots.map((slot) => Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: GestureDetector(
-                          onTap: () =>
-                              setState(() => _selectedTimeSlot = slot),
+                          onTap: () => setState(() => _selectedTimeSlot = slot),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 14),
                             decoration: BoxDecoration(
                               color: _selectedTimeSlot == slot
-                                  ? const Color(0xFFFF9933)
-                                      .withValues(alpha:0.08)
+                                  ? const Color(0xFFFF9933).withValues(alpha: 0.08)
                                   : Colors.white,
                               border: Border.all(
                                 color: _selectedTimeSlot == slot
                                     ? const Color(0xFFFF9933)
                                     : Colors.grey.shade300,
-                                width:
-                                    _selectedTimeSlot == slot ? 2 : 1,
+                                width: _selectedTimeSlot == slot ? 2 : 1,
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -480,8 +654,7 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
                                     ? Center(
                                         child: Container(
                                           width: 10, height: 10,
-                                          decoration:
-                                              const BoxDecoration(
+                                          decoration: const BoxDecoration(
                                             shape: BoxShape.circle,
                                             color: Color(0xFFFF9933),
                                           ),
@@ -493,10 +666,9 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
                               Text(slot,
                                   style: TextStyle(
                                     fontSize: 15,
-                                    fontWeight:
-                                        _selectedTimeSlot == slot
-                                            ? FontWeight.w600
-                                            : FontWeight.normal,
+                                    fontWeight: _selectedTimeSlot == slot
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
                                     color: _selectedTimeSlot == slot
                                         ? const Color(0xFFFF9933)
                                         : Colors.black87,
@@ -520,8 +692,7 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
                     child: Row(children: [
                       IconButton(
                         onPressed: _numberOfPeople > 1
-                            ? () =>
-                                setState(() => _numberOfPeople--)
+                            ? () => setState(() => _numberOfPeople--)
                             : null,
                         icon: const Icon(Icons.remove_circle_outline),
                         color: const Color(0xFFFF9933), iconSize: 32,
@@ -531,20 +702,17 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 24, vertical: 8),
                         decoration: BoxDecoration(
-                          border: Border.all(
-                              color: const Color(0xFFFF9933)),
+                          border: Border.all(color: const Color(0xFFFF9933)),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text('$_numberOfPeople',
                             style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold)),
+                                fontSize: 20, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 16),
                       IconButton(
                         onPressed: _numberOfPeople < 10
-                            ? () =>
-                                setState(() => _numberOfPeople++)
+                            ? () => setState(() => _numberOfPeople++)
                             : null,
                         icon: const Icon(Icons.add_circle_outline),
                         color: const Color(0xFFFF9933), iconSize: 32,
@@ -554,15 +722,12 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                         const Text('Total Fee',
-                            style: TextStyle(
-                                color: Colors.grey, fontSize: 12)),
+                            style: TextStyle(color: Colors.grey, fontSize: 12)),
                         Text('₹${_totalAmount.toStringAsFixed(0)}',
                             style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 22, fontWeight: FontWeight.bold,
                                 color: Color(0xFFFF9933))),
-                        Text(
-                            '₹${_feePerPerson.toStringAsFixed(0)} × $_numberOfPeople',
+                        Text('₹${_feePerPerson.toStringAsFixed(0)} × $_numberOfPeople',
                             style: const TextStyle(
                                 fontSize: 11, color: Colors.grey)),
                       ]),
@@ -590,8 +755,7 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
                           : Text(
                               'Pay ₹${_totalAmount.toStringAsFixed(0)} & Book Darshan',
                               style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold)),
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -618,29 +782,23 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
           const SizedBox(height: 6),
           Text(type,
               style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
+                  fontWeight: FontWeight.bold, fontSize: 15,
                   color: sel ? Colors.white : Colors.black87)),
           const SizedBox(height: 4),
           Text(price,
               style: TextStyle(
-                  fontSize: 13,
-                  color: sel ? Colors.white70 : Colors.grey)),
+                  fontSize: 13, color: sel ? Colors.white70 : Colors.grey)),
           const SizedBox(height: 4),
           Text(subtitle,
               style: TextStyle(
-                  fontSize: 11,
-                  color: sel ? Colors.white60 : Colors.grey)),
+                  fontSize: 11, color: sel ? Colors.white60 : Colors.grey)),
         ]),
       ),
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Text(title,
-        style:
-            const TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
-  }
+  Widget _sectionTitle(String title) => Text(title,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
 
   Widget _inputField(TextEditingController ctrl, String label,
       IconData icon, TextInputType type,
@@ -652,12 +810,10 @@ class _DarshanBookingPageState extends State<DarshanBookingPage> {
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFFFF9933)),
-        border:
-            OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide:
-                const BorderSide(color: Color(0xFFFF9933), width: 2)),
+            borderSide: const BorderSide(color: Color(0xFFFF9933), width: 2)),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       ),
