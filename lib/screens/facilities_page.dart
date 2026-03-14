@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 // ─── UPDATE THIS to your backend IP/host ───────────────────────────────────
-const String _baseUrl = 'http://192.168.0.125:5000';
+const String _baseUrl = 'https://godsconnect-backend.onrender.com';
 // ───────────────────────────────────────────────────────────────────────────
 
 class FacilitiesPage extends StatefulWidget {

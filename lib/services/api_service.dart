@@ -4,8 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.0.125:5000/api';
-
+  static const String baseUrl = 'https://godsconnect-backend.onrender.com';
   static String? _token;
 
   // ════════════════════════════════════════════
