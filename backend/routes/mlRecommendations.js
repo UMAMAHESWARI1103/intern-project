@@ -17,13 +17,14 @@ const jwt      = require('jsonwebtoken');
 const Temple   = require('../models/temple');
 const Donation = require('../models/Donation');
 
-// DarshanBooking / HomamBooking / MarriageBooking are registered in booking.js
-// getModel safely reuses already-compiled models
+// Booking models are registered by booking.js — reuse safely
 function getModel(name) {
   return mongoose.models[name] || mongoose.model(name,
     new mongoose.Schema({
-      userId: mongoose.Schema.Types.ObjectId,
-      userEmail: String, templeName: String, templeId: String,
+      userId:    mongoose.Schema.Types.ObjectId,
+      userEmail: String,
+      templeName: String,
+      templeId:   String,
       totalAmount: Number,
     }, { strict: false, timestamps: true })
   );
@@ -46,10 +47,10 @@ function optionalAuth(req, res, next) {
 router.use(optionalAuth);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ALGORITHM HELPERS
+// HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Recency weight: recent activity scores higher (exponential decay over 30 days)
+// Recency weight: exponential decay over 30 days
 function recencyWeight(createdAt) {
   const days = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24);
   return Math.exp(-days / 30);
@@ -59,10 +60,10 @@ function recencyWeight(createdAt) {
 function deityCategory(deity = '') {
   const d = deity.toLowerCase();
   if (d.includes('murugan') || d.includes('kartikeya') || d.includes('subramanya')) return 'murugan';
-  if (d.includes('shiva') || d.includes('siva') || d.includes('lingam') || d.includes('nataraja')) return 'shiva';
-  if (d.includes('vishnu') || d.includes('perumal') || d.includes('venkatesh') || d.includes('balaji')) return 'vishnu';
-  if (d.includes('devi') || d.includes('amman') || d.includes('durga') || d.includes('lakshmi') || d.includes('saraswati') || d.includes('kali')) return 'devi';
-  if (d.includes('ganesh') || d.includes('ganesha') || d.includes('vinayaka') || d.includes('pillayar')) return 'ganesh';
+  if (d.includes('shiva')   || d.includes('siva')      || d.includes('lingam') || d.includes('nataraja')) return 'shiva';
+  if (d.includes('vishnu')  || d.includes('perumal')   || d.includes('venkatesh') || d.includes('balaji')) return 'vishnu';
+  if (d.includes('devi')    || d.includes('amman')     || d.includes('durga') || d.includes('lakshmi') || d.includes('saraswati') || d.includes('kali')) return 'devi';
+  if (d.includes('ganesh')  || d.includes('ganesha')   || d.includes('vinayaka') || d.includes('pillayar')) return 'ganesh';
   if (d.includes('hanuman') || d.includes('anjaneya')) return 'hanuman';
   return 'other';
 }
@@ -73,46 +74,66 @@ function deityCategory(deity = '') {
 router.get('/:userEmail', async (req, res) => {
   try {
     const { userEmail } = req.params;
+    const emailLower    = userEmail.toLowerCase();
 
-    // 1. Load all temples
+    // ── 1. Load all temples ───────────────────────────────────
     const allTemples = await Temple.find({}).lean();
     if (!allTemples.length) {
       return res.json({ success: true, type: 'popular', forYou: [], popular: [], temples: [] });
     }
 
-    // 2. Load user's own activity
-    const userQuery = { $or: [{ userEmail }, { userEmail: userEmail.toLowerCase() }] };
+    // ── 2. Load user's own activity ───────────────────────────
+    // NOTE: Donation uses 'donorEmail', bookings use 'userEmail'
+    const bookingQuery  = { $or: [{ userEmail }, { userEmail: emailLower }] };
+    const donationQuery = { $or: [{ donorEmail: userEmail }, { donorEmail: emailLower }] };
+
     const [myDarshans, myHomams, myMarriages, myDonations] = await Promise.all([
-      DarshanBooking.find(userQuery).lean(),
-      HomamBooking.find(userQuery).lean(),
-      MarriageBooking.find(userQuery).lean(),
-      Donation.find(userQuery).lean(),
+      DarshanBooking.find(bookingQuery).lean(),
+      HomamBooking.find(bookingQuery).lean(),
+      MarriageBooking.find(bookingQuery).lean(),
+      Donation.find(donationQuery).lean(),
     ]);
 
-    const myActivity = [...myDarshans, ...myHomams, ...myMarriages, ...myDonations];
+    // Normalize donation fields to match booking shape
+    const normalizedDonations = myDonations.map(d => ({
+      ...d,
+      userEmail:   d.donorEmail,
+      templeName:  d.templeName,
+      totalAmount: d.amount,
+    }));
+
+    const myActivity = [...myDarshans, ...myHomams, ...myMarriages, ...normalizedDonations];
     const hasHistory = myActivity.length > 0;
 
-    // 3. Load ALL bookings for collaborative + popularity
+    // ── 3. Load ALL activity for collaborative + popularity ───
     const [allDarshans, allHomams, allMarriages, allDonations] = await Promise.all([
       DarshanBooking.find({}).lean(),
       HomamBooking.find({}).lean(),
       MarriageBooking.find({}).lean(),
       Donation.find({}).lean(),
     ]);
-    const allActivity = [...allDarshans, ...allHomams, ...allMarriages, ...allDonations];
 
-    // 4. POPULARITY SCORE — count bookings per temple
+    const allNormalizedDonations = allDonations.map(d => ({
+      ...d,
+      userEmail:   d.donorEmail,
+      templeName:  d.templeName,
+      totalAmount: d.amount,
+    }));
+
+    const allActivity = [...allDarshans, ...allHomams, ...allMarriages, ...allNormalizedDonations];
+
+    // ── 4. POPULARITY SCORE ───────────────────────────────────
     const popularityMap = {};
     for (const a of allActivity) {
       const key = (a.templeName || '').trim().toLowerCase();
       if (!key) continue;
       popularityMap[key] = (popularityMap[key] || 0) + 1
-        + (a.totalAmount || a.amount || 0) * 0.001;
+        + (a.totalAmount || 0) * 0.001;
     }
     const maxPop = Math.max(...Object.values(popularityMap), 1);
     for (const k in popularityMap) popularityMap[k] = (popularityMap[k] / maxPop) * 100;
 
-    // 5. CONTENT-BASED SCORE — user's preferred deity
+    // ── 5. CONTENT-BASED SCORE — user's preferred deity ──────
     const myTempleNames  = new Set();
     const myDeityWeights = {};
 
@@ -122,18 +143,18 @@ router.get('/:userEmail', async (req, res) => {
       const temple = allTemples.find(t => (t.name || '').trim().toLowerCase() === tName);
       if (temple) {
         const cat = deityCategory(temple.deity || '');
-        const w   = recencyWeight(a.createdAt) * (1 + (a.totalAmount || a.amount || 0) * 0.001);
+        const w   = recencyWeight(a.createdAt) * (1 + (a.totalAmount || 0) * 0.001);
         myDeityWeights[cat] = (myDeityWeights[cat] || 0) + w;
       }
     }
     const maxDeity = Math.max(...Object.values(myDeityWeights), 1);
     for (const k in myDeityWeights) myDeityWeights[k] = (myDeityWeights[k] / maxDeity) * 100;
 
-    // 6. COLLABORATIVE SCORE — similar users
+    // ── 6. COLLABORATIVE SCORE — similar users ────────────────
     const similarUserEmails = new Set();
     for (const a of allActivity) {
       const tName = (a.templeName || '').trim().toLowerCase();
-      if (myTempleNames.has(tName) && a.userEmail && a.userEmail !== userEmail) {
+      if (myTempleNames.has(tName) && a.userEmail && a.userEmail !== emailLower) {
         similarUserEmails.add(a.userEmail);
       }
     }
@@ -147,7 +168,7 @@ router.get('/:userEmail', async (req, res) => {
     const maxCollab = Math.max(...Object.values(collaborativeMap), 1);
     for (const k in collaborativeMap) collaborativeMap[k] = (collaborativeMap[k] / maxCollab) * 100;
 
-    // 7. FINAL WEIGHTED SCORE
+    // ── 7. FINAL WEIGHTED SCORE ───────────────────────────────
     const scored = allTemples.map(temple => {
       const key  = (temple.name || '').trim().toLowerCase();
       const cat  = deityCategory(temple.deity || '');
@@ -170,7 +191,7 @@ router.get('/:userEmail', async (req, res) => {
 
     scored.sort((a, b) => b._score - a._score);
 
-    // 8. SPLIT into forYou vs popular
+    // ── 8. SPLIT forYou vs popular ────────────────────────────
     let forYou  = [];
     let popular = [];
 
@@ -196,7 +217,7 @@ router.get('/:userEmail', async (req, res) => {
       return cleaned;
     };
 
-    console.log(`🧠 ML for ${userEmail}: forYou=${forYou.length} popular=${popular.length} similarUsers=${similarUserEmails.size} hasHistory=${hasHistory}`);
+    console.log(`🧠 ML for ${userEmail}: forYou=${forYou.length} popular=${popular.length} similarUsers=${similarUserEmails.size} hasHistory=${hasHistory} myActivity=${myActivity.length}`);
 
     return res.json({
       success:   true,
@@ -215,7 +236,7 @@ router.get('/:userEmail', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('[ML Route] Error:', err.message);
+    console.error('[ML Route] Error:', err.message, err.stack);
     return res.status(500).json({
       success: false,
       message: 'Recommendation engine error',
