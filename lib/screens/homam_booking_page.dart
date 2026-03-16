@@ -13,13 +13,12 @@ class HomamBookingPage extends StatefulWidget {
 
 class _HomamBookingPageState extends State<HomamBookingPage>
     with TickerProviderStateMixin {
-  static const Color _primary   = Color(0xFFFF9933);
-  static const Color _darkBg    = Color(0xFF1A0A00);
-  static const Color _cardBg    = Color(0xFFFFFBF5);
-  static const Color _accent    = Color(0xFFE65C00);
+  static const Color _primary = Color(0xFFFF9933);
+  static const Color _darkBg  = Color(0xFF1A0A00);
+  static const Color _accent  = Color(0xFFE65C00);
 
-  // ── Step control ──────────────────────────────────────────────
-  int _step = 0; // 0=venue, 1=details, 2=homam, 3=datetime, 4=priest, 5=payment
+  // ── Step ──────────────────────────────────────────────────────
+  int _step = 0; // 0=venue 1=details 2=homam 3=datetime 4=priest 5=payment
 
   // ── Venue ─────────────────────────────────────────────────────
   String       _venueType      = '';
@@ -52,11 +51,14 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   };
 
   // ── Date & Time ───────────────────────────────────────────────
-  DateTime  _selectedDate = DateTime.now().add(const Duration(days: 3));
-  String    _selectedTime = '06:00 AM';
+  DateTime _selectedDate = DateTime.now().add(const Duration(days: 3));
+  String   _selectedTime = '03:00 AM';
+
+  // Times from 3 AM onwards
   final List<String> _timeSlots = [
-    '06:00 AM','07:00 AM','08:00 AM','09:00 AM','10:00 AM','11:00 AM',
-    '04:00 PM','05:00 PM','06:00 PM','07:00 PM',
+    '03:00 AM', '04:00 AM', '05:00 AM', '06:00 AM',
+    '07:00 AM', '08:00 AM', '09:00 AM', '10:00 AM',
+    '11:00 AM', '04:00 PM', '05:00 PM', '06:00 PM',
   ];
 
   // ── Priest ────────────────────────────────────────────────────
@@ -65,8 +67,8 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   bool                  _loadingPriests = false;
 
   // ── Payment ───────────────────────────────────────────────────
-  bool    _isLoading = false;
-  late    Razorpay _razorpay;
+  bool   _isLoading = false;
+  late   Razorpay _razorpay;
   Map<String, dynamic>? _pendingBookingData;
 
   // ── Animation ─────────────────────────────────────────────────
@@ -82,8 +84,10 @@ class _HomamBookingPageState extends State<HomamBookingPage>
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR,   _onPaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
 
-    _slideCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 350));
-    _slideAnim = Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+    _slideCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 350));
+    _slideAnim = Tween<Offset>(
+            begin: const Offset(1, 0), end: Offset.zero)
         .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
     _slideCtrl.forward();
 
@@ -116,29 +120,41 @@ class _HomamBookingPageState extends State<HomamBookingPage>
     setState(() => _loadingTemples = true);
     try {
       final raw = await ApiService.getAllTemples();
-      if (mounted) setState(() {
-        _temples        = raw.map((e) => Temple.fromJson(e as Map<String, dynamic>)).toList();
-        _loadingTemples = false;
-      });
+      if (mounted) {
+        setState(() {
+          _temples        = raw.map((e) => Temple.fromJson(e as Map<String, dynamic>)).toList();
+          _loadingTemples = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _loadingTemples = false);
+      if (mounted) {
+        setState(() => _loadingTemples = false);
+      }
     }
   }
 
   Future<void> _loadPriests() async {
     if (_selectedHomam == null) return;
-    setState(() { _loadingPriests = true; _selectedPriest = null; _priests = []; });
+    setState(() {
+      _loadingPriests = true;
+      _selectedPriest = null;
+      _priests        = [];
+    });
     try {
       final priests = await ApiService.getPriests(homamType: _selectedHomam!);
-      if (mounted) setState(() {
-        _priests        = priests;
-        _loadingPriests = false;
-        if (_priests.isNotEmpty) {
-          _selectedPriest = Map<String, dynamic>.from(_priests[0] as Map);
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _priests        = priests;
+          _loadingPriests = false;
+          if (_priests.isNotEmpty) {
+            _selectedPriest = Map<String, dynamic>.from(_priests[0] as Map);
+          }
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _loadingPriests = false);
+      if (mounted) {
+        setState(() => _loadingPriests = false);
+      }
     }
   }
 
@@ -146,8 +162,12 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   void dispose() {
     _razorpay.clear();
     _slideCtrl.dispose();
-    for (final c in [_nameCtrl, _phoneCtrl, _emailCtrl, _addressCtrl,
-        _gotraCtrl, _nakshatraCtrl, _specialNoteCtrl]) { c.dispose(); }
+    for (final c in [
+      _nameCtrl, _phoneCtrl, _emailCtrl, _addressCtrl,
+      _gotraCtrl, _nakshatraCtrl, _specialNoteCtrl,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -156,7 +176,6 @@ class _HomamBookingPageState extends State<HomamBookingPage>
     _slideCtrl.forward(from: 0);
   }
 
-  // ── step labels ──────────────────────────────────────────────
   static const List<String> _stepLabels = [
     'Venue', 'Details', 'Homam', 'Date & Time', 'Pandit', 'Payment'
   ];
@@ -173,7 +192,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _cardBg,
+      backgroundColor: const Color(0xFFFFFBF5),
       body: Column(children: [
         _buildHeader(),
         _buildStepBar(),
@@ -189,18 +208,23 @@ class _HomamBookingPageState extends State<HomamBookingPage>
 
   // ── HEADER ───────────────────────────────────────────────────
   Widget _buildHeader() => Container(
-    padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 8, 16, 16),
+    padding: EdgeInsets.fromLTRB(
+        16, MediaQuery.of(context).padding.top + 8, 16, 16),
     decoration: const BoxDecoration(
       gradient: LinearGradient(
         colors: [Color(0xFFE65C00), Color(0xFFFF9933)],
-        begin: Alignment.topLeft, end: Alignment.bottomRight,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
     ),
     child: Row(children: [
       GestureDetector(
         onTap: () {
-          if (_step == 0) Navigator.pop(context);
-          else _goToStep(_step - 1);
+          if (_step == 0) {
+            Navigator.pop(context);
+          } else {
+            _goToStep(_step - 1);
+          }
         },
         child: Container(
           padding: const EdgeInsets.all(8),
@@ -212,12 +236,18 @@ class _HomamBookingPageState extends State<HomamBookingPage>
         ),
       ),
       const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('🔥 Homam Booking',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-        Text(_stepLabels[_step],
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12)),
-      ])),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('🔥 Homam Booking',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18)),
+          Text(_stepLabels[_step],
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85), fontSize: 12)),
+        ]),
+      ),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
@@ -225,7 +255,8 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text('${_step + 1} / 6',
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
       ),
     ]),
   );
@@ -234,50 +265,65 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   Widget _buildStepBar() => Container(
     color: const Color(0xFFFF9933),
     padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-    child: Row(children: List.generate(6, (i) {
-      final done   = i < _step;
-      final active = i == _step;
-      return Expanded(child: Row(children: [
-        GestureDetector(
-          onTap: done ? () => _goToStep(i) : null,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: active ? 32 : 24,
-              height: active ? 32 : 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: active ? Colors.white : done ? Colors.white.withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.3),
+    child: Row(
+      children: List.generate(6, (i) {
+        final done   = i < _step;
+        final active = i == _step;
+        return Expanded(
+          child: Row(children: [
+            GestureDetector(
+              onTap: done ? () => _goToStep(i) : null,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width:  active ? 32 : 24,
+                  height: active ? 32 : 24,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: active
+                        ? Colors.white
+                        : done
+                            ? Colors.white.withValues(alpha: 0.9)
+                            : Colors.white.withValues(alpha: 0.3),
+                  ),
+                  child: Center(
+                    child: done
+                        ? const Icon(Icons.check, size: 13, color: Color(0xFFE65C00))
+                        : Icon(_stepIcons[i],
+                            size:  active ? 16 : 12,
+                            color: active ? _accent : Colors.white),
+                  ),
+                ),
+              ]),
+            ),
+            if (i < 5)
+              Expanded(
+                child: Container(
+                  height: 2,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: done
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
               ),
-              child: Center(child: done
-                  ? const Icon(Icons.check, size: 13, color: Color(0xFFE65C00))
-                  : Icon(_stepIcons[i], size: active ? 16 : 12,
-                      color: active ? _accent : Colors.white)),
-            ),
           ]),
-        ),
-        if (i < 5)
-          Expanded(child: Container(
-            height: 2,
-            margin: const EdgeInsets.symmetric(horizontal: 2),
-            decoration: BoxDecoration(
-              color: done ? Colors.white : Colors.white.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(1),
-            ),
-          )),
-      ]));
-    })),
+        );
+      }),
+    ),
   );
 
   // ── CURRENT STEP ─────────────────────────────────────────────
   Widget _buildCurrentStep() {
     switch (_step) {
-      case 0: return _buildVenueStep();
-      case 1: return _buildDetailsStep();
-      case 2: return _buildHomamStep();
-      case 3: return _buildDateTimeStep();
-      case 4: return _buildPriestStep();
-      case 5: return _buildPaymentStep();
+      case 0:  return _buildVenueStep();
+      case 1:  return _buildDetailsStep();
+      case 2:  return _buildHomamStep();
+      case 3:  return _buildDateTimeStep();
+      case 4:  return _buildPriestStep();
+      case 5:  return _buildPaymentStep();
       default: return _buildVenueStep();
     }
   }
@@ -288,9 +334,9 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   Widget _buildVenueStep() => SingleChildScrollView(
     padding: const EdgeInsets.all(20),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _stepHeading('Where to perform the Homam?', 'Choose your preferred venue'),
+      _stepHeading('Where to perform the Homam?',
+          'Choose your preferred venue'),
       const SizedBox(height: 24),
-
       _venueCard(
         type: 'home', emoji: '🏠', title: 'At My Home',
         subtitle: 'Pandit visits your home & performs homam',
@@ -302,12 +348,11 @@ class _HomamBookingPageState extends State<HomamBookingPage>
         subtitle: 'Performed at a sacred temple by temple priests',
         points: ['Sacred environment', 'All arrangements provided', 'Auspicious blessings'],
       ),
-
-      // Temple dropdown
       if (_venueType == 'temple') ...[
         const SizedBox(height: 20),
         _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Select Temple', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text('Select Temple',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 12),
           if (_loadingTemples)
             const Center(child: CircularProgressIndicator(color: _primary))
@@ -323,12 +368,15 @@ class _HomamBookingPageState extends State<HomamBookingPage>
                   value: _selectedTemple,
                   hint: const Text('Choose a temple'),
                   isExpanded: true,
-                  selectedItemBuilder: (_) => _temples.map((t) =>
-                      Text(t.name, overflow: TextOverflow.ellipsis)).toList(),
-                  items: _temples.map((t) => DropdownMenuItem(
-                    value: t,
-                    child: Text(t.name, overflow: TextOverflow.ellipsis),
-                  )).toList(),
+                  selectedItemBuilder: (_) => _temples
+                      .map((t) => Text(t.name, overflow: TextOverflow.ellipsis))
+                      .toList(),
+                  items: _temples
+                      .map((t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(t.name, overflow: TextOverflow.ellipsis),
+                          ))
+                      .toList(),
                   onChanged: (v) => setState(() => _selectedTemple = v),
                 ),
               ),
@@ -344,13 +392,18 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           ],
         ])),
       ],
-
       const SizedBox(height: 32),
       _nextButton(
         label: 'Continue to Details',
         onTap: () {
-          if (_venueType.isEmpty) { _snack('Please select a venue'); return; }
-          if (_venueType == 'temple' && _selectedTemple == null) { _snack('Please select a temple'); return; }
+          if (_venueType.isEmpty) {
+            _snack('Please select a venue');
+            return;
+          }
+          if (_venueType == 'temple' && _selectedTemple == null) {
+            _snack('Please select a temple');
+            return;
+          }
           _goToStep(1);
         },
       ),
@@ -367,11 +420,8 @@ class _HomamBookingPageState extends State<HomamBookingPage>
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _stepHeading('Your Details', 'Fill in your personal information'),
         const SizedBox(height: 20),
-
-        // Venue badge
         _venueBadge(),
         const SizedBox(height: 20),
-
         _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _sectionLabel('👤 Personal Information'),
           const SizedBox(height: 14),
@@ -380,21 +430,22 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           const SizedBox(height: 12),
           _field('Mobile Number *', _phoneCtrl, Icons.phone_outlined,
               keyboardType: TextInputType.phone,
-              validator: (v) => v!.trim().length < 10 ? 'Enter valid number' : null),
+              validator: (v) =>
+                  v!.trim().length < 10 ? 'Enter valid number' : null),
           const SizedBox(height: 12),
           _field('Email *', _emailCtrl, Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
-              validator: (v) => !v!.contains('@') ? 'Enter valid email' : null),
+              validator: (v) =>
+                  !v!.contains('@') ? 'Enter valid email' : null),
           if (_venueType == 'home') ...[
             const SizedBox(height: 12),
             _field('Home Address *', _addressCtrl, Icons.location_on_outlined,
                 maxLines: 3,
-                validator: (v) => v!.trim().isEmpty ? 'Enter your address' : null),
+                validator: (v) =>
+                    v!.trim().isEmpty ? 'Enter your address' : null),
           ],
         ])),
-
         const SizedBox(height: 14),
-
         _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _sectionLabel('🕉️ Ritual Details (Optional)'),
           const SizedBox(height: 14),
@@ -402,9 +453,9 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           const SizedBox(height: 12),
           _field('Nakshatra', _nakshatraCtrl, Icons.star_outline),
           const SizedBox(height: 12),
-          _field('Special Requests', _specialNoteCtrl, Icons.note_outlined, maxLines: 3),
+          _field('Special Requests', _specialNoteCtrl,
+              Icons.note_outlined, maxLines: 3),
         ])),
-
         const SizedBox(height: 32),
         _nextButton(
           label: 'Continue to Homam Selection',
@@ -423,13 +474,12 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   Widget _buildHomamStep() => SingleChildScrollView(
     padding: const EdgeInsets.all(20),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _stepHeading('Select Homam Type', 'Choose the homam for your ceremony'),
+      _stepHeading('Select Homam Type',
+          'Choose the homam for your ceremony'),
       const SizedBox(height: 20),
       _venueBadge(),
       const SizedBox(height: 20),
-
       _card(child: Column(children: [
-        // Dropdown
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           decoration: BoxDecoration(
@@ -444,28 +494,36 @@ class _HomamBookingPageState extends State<HomamBookingPage>
                   style: TextStyle(color: Colors.grey)),
               isExpanded: true,
               icon: const Icon(Icons.keyboard_arrow_down, color: _primary),
-              items: _homamInfo.keys.map((h) => DropdownMenuItem(
-                value: h,
-                child: Row(children: [
-                  Text(_homamInfo[h]!['emoji']!, style: const TextStyle(fontSize: 20)),
-                  const SizedBox(width: 10),
-                  Expanded(child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(h, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                      Text('₹${_homamInfo[h]!['price']!.toStringAsFixed(0)}',
-                          style: const TextStyle(fontSize: 11, color: _primary)),
-                    ],
-                  )),
-                ]),
-              )).toList(),
+              items: _homamInfo.keys
+                  .map((h) => DropdownMenuItem(
+                        value: h,
+                        child: Row(children: [
+                          Text(_homamInfo[h]!['emoji']!,
+                              style: const TextStyle(fontSize: 20)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(h,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13)),
+                                Text(
+                                    '₹${(_homamInfo[h]!['price']! as double).toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                        fontSize: 11, color: _primary)),
+                              ],
+                            ),
+                          ),
+                        ]),
+                      ))
+                  .toList(),
               onChanged: (v) => setState(() => _selectedHomam = v),
             ),
           ),
         ),
-
-        // Selected homam detail card
         if (_selectedHomam != null) ...[
           const SizedBox(height: 16),
           AnimatedContainer(
@@ -473,8 +531,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.orange.shade50, Colors.deepOrange.shade50],
-              ),
+                  colors: [Colors.orange.shade50, Colors.deepOrange.shade50]),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.orange.shade200),
             ),
@@ -482,35 +539,47 @@ class _HomamBookingPageState extends State<HomamBookingPage>
               Text(_homamInfo[_selectedHomam]!['emoji']!,
                   style: const TextStyle(fontSize: 40)),
               const SizedBox(width: 16),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(_selectedHomam!,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 4),
-                Text(_homamInfo[_selectedHomam]!['desc']!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _primary, borderRadius: BorderRadius.circular(20),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(_selectedHomam!,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 4),
+                  Text(_homamInfo[_selectedHomam]!['desc']!,
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade700)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _primary,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '₹${(_homamInfo[_selectedHomam]!['price']! as double).toStringAsFixed(0)}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14),
+                    ),
                   ),
-                  child: Text(
-                    '₹${_homamInfo[_selectedHomam]!['price']!.toStringAsFixed(0)}',
-                    style: const TextStyle(color: Colors.white,
-                        fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                ),
-              ])),
+                ]),
+              ),
             ]),
           ),
         ],
       ])),
-
       const SizedBox(height: 32),
       _nextButton(
         label: 'Continue to Date & Time',
         onTap: () {
-          if (_selectedHomam == null) { _snack('Please select a homam type'); return; }
+          if (_selectedHomam == null) {
+            _snack('Please select a homam type');
+            return;
+          }
           _goToStep(3);
         },
       ),
@@ -523,10 +592,11 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   Widget _buildDateTimeStep() => SingleChildScrollView(
     padding: const EdgeInsets.all(20),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _stepHeading('Choose Date & Time', 'Select an auspicious date for your homam'),
+      _stepHeading('Choose Date & Time',
+          'Select an auspicious date for your homam'),
       const SizedBox(height: 20),
 
-      // Quick date chips (today+3 to today+7)
+      // Date chips
       _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _sectionLabel('📅 Select Date'),
         const SizedBox(height: 14),
@@ -536,11 +606,11 @@ class _HomamBookingPageState extends State<HomamBookingPage>
             scrollDirection: Axis.horizontal,
             itemCount: 5,
             itemBuilder: (_, i) {
-              final date     = DateTime.now().add(Duration(days: i + 3));
+              final date = DateTime.now().add(Duration(days: i + 3));
               final selected = _selectedDate.day == date.day &&
                                _selectedDate.month == date.month;
-              final days     = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-              final dayName  = days[date.weekday - 1];
+              const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+              final dayName = days[date.weekday - 1];
               return GestureDetector(
                 onTap: () => setState(() => _selectedDate = date),
                 child: AnimatedContainer(
@@ -553,19 +623,30 @@ class _HomamBookingPageState extends State<HomamBookingPage>
                     border: Border.all(
                         color: selected ? _primary : Colors.grey.shade300,
                         width: selected ? 2 : 1),
-                    boxShadow: selected ? [BoxShadow(
-                        color: _primary.withValues(alpha: 0.3),
-                        blurRadius: 8, offset: const Offset(0, 3))] : [],
+                    boxShadow: selected
+                        ? [BoxShadow(
+                            color: _primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3))]
+                        : [],
                   ),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text(dayName, style: TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w600,
-                        color: selected ? Colors.white70 : Colors.grey)),
-                    Text('${date.day}', style: TextStyle(
-                        fontSize: 22, fontWeight: FontWeight.bold,
-                        color: selected ? Colors.white : Colors.black87)),
-                    Text(_monthShort(date.month), style: TextStyle(
-                        fontSize: 10, color: selected ? Colors.white70 : Colors.grey)),
+                  child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                    Text(dayName,
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: selected ? Colors.white70 : Colors.grey)),
+                    Text('${date.day}',
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: selected ? Colors.white : Colors.black87)),
+                    Text(_monthShort(date.month),
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: selected ? Colors.white70 : Colors.grey)),
                   ]),
                 ),
               );
@@ -573,7 +654,6 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           ),
         ),
         const SizedBox(height: 12),
-        // Custom date picker
         OutlinedButton.icon(
           onPressed: () async {
             final picked = await showDatePicker(
@@ -583,7 +663,8 @@ class _HomamBookingPageState extends State<HomamBookingPage>
               lastDate: DateTime.now().add(const Duration(days: 365)),
               builder: (ctx, child) => Theme(
                 data: Theme.of(ctx).copyWith(
-                    colorScheme: const ColorScheme.light(primary: _primary)),
+                    colorScheme:
+                        const ColorScheme.light(primary: _primary)),
                 child: child!,
               ),
             );
@@ -596,39 +677,54 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           ),
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: _primary),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
           ),
         ),
       ])),
 
       const SizedBox(height: 14),
 
+      // Time slots
       _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _sectionLabel('⏰ Select Time'),
+        const SizedBox(height: 6),
+        Text('Starting from 3:00 AM — Brahma Muhurtha & all auspicious slots',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
         const SizedBox(height: 14),
-        Wrap(spacing: 8, runSpacing: 10, children: _timeSlots.map((t) {
-          final sel = _selectedTime == t;
-          return GestureDetector(
-            onTap: () => setState(() => _selectedTime = t),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: sel ? _primary : Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: sel ? _primary : Colors.grey.shade300,
-                    width: sel ? 2 : 1),
-                boxShadow: sel ? [BoxShadow(
-                    color: _primary.withValues(alpha: 0.25),
-                    blurRadius: 6, offset: const Offset(0, 2))] : [],
+        Wrap(
+          spacing: 8,
+          runSpacing: 10,
+          children: _timeSlots.map((t) {
+            final sel = _selectedTime == t;
+            return GestureDetector(
+              onTap: () => setState(() => _selectedTime = t),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: sel ? _primary : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: sel ? _primary : Colors.grey.shade300,
+                      width: sel ? 2 : 1),
+                  boxShadow: sel
+                      ? [BoxShadow(
+                          color: _primary.withValues(alpha: 0.25),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2))]
+                      : [],
+                ),
+                child: Text(t,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: sel ? Colors.white : Colors.black87)),
               ),
-              child: Text(t, style: TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600,
-                  color: sel ? Colors.white : Colors.black87)),
-            ),
-          );
-        }).toList()),
+            );
+          }).toList(),
+        ),
       ])),
 
       const SizedBox(height: 32),
@@ -643,23 +739,32 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   );
 
   // ══════════════════════════════════════════════════════════════
-  // STEP 4 — PRIEST / PANDIT
+  // STEP 4 — PRIEST
   // ══════════════════════════════════════════════════════════════
   Widget _buildPriestStep() => SingleChildScrollView(
     padding: const EdgeInsets.all(20),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _stepHeading('Select Pandit', 'Choose an experienced pandit for your homam'),
+      _stepHeading('Select Pandit',
+          'Choose an experienced pandit for your homam'),
       const SizedBox(height: 20),
 
-      // Booking summary chip row
+      // Summary chips
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(children: [
-          _infoBadge(_venueType == 'home' ? '🏠 Home' : '🛕 ${_selectedTemple?.name ?? "Temple"}', Colors.orange),
+          _infoBadge(
+              _venueType == 'home'
+                  ? '🏠 Home'
+                  : '🛕 ${_selectedTemple?.name ?? "Temple"}',
+              Colors.orange),
           const SizedBox(width: 8),
-          _infoBadge('${_homamInfo[_selectedHomam]!['emoji']} $_selectedHomam', Colors.deepOrange),
+          _infoBadge(
+              '${_homamInfo[_selectedHomam]!['emoji']} $_selectedHomam',
+              Colors.deepOrange),
           const SizedBox(width: 8),
-          _infoBadge('📅 ${_selectedDate.day}/${_selectedDate.month}', Colors.teal),
+          _infoBadge(
+              '📅 ${_selectedDate.day}/${_selectedDate.month}',
+              Colors.teal),
           const SizedBox(width: 8),
           _infoBadge('⏰ $_selectedTime', Colors.indigo),
         ]),
@@ -672,7 +777,8 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           child: Column(children: [
             CircularProgressIndicator(color: _primary),
             SizedBox(height: 12),
-            Text('Finding pandits for your homam...', style: TextStyle(color: Colors.grey)),
+            Text('Finding pandits for your homam...',
+                style: TextStyle(color: Colors.grey)),
           ]),
         ))
       else if (_priests.isEmpty)
@@ -684,16 +790,19 @@ class _HomamBookingPageState extends State<HomamBookingPage>
             const Text('No specific pandits found',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            Text('We will assign an expert pandit for your $_selectedHomam.',
+            Text(
+                'We will assign an expert pandit for your $_selectedHomam.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                style: TextStyle(
+                    fontSize: 12, color: Colors.grey.shade600)),
             const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: _loadPriests,
               icon: const Icon(Icons.refresh, size: 16),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
-                  backgroundColor: _primary, foregroundColor: Colors.white),
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white),
             ),
           ]),
         ))
@@ -713,97 +822,152 @@ class _HomamBookingPageState extends State<HomamBookingPage>
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: selected ? const Color(0xFFFFF3E0) : Colors.white,
+                color: selected
+                    ? const Color(0xFFFFF3E0)
+                    : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: selected ? _primary : Colors.grey.shade200,
+                    color:
+                        selected ? _primary : Colors.grey.shade200,
                     width: selected ? 2 : 1),
-                boxShadow: [BoxShadow(
-                    color: selected
-                        ? _primary.withValues(alpha: 0.15)
-                        : Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10, offset: const Offset(0, 3))],
+                boxShadow: [
+                  BoxShadow(
+                      color: selected
+                          ? _primary.withValues(alpha: 0.15)
+                          : Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3))
+                ],
               ),
               child: Row(children: [
-                // Avatar
                 Container(
                   width: 54, height: 54,
                   decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: selected ? _primary : Colors.orange.shade100),
-                  child: Center(child: Text(
-                    (priest['name'] as String? ?? '?').isNotEmpty
-                        ? (priest['name'] as String)[0].toUpperCase() : '?',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold,
-                        color: selected ? Colors.white : _primary),
-                  )),
+                      color: selected
+                          ? _primary
+                          : Colors.orange.shade100),
+                  child: Center(
+                    child: Text(
+                      (priest['name'] as String? ?? '?').isNotEmpty
+                          ? (priest['name'] as String)[0].toUpperCase()
+                          : '?',
+                      style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color:
+                              selected ? Colors.white : _primary),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Text(priest['name'] ?? '', style: TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 15,
-                        color: selected ? _primary : Colors.black87)),
-                    if (selected) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                            color: _primary, borderRadius: BorderRadius.circular(6)),
-                        child: const Text('Selected', style: TextStyle(
-                            color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Row(children: [
+                      Text(priest['name'] ?? '',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: selected
+                                  ? _primary
+                                  : Colors.black87)),
+                      if (selected) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                              color: _primary,
+                              borderRadius:
+                                  BorderRadius.circular(6)),
+                          child: const Text('Selected',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ]),
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      const Icon(Icons.work_outline,
+                          size: 12, color: Colors.grey),
+                      const SizedBox(width: 3),
+                      Text('${priest['experience'] ?? 0} yrs',
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.grey)),
+                      const SizedBox(width: 10),
+                      const Icon(Icons.location_on_outlined,
+                          size: 12, color: Colors.grey),
+                      const SizedBox(width: 3),
+                      Text(priest['location'] ?? '',
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.grey)),
+                    ]),
+                    if (langs.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text('🗣 $langs',
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.grey)),
+                    ],
+                    if (specs.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: specs
+                            .take(2)
+                            .map((s) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                      color: _primary
+                                          .withValues(alpha: 0.1),
+                                      borderRadius:
+                                          BorderRadius.circular(4)),
+                                  child: Text(s.toString(),
+                                      style: const TextStyle(
+                                          fontSize: 9,
+                                          color: _primary,
+                                          fontWeight:
+                                              FontWeight.w600)),
+                                ))
+                            .toList(),
                       ),
                     ],
                   ]),
-                  const SizedBox(height: 4),
-                  Row(children: [
-                    const Icon(Icons.work_outline, size: 12, color: Colors.grey),
-                    const SizedBox(width: 3),
-                    Text('${priest['experience'] ?? 0} yrs',
-                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                    const SizedBox(width: 10),
-                    const Icon(Icons.location_on_outlined, size: 12, color: Colors.grey),
-                    const SizedBox(width: 3),
-                    Text(priest['location'] ?? '',
-                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                  ]),
-                  if (langs.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text('🗣 $langs',
-                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
-                  if (specs.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Wrap(spacing: 4, runSpacing: 4,
-                      children: specs.take(2).map((s) => Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                            color: _primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4)),
-                        child: Text(s.toString(),
-                            style: const TextStyle(fontSize: 9, color: _primary,
-                                fontWeight: FontWeight.w600)),
-                      )).toList()),
-                  ],
-                ])),
+                ),
                 const SizedBox(width: 8),
-                Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                         color: Colors.amber.shade50,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.amber.shade200)),
+                        border: Border.all(
+                            color: Colors.amber.shade200)),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
+                      const Icon(Icons.star_rounded,
+                          color: Colors.amber, size: 14),
                       const SizedBox(width: 2),
                       Text('${priest['rating'] ?? 0}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold)),
                     ]),
                   ),
                   const SizedBox(height: 8),
-                  Icon(selected ? Icons.check_circle : Icons.radio_button_unchecked,
-                      color: selected ? _primary : Colors.grey, size: 22),
+                  Icon(
+                      selected
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: selected ? _primary : Colors.grey,
+                      size: 22),
                 ]),
               ]),
             ),
@@ -816,7 +980,8 @@ class _HomamBookingPageState extends State<HomamBookingPage>
         label: 'Continue to Payment',
         onTap: () {
           if (_priests.isNotEmpty && _selectedPriest == null) {
-            _snack('Please select a pandit'); return;
+            _snack('Please select a pandit');
+            return;
           }
           _goToStep(5);
         },
@@ -825,42 +990,52 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   );
 
   // ══════════════════════════════════════════════════════════════
-  // STEP 5 — PAYMENT SUMMARY
+  // STEP 5 — PAYMENT
   // ══════════════════════════════════════════════════════════════
   Widget _buildPaymentStep() {
-    final price = _homamInfo[_selectedHomam]!['price']! as double;
+    final price =
+        _homamInfo[_selectedHomam]!['price']! as double;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _stepHeading('Booking Summary', 'Review your booking before payment'),
+        _stepHeading(
+            'Booking Summary', 'Review your booking before payment'),
         const SizedBox(height: 20),
 
-        // Big summary card
         _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Homam highlight
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                  colors: [Colors.orange.shade50, Colors.deepOrange.shade50]),
+              gradient: LinearGradient(colors: [
+                Colors.orange.shade50,
+                Colors.deepOrange.shade50
+              ]),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(children: [
               Text(_homamInfo[_selectedHomam]!['emoji']!,
                   style: const TextStyle(fontSize: 36)),
               const SizedBox(width: 14),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(_selectedHomam!,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-                Text(_homamInfo[_selectedHomam]!['desc']!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-              ])),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(_selectedHomam!,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 17)),
+                  Text(_homamInfo[_selectedHomam]!['desc']!,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700)),
+                ]),
+              ),
             ]),
           ),
           const SizedBox(height: 16),
-
           _summaryRow('📍 Venue',
-              _venueType == 'home' ? 'At Home — ${_nameCtrl.text}' : _selectedTemple!.name),
+              _venueType == 'home'
+                  ? 'At Home — ${_nameCtrl.text}'
+                  : _selectedTemple!.name),
           _summaryRow('👤 Name', _nameCtrl.text),
           _summaryRow('📞 Phone', _phoneCtrl.text),
           _summaryRow('📅 Date',
@@ -868,63 +1043,88 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           _summaryRow('⏰ Time', _selectedTime),
           _summaryRow('🧑‍⚕️ Pandit',
               _selectedPriest?['name'] ?? 'To be assigned'),
-          if ((_gotraCtrl.text).isNotEmpty)
+          if (_gotraCtrl.text.isNotEmpty) ...[
             _summaryRow('🌿 Gotra', _gotraCtrl.text),
-          if ((_nakshatraCtrl.text).isNotEmpty)
+          ],
+          if (_nakshatraCtrl.text.isNotEmpty) ...[
             _summaryRow('⭐ Nakshatra', _nakshatraCtrl.text),
-
+          ],
           const SizedBox(height: 12),
           const Divider(),
           const SizedBox(height: 12),
-
-          // Price breakdown
           _priceRow('Homam Fee', '₹${price.toStringAsFixed(0)}'),
           _priceRow('Samagri & Prasadam', 'Included'),
           _priceRow('Pandit Dakshina', 'Included'),
           const Divider(height: 20),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
             const Text('Total Amount',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 17)),
             Text('₹${price.toStringAsFixed(0)}',
-                style: const TextStyle(fontWeight: FontWeight.bold,
-                    fontSize: 22, color: _primary)),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                    color: _primary)),
           ]),
           const SizedBox(height: 8),
-          const Text('✅ Includes all materials, dakshina & prasadam',
+          const Text(
+              '✅ Includes all materials, dakshina & prasadam',
               style: TextStyle(fontSize: 11, color: Colors.grey)),
         ])),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
-        // Pandit contact info
         if (_selectedPriest != null)
           _card(child: Row(children: [
             Container(
               width: 44, height: 44,
               decoration: BoxDecoration(
-                  shape: BoxShape.circle, color: _primary.withValues(alpha: 0.1)),
-              child: Center(child: Text(
-                (_selectedPriest!['name'] as String? ?? '?').isNotEmpty
-                    ? (_selectedPriest!['name'] as String)[0].toUpperCase() : '?',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primary),
-              )),
+                  shape: BoxShape.circle,
+                  color: _primary.withValues(alpha: 0.1)),
+              child: Center(
+                child: Text(
+                  (_selectedPriest!['name'] as String? ?? '?')
+                          .isNotEmpty
+                      ? (_selectedPriest!['name'] as String)[0]
+                          .toUpperCase()
+                      : '?',
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _primary),
+                ),
+              ),
             ),
             const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_selectedPriest!['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text('Will contact you 24 hrs before the homam 🙏',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-            ])),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(_selectedPriest!['name'] ?? '',
+                    style:
+                        const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                    'Will contact you 24 hrs before the homam 🙏',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600)),
+              ]),
+            ),
             Column(children: [
-              const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+              const Icon(Icons.star_rounded,
+                  color: Colors.amber, size: 16),
               Text('${_selectedPriest!['rating'] ?? 0}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.bold)),
             ]),
           ])),
 
         const SizedBox(height: 28),
         _isLoading
-            ? const Center(child: CircularProgressIndicator(color: _primary))
+            ? const Center(
+                child: CircularProgressIndicator(color: _primary))
             : Container(
                 width: double.infinity,
                 height: 56,
@@ -932,9 +1132,12 @@ class _HomamBookingPageState extends State<HomamBookingPage>
                   gradient: const LinearGradient(
                       colors: [Color(0xFFE65C00), Color(0xFFFF9933)]),
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(
-                      color: _primary.withValues(alpha: 0.4),
-                      blurRadius: 12, offset: const Offset(0, 4))],
+                  boxShadow: [
+                    BoxShadow(
+                        color: _primary.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4))
+                  ],
                 ),
                 child: ElevatedButton(
                   onPressed: _initiatePayment,
@@ -942,29 +1145,37 @@ class _HomamBookingPageState extends State<HomamBookingPage>
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: Text('Pay ₹${price.toStringAsFixed(0)} & Confirm Booking 🙏',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: Text(
+                      'Pay ₹${price.toStringAsFixed(0)} & Confirm Booking 🙏',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
         const SizedBox(height: 10),
-        const Center(child: Text('🔒 Secure payment via Razorpay • UPI • Cards',
-            style: TextStyle(fontSize: 11, color: Colors.grey))),
+        const Center(
+            child: Text(
+                '🔒 Secure payment via Razorpay • UPI • Cards',
+                style: TextStyle(fontSize: 11, color: Colors.grey))),
         const SizedBox(height: 40),
       ]),
     );
   }
 
-  // ── PAYMENT ───────────────────────────────────────────────────
+  // ── PAYMENT LOGIC ─────────────────────────────────────────────
   void _initiatePayment() {
     final price = _homamInfo[_selectedHomam]!['price']! as double;
-    final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2,'0')}-${_selectedDate.day.toString().padLeft(2,'0')}';
+    final dateStr =
+        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
     _pendingBookingData = {
       'userName':     _nameCtrl.text.trim(),
       'userEmail':    _emailCtrl.text.trim(),
       'userPhone':    _phoneCtrl.text.trim(),
-      'templeName':   _venueType == 'temple' ? (_selectedTemple?.name ?? '') : 'Home - ${_nameCtrl.text.trim()}',
+      'templeName':   _venueType == 'temple'
+          ? (_selectedTemple?.name ?? '')
+          : 'Home - ${_nameCtrl.text.trim()}',
       'templeId':     _venueType == 'temple' ? (_selectedTemple?.id ?? '') : '',
       'homamType':    _selectedHomam,
       'date':         dateStr,
@@ -1004,13 +1215,18 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   }
 
   void _onPaymentSuccess(PaymentSuccessResponse response) async {
-    if (_pendingBookingData == null) { setState(() => _isLoading = false); return; }
+    if (_pendingBookingData == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
     _pendingBookingData!['razorpayPaymentId'] = response.paymentId ?? '';
     _pendingBookingData!['razorpayOrderId']   = response.orderId  ?? '';
     _pendingBookingData!['paymentStatus']     = 'paid';
     try {
       await ApiService.saveHomamBooking(_pendingBookingData!);
-    } catch (e) { debugPrint('Save error: $e'); }
+    } catch (e) {
+      debugPrint('Save error: $e');
+    }
     if (!mounted) return;
     setState(() => _isLoading = false);
     _pendingBookingData = null;
@@ -1022,7 +1238,9 @@ class _HomamBookingPageState extends State<HomamBookingPage>
     _snack(r.code == 2 ? 'Payment cancelled' : 'Payment failed: ${r.message}');
   }
 
-  void _onExternalWallet(ExternalWalletResponse r) => _snack('Processing via ${r.walletName}...');
+  void _onExternalWallet(ExternalWalletResponse r) {
+    _snack('Processing via ${r.walletName}...');
+  }
 
   void _showSuccessDialog(String paymentId) {
     showDialog(
@@ -1033,33 +1251,44 @@ class _HomamBookingPageState extends State<HomamBookingPage>
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.check_circle_rounded, size: 72, color: Colors.green),
+            const Icon(Icons.check_circle_rounded,
+                size: 72, color: Colors.green),
             const SizedBox(height: 12),
             const Text('Homam Booked! 🙏',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             _summaryRow('Homam',  _selectedHomam ?? ''),
-            _summaryRow('Date',   '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'),
+            _summaryRow('Date',
+                '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'),
             _summaryRow('Time',   _selectedTime),
-            _summaryRow('Pandit', _selectedPriest?['name'] ?? 'To be assigned'),
-            _summaryRow('Amount', '₹${_homamInfo[_selectedHomam]!['price']!.toStringAsFixed(0)}'),
+            _summaryRow('Pandit',
+                _selectedPriest?['name'] ?? 'To be assigned'),
+            _summaryRow('Amount',
+                '₹${(_homamInfo[_selectedHomam]!['price']! as double).toStringAsFixed(0)}'),
             const Divider(height: 20),
-            Text('Payment ID: ${paymentId.length > 20 ? '${paymentId.substring(0,20)}...' : paymentId}',
+            Text(
+                'Payment ID: ${paymentId.length > 20 ? '${paymentId.substring(0, 20)}...' : paymentId}',
                 style: const TextStyle(fontSize: 11, color: Colors.grey)),
             const SizedBox(height: 8),
-            const Text('Your pandit will contact you 24 hrs before the homam 🙏',
+            const Text(
+                'Your pandit will contact you 24 hrs before the homam 🙏',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: Colors.grey)),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
+                onPressed: () =>
+                    Navigator.of(context).popUntil((r) => r.isFirst),
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: _primary, foregroundColor: Colors.white,
+                    backgroundColor: _primary,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                child: const Text('Back to Home', style: TextStyle(fontWeight: FontWeight.bold)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
+                child: const Text('Back to Home',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ]),
@@ -1070,10 +1299,16 @@ class _HomamBookingPageState extends State<HomamBookingPage>
 
   // ── SHARED WIDGETS ────────────────────────────────────────────
   Widget _stepHeading(String title, String sub) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _darkBg)),
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(title,
+          style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: _darkBg)),
       const SizedBox(height: 4),
-      Text(sub, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+      Text(sub,
+          style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
     ],
   );
 
@@ -1083,8 +1318,12 @@ class _HomamBookingPageState extends State<HomamBookingPage>
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
-      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06),
-          blurRadius: 10, offset: const Offset(0, 3))],
+      boxShadow: [
+        BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3))
+      ],
     ),
     child: child,
   );
@@ -1100,11 +1339,17 @@ class _HomamBookingPageState extends State<HomamBookingPage>
       border: Border.all(color: Colors.orange.shade200),
     ),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Text(_venueType == 'home' ? '🏠' : '🛕', style: const TextStyle(fontSize: 14)),
+      Text(_venueType == 'home' ? '🏠' : '🛕',
+          style: const TextStyle(fontSize: 14)),
       const SizedBox(width: 6),
       Text(
-        _venueType == 'home' ? 'At My Home' : _selectedTemple?.name ?? 'Temple',
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.deepOrange),
+        _venueType == 'home'
+            ? 'At My Home'
+            : _selectedTemple?.name ?? 'Temple',
+        style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.deepOrange),
       ),
       const SizedBox(width: 8),
       GestureDetector(
@@ -1121,19 +1366,25 @@ class _HomamBookingPageState extends State<HomamBookingPage>
       borderRadius: BorderRadius.circular(20),
       border: Border.all(color: color.withValues(alpha: 0.3)),
     ),
-    child: Text(text, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+    child: Text(text,
+        style: TextStyle(
+            fontSize: 12, color: color, fontWeight: FontWeight.w600)),
   );
 
   Widget _venueCard({
-    required String type, required String emoji,
-    required String title, required String subtitle,
+    required String type,
+    required String emoji,
+    required String title,
+    required String subtitle,
     required List<String> points,
   }) {
     final sel = _venueType == type;
     return GestureDetector(
       onTap: () {
-        setState(() { _venueType = type; });
-        if (type == 'temple' && _temples.isEmpty) _loadTemples();
+        setState(() => _venueType = type);
+        if (type == 'temple' && _temples.isEmpty) {
+          _loadTemples();
+        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -1141,10 +1392,17 @@ class _HomamBookingPageState extends State<HomamBookingPage>
         decoration: BoxDecoration(
           color: sel ? const Color(0xFFFFF3E0) : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: sel ? _primary : Colors.grey.shade200, width: sel ? 2 : 1),
-          boxShadow: [BoxShadow(
-              color: sel ? _primary.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8, offset: const Offset(0, 3))],
+          border: Border.all(
+              color: sel ? _primary : Colors.grey.shade200,
+              width: sel ? 2 : 1),
+          boxShadow: [
+            BoxShadow(
+                color: sel
+                    ? _primary.withValues(alpha: 0.15)
+                    : Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 3))
+          ],
         ),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
@@ -1152,41 +1410,73 @@ class _HomamBookingPageState extends State<HomamBookingPage>
             width: 22, height: 22,
             decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: sel ? _primary : Colors.grey, width: 2)),
-            child: sel ? Center(child: Container(width: 12, height: 12,
-                decoration: const BoxDecoration(shape: BoxShape.circle, color: _primary))) : null,
+                border: Border.all(
+                    color: sel ? _primary : Colors.grey, width: 2)),
+            child: sel
+                ? Center(
+                    child: Container(
+                      width: 12, height: 12,
+                      decoration: const BoxDecoration(
+                          shape: BoxShape.circle, color: _primary),
+                    ))
+                : null,
           ),
           const SizedBox(width: 12),
           Container(
             width: 50, height: 50,
             decoration: BoxDecoration(
-                color: sel ? _primary.withValues(alpha: 0.15) : Colors.grey.shade100,
+                color: sel
+                    ? _primary.withValues(alpha: 0.15)
+                    : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(12)),
-            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 26))),
+            child: Center(
+                child: Text(emoji,
+                    style: const TextStyle(fontSize: 26))),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold,
-                color: sel ? _primary : Colors.black87)),
-            const SizedBox(height: 3),
-            Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-            const SizedBox(height: 8),
-            ...points.map((pt) => Padding(
-              padding: const EdgeInsets.only(bottom: 3),
-              child: Row(children: [
-                Icon(Icons.check_circle, size: 13, color: sel ? _primary : Colors.grey),
-                const SizedBox(width: 5),
-                Text(pt, style: TextStyle(fontSize: 11, color: sel ? Colors.black87 : Colors.grey)),
-              ]),
-            )),
-          ])),
+          Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              Text(title,
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: sel ? _primary : Colors.black87)),
+              const SizedBox(height: 3),
+              Text(subtitle,
+                  style: TextStyle(
+                      fontSize: 12, color: Colors.grey.shade600)),
+              const SizedBox(height: 8),
+              ...points.map((pt) => Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Row(children: [
+                  Icon(Icons.check_circle,
+                      size: 13,
+                      color: sel ? _primary : Colors.grey),
+                  const SizedBox(width: 5),
+                  Text(pt,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color:
+                              sel ? Colors.black87 : Colors.grey)),
+                ]),
+              )),
+            ]),
+          ),
         ]),
       ),
     );
   }
 
-  Widget _field(String label, TextEditingController ctrl, IconData icon,
-      {TextInputType? keyboardType, int maxLines = 1, String? Function(String?)? validator}) =>
+  Widget _field(
+    String label,
+    TextEditingController ctrl,
+    IconData icon, {
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) =>
       TextFormField(
         controller: ctrl,
         keyboardType: keyboardType,
@@ -1195,33 +1485,51 @@ class _HomamBookingPageState extends State<HomamBookingPage>
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, color: _primary, size: 20),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10)),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: _primary, width: 1.5)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              borderSide:
+                  const BorderSide(color: _primary, width: 1.5)),
+          contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12, vertical: 12),
         ),
       );
 
   Widget _summaryRow(String label, String value) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 5),
-    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
-      Flexible(child: Text(value, textAlign: TextAlign.end,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+    child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+      Text(label,
+          style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+      Flexible(
+        child: Text(value,
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600)),
+      ),
     ]),
   );
 
   Widget _priceRow(String label, String value) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-      Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+    child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+      Text(label,
+          style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+      Text(value,
+          style: const TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w600)),
     ]),
   );
 
-  Widget _nextButton({required String label, required VoidCallback onTap}) =>
+  Widget _nextButton({
+    required String label,
+    required VoidCallback onTap,
+  }) =>
       SizedBox(
         width: double.infinity,
         height: 52,
@@ -1232,20 +1540,25 @@ class _HomamBookingPageState extends State<HomamBookingPage>
             foregroundColor: Colors.white,
             elevation: 4,
             shadowColor: _primary.withValues(alpha: 0.4),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14)),
           ),
-          child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          child: Text(label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 15)),
         ),
       );
 
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg), backgroundColor: _accent,
+      content: Text(msg),
+      backgroundColor: _accent,
       behavior: SnackBarBehavior.floating,
     ));
   }
 
   String _monthShort(int m) =>
-      ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];
+      ['Jan','Feb','Mar','Apr','May','Jun',
+       'Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];
 }
