@@ -4,9 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
-// ─── UPDATE THIS to your backend IP/host ───────────────────────────────────
 const String _baseUrl = 'https://godsconnect-backend.onrender.com/api';
-// ───────────────────────────────────────────────────────────────────────────
 
 class FacilitiesPage extends StatefulWidget {
   const FacilitiesPage({super.key});
@@ -19,12 +17,11 @@ class _FacilitiesPageState extends State<FacilitiesPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // Location state
   bool _isLoadingLocation = false;
   String _locationStatus = 'Getting your location...';
   Position? _currentPosition;
+  String _cityName = '';
 
-  // Data state
   bool _isLoadingData = false;
   List<Map<String, dynamic>> _stayFacilities = [];
   List<Map<String, dynamic>> _foodFacilities = [];
@@ -43,13 +40,13 @@ class _FacilitiesPageState extends State<FacilitiesPage>
     super.dispose();
   }
 
-  // ── STEP 1: Get GPS, then fetch ──────────────────────────────────────────
-
   Future<void> _initLocationAndFetch() async {
     setState(() {
       _isLoadingLocation = true;
       _locationStatus = 'Getting your location...';
       _errorMessage = null;
+      _stayFacilities = [];
+      _foodFacilities = [];
     });
 
     Position? position;
@@ -58,10 +55,10 @@ class _FacilitiesPageState extends State<FacilitiesPage>
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         setState(() {
-          _locationStatus = 'Location off — showing all facilities';
+          _locationStatus = 'Location services are off';
           _isLoadingLocation = false;
+          _errorMessage = 'Please enable location to find nearby facilities.';
         });
-        await _fetchFacilities(null);
         return;
       }
 
@@ -72,10 +69,10 @@ class _FacilitiesPageState extends State<FacilitiesPage>
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         setState(() {
-          _locationStatus = 'Permission denied — showing all facilities';
+          _locationStatus = 'Location permission denied';
           _isLoadingLocation = false;
+          _errorMessage = 'Grant location permission to find nearby facilities.';
         });
-        await _fetchFacilities(null);
         return;
       }
 
@@ -85,36 +82,40 @@ class _FacilitiesPageState extends State<FacilitiesPage>
 
       setState(() {
         _currentPosition = position;
-        _locationStatus = 'Showing facilities near you';
+        _locationStatus = 'Finding places near you...';
         _isLoadingLocation = false;
       });
-    } catch (_) {
+    } catch (e) {
       setState(() {
-        _locationStatus = 'Could not get location — showing all facilities';
+        _locationStatus = 'Could not get location';
         _isLoadingLocation = false;
+        _errorMessage = 'Location error. Please try again.';
       });
+      return;
     }
 
     await _fetchFacilities(position);
   }
 
-  // ── STEP 2: Fetch from backend with lat/lon params ───────────────────────
-
   Future<void> _fetchFacilities(Position? position) async {
+    if (position == null) return;
+
     setState(() {
       _isLoadingData = true;
       _errorMessage = null;
     });
 
     try {
-      String url = '$_baseUrl/facilities';
-      if (position != null) {
-        url += '?lat=${position.latitude}&lon=${position.longitude}&radius=200';
-      }
+      final url =
+          '$_baseUrl/facilities?lat=${position.latitude}&lon=${position.longitude}';
+
+      debugPrint('🌐 Fetching: $url');
 
       final response = await http
           .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 40));
+
+      debugPrint('📦 Status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
@@ -123,6 +124,10 @@ class _FacilitiesPageState extends State<FacilitiesPage>
               List<Map<String, dynamic>>.from(data['stay'] ?? []);
           _foodFacilities =
               List<Map<String, dynamic>>.from(data['food'] ?? []);
+          _cityName = data['city'] ?? '';
+          _locationStatus = _cityName.isNotEmpty
+              ? 'Showing results near $_cityName'
+              : 'Showing nearby results';
           _isLoadingData = false;
         });
       } else {
@@ -132,6 +137,7 @@ class _FacilitiesPageState extends State<FacilitiesPage>
         });
       }
     } catch (e) {
+      debugPrint('❌ Error: $e');
       setState(() {
         _errorMessage = 'Could not connect to server. Check your network.';
         _isLoadingData = false;
@@ -139,15 +145,8 @@ class _FacilitiesPageState extends State<FacilitiesPage>
     }
   }
 
-  // ── ACTIONS ──────────────────────────────────────────────────────────────
-
-  void _callPhone(String phone) async {
-    final uri = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
-  }
-
-  void _openMaps(String name) async {
-    final query = Uri.encodeComponent(name);
+  void _openMaps(String name, String address) async {
+    final query = Uri.encodeComponent('$name $address');
     final uri =
         Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
     if (await canLaunchUrl(uri)) {
@@ -155,7 +154,10 @@ class _FacilitiesPageState extends State<FacilitiesPage>
     }
   }
 
-  // ── BUILD ────────────────────────────────────────────────────────────────
+  void _callPhone(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone);
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -166,8 +168,8 @@ class _FacilitiesPageState extends State<FacilitiesPage>
       appBar: AppBar(
         backgroundColor: primaryColor,
         title: const Text('Facilities',
-            style:
-                TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
@@ -175,7 +177,6 @@ class _FacilitiesPageState extends State<FacilitiesPage>
             onPressed: _isLoadingData || _isLoadingLocation
                 ? null
                 : _initLocationAndFetch,
-            tooltip: 'Refresh',
           ),
         ],
         elevation: 0,
@@ -192,10 +193,11 @@ class _FacilitiesPageState extends State<FacilitiesPage>
       ),
       body: Column(
         children: [
-          // ── Location banner ──────────────────────────────────────────────
+          // ── Location banner ──────────────────────────────────────────
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             color: primaryColor.withValues(alpha: 0.08),
             child: Row(children: [
               _isLoadingLocation
@@ -203,8 +205,7 @@ class _FacilitiesPageState extends State<FacilitiesPage>
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Color(0xFFFF9800)),
-                    )
+                          strokeWidth: 2, color: Color(0xFFFF9800)))
                   : Icon(
                       _currentPosition != null
                           ? Icons.location_on
@@ -222,12 +223,24 @@ class _FacilitiesPageState extends State<FacilitiesPage>
             ]),
           ),
 
-          // ── Tab content ──────────────────────────────────────────────────
+          // ── Tab content ──────────────────────────────────────────────
           Expanded(
             child: _isLoadingData
-                ? const Center(
-                    child: CircularProgressIndicator(
-                        color: Color(0xFFFF9800)))
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(
+                            color: Color(0xFFFF9800)),
+                        const SizedBox(height: 16),
+                        Text(
+                          'AI is finding places near you...',
+                          style: TextStyle(
+                              color: Colors.grey[600], fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  )
                 : _errorMessage != null
                     ? _buildError(primaryColor)
                     : TabBarView(
@@ -243,7 +256,7 @@ class _FacilitiesPageState extends State<FacilitiesPage>
     );
   }
 
-  // ── ERROR STATE ──────────────────────────────────────────────────────────
+  // ── ERROR ────────────────────────────────────────────────────────────────
 
   Widget _buildError(Color primaryColor) {
     return Center(
@@ -256,7 +269,8 @@ class _FacilitiesPageState extends State<FacilitiesPage>
             const SizedBox(height: 12),
             Text(_errorMessage ?? 'Something went wrong',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                style:
+                    const TextStyle(fontSize: 14, color: Colors.grey)),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _initLocationAndFetch,
@@ -282,9 +296,12 @@ class _FacilitiesPageState extends State<FacilitiesPage>
       padding: const EdgeInsets.all(16),
       children: [
         _sectionHeader(
-            'Nearby Accommodations',
-            '${_stayFacilities.length} found',
-            primaryColor),
+          _cityName.isNotEmpty
+              ? 'Accommodations near $_cityName'
+              : 'Nearby Accommodations',
+          '${_stayFacilities.length} found',
+          primaryColor,
+        ),
         const SizedBox(height: 12),
         ..._stayFacilities.map((h) => _buildStayCard(h, primaryColor)),
       ],
@@ -293,11 +310,11 @@ class _FacilitiesPageState extends State<FacilitiesPage>
 
   Widget _buildStayCard(Map<String, dynamic> item, Color primaryColor) {
     final amenities = List<String>.from(item['amenities'] ?? []);
-    final distanceLabel = item['distance_label'] ?? '';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -311,7 +328,8 @@ class _FacilitiesPageState extends State<FacilitiesPage>
                   color: primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.hotel, color: primaryColor, size: 24),
+                child:
+                    Icon(Icons.hotel, color: primaryColor, size: 24),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -322,8 +340,8 @@ class _FacilitiesPageState extends State<FacilitiesPage>
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 15)),
                     Text(item['type'] ?? '',
-                        style:
-                            TextStyle(color: Colors.grey[600], fontSize: 12)),
+                        style: TextStyle(
+                            color: Colors.grey[600], fontSize: 12)),
                   ],
                 ),
               ),
@@ -336,42 +354,53 @@ class _FacilitiesPageState extends State<FacilitiesPage>
                           fontWeight: FontWeight.bold,
                           fontSize: 14)),
                   Row(children: [
-                    const Icon(Icons.star, size: 12, color: Colors.amber),
+                    const Icon(Icons.star,
+                        size: 12, color: Colors.amber),
                     Text(' ${item['rating'] ?? ''}',
                         style: const TextStyle(fontSize: 12)),
                   ]),
                 ],
               ),
             ]),
-            const SizedBox(height: 10),
-            Row(children: [
-              Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
-              Text(' $distanceLabel',
-                  style:
-                      TextStyle(fontSize: 12, color: Colors.grey[600])),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Wrap(
-                  spacing: 5,
-                  children: amenities
-                      .take(3)
-                      .map((a) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(a,
-                                style: const TextStyle(fontSize: 10)),
-                          ))
-                      .toList(),
+            const SizedBox(height: 8),
+            if ((item['address'] ?? '').isNotEmpty)
+              Row(children: [
+                Icon(Icons.location_on,
+                    size: 13, color: Colors.grey[500]),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(item['address'],
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey[500])),
                 ),
-              ),
-            ]),
+                Text(item['distance_label'] ?? '',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: primaryColor,
+                        fontWeight: FontWeight.w600)),
+              ]),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 5,
+              runSpacing: 4,
+              children: amenities
+                  .take(4)
+                  .map((a) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(a,
+                            style: TextStyle(
+                                fontSize: 10, color: primaryColor)),
+                      ))
+                  .toList(),
+            ),
             const SizedBox(height: 12),
-            _actionButtons(
-                item['phone'] ?? '', item['name'] ?? '', primaryColor),
+            _actionButtons(item['phone'] ?? '', item['name'] ?? '',
+                item['address'] ?? '', primaryColor),
           ],
         ),
       ),
@@ -388,9 +417,12 @@ class _FacilitiesPageState extends State<FacilitiesPage>
       padding: const EdgeInsets.all(16),
       children: [
         _sectionHeader(
-            'Nearby Restaurants',
-            '${_foodFacilities.length} found',
-            primaryColor),
+          _cityName.isNotEmpty
+              ? 'Restaurants near $_cityName'
+              : 'Nearby Restaurants',
+          '${_foodFacilities.length} found',
+          primaryColor,
+        ),
         const SizedBox(height: 12),
         ..._foodFacilities.map((r) => _buildFoodCard(r, primaryColor)),
       ],
@@ -398,11 +430,12 @@ class _FacilitiesPageState extends State<FacilitiesPage>
   }
 
   Widget _buildFoodCard(Map<String, dynamic> item, Color primaryColor) {
-    final distanceLabel = item['distance_label'] ?? '';
+    final isOpen = item['open_now'] == true;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -416,8 +449,8 @@ class _FacilitiesPageState extends State<FacilitiesPage>
                   color: primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child:
-                    Icon(Icons.restaurant, color: primaryColor, size: 24),
+                child: Icon(Icons.restaurant,
+                    color: primaryColor, size: 24),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -429,8 +462,8 @@ class _FacilitiesPageState extends State<FacilitiesPage>
                             fontWeight: FontWeight.bold, fontSize: 15)),
                     Text(
                         '${item['type'] ?? ''} · ${item['speciality'] ?? ''}',
-                        style:
-                            TextStyle(color: Colors.grey[600], fontSize: 12)),
+                        style: TextStyle(
+                            color: Colors.grey[600], fontSize: 12)),
                   ],
                 ),
               ),
@@ -438,35 +471,69 @@ class _FacilitiesPageState extends State<FacilitiesPage>
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Row(children: [
-                    const Icon(Icons.star, size: 12, color: Colors.amber),
+                    const Icon(Icons.star,
+                        size: 12, color: Colors.amber),
                     Text(' ${item['rating'] ?? ''}',
                         style: const TextStyle(fontSize: 12)),
                   ]),
-                  Text(distanceLabel,
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isOpen
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      isOpen ? 'Open' : 'Closed',
                       style: TextStyle(
-                          color: primaryColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
+                          fontSize: 10,
+                          color:
+                              isOpen ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ],
               ),
             ]),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
+            if ((item['address'] ?? '').isNotEmpty)
+              Row(children: [
+                Icon(Icons.location_on,
+                    size: 13, color: Colors.grey[500]),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(item['address'],
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey[500])),
+                ),
+                Text(item['distance_label'] ?? '',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: primaryColor,
+                        fontWeight: FontWeight.w600)),
+              ]),
+            const SizedBox(height: 4),
             Row(children: [
-              Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
-              Text(' ${item['timing'] ?? ''}',
-                  style:
-                      TextStyle(fontSize: 12, color: Colors.grey[600])),
+              Icon(Icons.access_time,
+                  size: 13, color: Colors.grey[500]),
+              const SizedBox(width: 4),
+              Text(item['timing'] ?? '',
+                  style: TextStyle(
+                      fontSize: 11, color: Colors.grey[500])),
             ]),
             const SizedBox(height: 12),
-            _actionButtons(
-                item['phone'] ?? '', item['name'] ?? '', primaryColor),
+            _actionButtons(item['phone'] ?? '', item['name'] ?? '',
+                item['address'] ?? '', primaryColor),
           ],
         ),
       ),
     );
   }
 
-  // ── SHARED WIDGETS ────────────────────────────────────────────────────────
+  // ── SHARED ───────────────────────────────────────────────────────────────
 
   Widget _buildEmpty(String message, Color primaryColor) {
     return Center(
@@ -481,8 +548,8 @@ class _FacilitiesPageState extends State<FacilitiesPage>
           const SizedBox(height: 8),
           TextButton(
             onPressed: _initLocationAndFetch,
-            child: Text('Try wider search',
-                style: TextStyle(color: primaryColor)),
+            child:
+                Text('Retry', style: TextStyle(color: primaryColor)),
           )
         ],
       ),
@@ -498,17 +565,18 @@ class _FacilitiesPageState extends State<FacilitiesPage>
             style: const TextStyle(
                 fontSize: 16, fontWeight: FontWeight.bold)),
         Text(subtitle,
-            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            style:
+                TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
   }
 
   Widget _actionButtons(
-      String phone, String name, Color primaryColor) {
+      String phone, String name, String address, Color primaryColor) {
     return Row(children: [
       Expanded(
         child: OutlinedButton.icon(
-          onPressed: () => _callPhone(phone),
+          onPressed: phone.isNotEmpty ? () => _callPhone(phone) : null,
           icon: const Icon(Icons.call, size: 16),
           label: const Text('Call'),
           style: OutlinedButton.styleFrom(
@@ -522,7 +590,7 @@ class _FacilitiesPageState extends State<FacilitiesPage>
       const SizedBox(width: 8),
       Expanded(
         child: ElevatedButton.icon(
-          onPressed: () => _openMaps(name),
+          onPressed: () => _openMaps(name, address),
           icon: const Icon(Icons.directions, size: 16),
           label: const Text('Directions'),
           style: ElevatedButton.styleFrom(
