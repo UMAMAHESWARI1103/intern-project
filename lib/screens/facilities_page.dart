@@ -20,7 +20,6 @@ class _FacilitiesPageState extends State<FacilitiesPage>
   bool _isLoadingLocation = false;
   String _locationStatus = 'Getting your location...';
   Position? _currentPosition;
-  String _cityName = '';
 
   bool _isLoadingData = false;
   List<Map<String, dynamic>> _stayFacilities = [];
@@ -71,7 +70,8 @@ class _FacilitiesPageState extends State<FacilitiesPage>
         setState(() {
           _locationStatus = 'Location permission denied';
           _isLoadingLocation = false;
-          _errorMessage = 'Grant location permission to find nearby facilities.';
+          _errorMessage =
+              'Grant location permission to find nearby facilities.';
         });
         return;
       }
@@ -107,27 +107,25 @@ class _FacilitiesPageState extends State<FacilitiesPage>
 
     try {
       final url =
-          '$_baseUrl/facilities?lat=${position.latitude}&lon=${position.longitude}';
-
-      debugPrint('🌐 Fetching: $url');
+          '$_baseUrl/facilities?lat=${position.latitude}&lon=${position.longitude}&radius=5000';
 
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 40));
 
-      debugPrint('📦 Status: ${response.statusCode}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
+        final stay =
+            List<Map<String, dynamic>>.from(data['stay'] ?? []);
+        final food =
+            List<Map<String, dynamic>>.from(data['food'] ?? []);
+
         setState(() {
-          _stayFacilities =
-              List<Map<String, dynamic>>.from(data['stay'] ?? []);
-          _foodFacilities =
-              List<Map<String, dynamic>>.from(data['food'] ?? []);
-          _cityName = data['city'] ?? '';
-          _locationStatus = _cityName.isNotEmpty
-              ? 'Showing results near $_cityName'
-              : 'Showing nearby results';
+          _stayFacilities = stay;
+          _foodFacilities = food;
+          _locationStatus = stay.isEmpty && food.isEmpty
+              ? 'No places found nearby'
+              : 'Showing ${stay.length + food.length} places near you';
           _isLoadingData = false;
         });
       } else {
@@ -137,7 +135,6 @@ class _FacilitiesPageState extends State<FacilitiesPage>
         });
       }
     } catch (e) {
-      debugPrint('❌ Error: $e');
       setState(() {
         _errorMessage = 'Could not connect to server. Check your network.';
         _isLoadingData = false;
@@ -145,16 +142,17 @@ class _FacilitiesPageState extends State<FacilitiesPage>
     }
   }
 
-  void _openMaps(String name, String address) async {
-    final query = Uri.encodeComponent('$name $address');
-    final uri =
-        Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+  void _openMaps(String mapsUrl, String name) async {
+    final uri = Uri.parse(mapsUrl.isNotEmpty
+        ? mapsUrl
+        : 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(name)}');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
   void _callPhone(String phone) async {
+    if (phone.isEmpty) return;
     final uri = Uri(scheme: 'tel', path: phone);
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
@@ -193,7 +191,6 @@ class _FacilitiesPageState extends State<FacilitiesPage>
       ),
       body: Column(
         children: [
-          // ── Location banner ──────────────────────────────────────────
           Container(
             width: double.infinity,
             padding:
@@ -222,8 +219,6 @@ class _FacilitiesPageState extends State<FacilitiesPage>
               ),
             ]),
           ),
-
-          // ── Tab content ──────────────────────────────────────────────
           Expanded(
             child: _isLoadingData
                 ? Center(
@@ -233,11 +228,9 @@ class _FacilitiesPageState extends State<FacilitiesPage>
                         const CircularProgressIndicator(
                             color: Color(0xFFFF9800)),
                         const SizedBox(height: 16),
-                        Text(
-                          'AI is finding places near you...',
-                          style: TextStyle(
-                              color: Colors.grey[600], fontSize: 13),
-                        ),
+                        Text('Finding real places near you...',
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 13)),
                       ],
                     ),
                   )
@@ -255,8 +248,6 @@ class _FacilitiesPageState extends State<FacilitiesPage>
       ),
     );
   }
-
-  // ── ERROR ────────────────────────────────────────────────────────────────
 
   Widget _buildError(Color primaryColor) {
     return Center(
@@ -286,8 +277,6 @@ class _FacilitiesPageState extends State<FacilitiesPage>
     );
   }
 
-  // ── STAY TAB ─────────────────────────────────────────────────────────────
-
   Widget _buildStayTab(Color primaryColor) {
     if (_stayFacilities.isEmpty) {
       return _buildEmpty('No accommodations found nearby', primaryColor);
@@ -295,15 +284,25 @@ class _FacilitiesPageState extends State<FacilitiesPage>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _sectionHeader(
-          _cityName.isNotEmpty
-              ? 'Accommodations near $_cityName'
-              : 'Nearby Accommodations',
-          '${_stayFacilities.length} found',
-          primaryColor,
-        ),
+        _sectionHeader('Nearby Accommodations',
+            '${_stayFacilities.length} found', primaryColor),
         const SizedBox(height: 12),
         ..._stayFacilities.map((h) => _buildStayCard(h, primaryColor)),
+      ],
+    );
+  }
+
+  Widget _buildFoodTab(Color primaryColor) {
+    if (_foodFacilities.isEmpty) {
+      return _buildEmpty('No restaurants found nearby', primaryColor);
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _sectionHeader('Nearby Restaurants',
+            '${_foodFacilities.length} found', primaryColor),
+        const SizedBox(height: 12),
+        ..._foodFacilities.map((r) => _buildFoodCard(r, primaryColor)),
       ],
     );
   }
@@ -352,7 +351,7 @@ class _FacilitiesPageState extends State<FacilitiesPage>
                       style: TextStyle(
                           color: primaryColor,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14)),
+                          fontSize: 13)),
                   Row(children: [
                     const Icon(Icons.star,
                         size: 12, color: Colors.amber),
@@ -379,53 +378,36 @@ class _FacilitiesPageState extends State<FacilitiesPage>
                         color: primaryColor,
                         fontWeight: FontWeight.w600)),
               ]),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 5,
-              runSpacing: 4,
-              children: amenities
-                  .take(4)
-                  .map((a) => Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: primaryColor.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(a,
-                            style: TextStyle(
-                                fontSize: 10, color: primaryColor)),
-                      ))
-                  .toList(),
-            ),
+            if (amenities.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 5,
+                runSpacing: 4,
+                children: amenities
+                    .take(4)
+                    .map((a) => Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(a,
+                              style: TextStyle(
+                                  fontSize: 10, color: primaryColor)),
+                        ))
+                    .toList(),
+              ),
+            ],
             const SizedBox(height: 12),
-            _actionButtons(item['phone'] ?? '', item['name'] ?? '',
-                item['address'] ?? '', primaryColor),
+            _actionButtons(
+                item['phone'] ?? '',
+                item['name'] ?? '',
+                item['maps_url'] ?? '',
+                primaryColor),
           ],
         ),
       ),
-    );
-  }
-
-  // ── FOOD TAB ─────────────────────────────────────────────────────────────
-
-  Widget _buildFoodTab(Color primaryColor) {
-    if (_foodFacilities.isEmpty) {
-      return _buildEmpty('No restaurants found nearby', primaryColor);
-    }
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _sectionHeader(
-          _cityName.isNotEmpty
-              ? 'Restaurants near $_cityName'
-              : 'Nearby Restaurants',
-          '${_foodFacilities.length} found',
-          primaryColor,
-        ),
-        const SizedBox(height: 12),
-        ..._foodFacilities.map((r) => _buildFoodCard(r, primaryColor)),
-      ],
     );
   }
 
@@ -490,8 +472,7 @@ class _FacilitiesPageState extends State<FacilitiesPage>
                       isOpen ? 'Open' : 'Closed',
                       style: TextStyle(
                           fontSize: 10,
-                          color:
-                              isOpen ? Colors.green : Colors.red,
+                          color: isOpen ? Colors.green : Colors.red,
                           fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -525,15 +506,16 @@ class _FacilitiesPageState extends State<FacilitiesPage>
                       fontSize: 11, color: Colors.grey[500])),
             ]),
             const SizedBox(height: 12),
-            _actionButtons(item['phone'] ?? '', item['name'] ?? '',
-                item['address'] ?? '', primaryColor),
+            _actionButtons(
+                item['phone'] ?? '',
+                item['name'] ?? '',
+                item['maps_url'] ?? '',
+                primaryColor),
           ],
         ),
       ),
     );
   }
-
-  // ── SHARED ───────────────────────────────────────────────────────────────
 
   Widget _buildEmpty(String message, Color primaryColor) {
     return Center(
@@ -548,8 +530,8 @@ class _FacilitiesPageState extends State<FacilitiesPage>
           const SizedBox(height: 8),
           TextButton(
             onPressed: _initLocationAndFetch,
-            child:
-                Text('Retry', style: TextStyle(color: primaryColor)),
+            child: Text('Retry',
+                style: TextStyle(color: primaryColor)),
           )
         ],
       ),
@@ -572,7 +554,7 @@ class _FacilitiesPageState extends State<FacilitiesPage>
   }
 
   Widget _actionButtons(
-      String phone, String name, String address, Color primaryColor) {
+      String phone, String name, String mapsUrl, Color primaryColor) {
     return Row(children: [
       Expanded(
         child: OutlinedButton.icon(
@@ -590,7 +572,7 @@ class _FacilitiesPageState extends State<FacilitiesPage>
       const SizedBox(width: 8),
       Expanded(
         child: ElevatedButton.icon(
-          onPressed: () => _openMaps(name, address),
+          onPressed: () => _openMaps(mapsUrl, name),
           icon: const Icon(Icons.directions, size: 16),
           label: const Text('Directions'),
           style: ElevatedButton.styleFrom(
