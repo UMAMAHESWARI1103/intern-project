@@ -52,13 +52,16 @@ class _HomamBookingPageState extends State<HomamBookingPage>
 
   // ── Date & Time ───────────────────────────────────────────────
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 3));
-  String   _selectedTime = '03:00 AM';
+  String   _selectedTime = '04:30 AM';
 
-  // Times from 3 AM onwards
-  final List<String> _timeSlots = [
-    '03:00 AM', '04:00 AM', '05:00 AM', '06:00 AM',
-    '07:00 AM', '08:00 AM', '09:00 AM', '10:00 AM',
-    '11:00 AM', '04:00 PM', '05:00 PM', '06:00 PM',
+  // Early Morning + Mid-Morning slots only
+  final List<String> _earlyMorningSlots = [
+    '04:30 AM', '05:00 AM', '05:30 AM', '06:00 AM',
+    '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM',
+  ];
+  final List<String> _midMorningSlots = [
+    '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM',
+    '10:30 AM', '11:00 AM', '11:30 AM',
   ];
 
   // ── Priest ────────────────────────────────────────────────────
@@ -596,7 +599,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           'Select an auspicious date for your homam'),
       const SizedBox(height: 20),
 
-      // Date chips
+      // ── Date Card ─────────────────────────────────────────────
       _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _sectionLabel('📅 Select Date'),
         const SizedBox(height: 14),
@@ -685,46 +688,142 @@ class _HomamBookingPageState extends State<HomamBookingPage>
 
       const SizedBox(height: 14),
 
-      // Time slots
+      // ── Time Card (Dropdown with grouped headers) ─────────────
       _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _sectionLabel('⏰ Select Time'),
         const SizedBox(height: 6),
-        Text('Starting from 3:00 AM — Brahma Muhurtha & all auspicious slots',
+        // Legend row
+        Row(children: [
+          _timeLegendBadge('🌅', 'Early Morning (4:30–8:00 AM)', Colors.deepOrange),
+          const SizedBox(width: 8),
+          _timeLegendBadge('☀️', 'Mid-Morning (8:00–11:30 AM)', Colors.orange),
+        ]),
+        const SizedBox(height: 6),
+        Text('Most powerful: Brahma Muhurtha & early morning slots',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
         const SizedBox(height: 14),
-        Wrap(
-          spacing: 8,
-          runSpacing: 10,
-          children: _timeSlots.map((t) {
-            final sel = _selectedTime == t;
-            return GestureDetector(
-              onTap: () => setState(() => _selectedTime = t),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: sel ? _primary : Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: sel ? _primary : Colors.grey.shade300,
-                      width: sel ? 2 : 1),
-                  boxShadow: sel
-                      ? [BoxShadow(
-                          color: _primary.withValues(alpha: 0.25),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2))]
-                      : [],
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: _primary, width: 1.5),
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.orange.shade50,
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedTime,
+              isExpanded: true,
+              icon: const Icon(Icons.keyboard_arrow_down, color: _primary),
+              items: [
+                // ── Early Morning Header ──
+                DropdownMenuItem<String>(
+                  value: '__header_early__',
+                  enabled: false,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border(
+                          bottom: BorderSide(color: Colors.orange.shade200)),
+                    ),
+                    child: Row(children: [
+                      const Text('🌅', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text('Early Morning  •  Most Powerful',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.deepOrange.shade700)),
+                    ]),
+                  ),
                 ),
-                child: Text(t,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: sel ? Colors.white : Colors.black87)),
-              ),
-            );
-          }).toList(),
+                // ── Early Morning Slots ──
+                ..._earlyMorningSlots.map((t) => DropdownMenuItem<String>(
+                      value: t,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Row(children: [
+                          const Icon(Icons.access_time,
+                              size: 14, color: _primary),
+                          const SizedBox(width: 8),
+                          Text(t,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500)),
+                          if (t == '04:30 AM' || t == '05:00 AM') ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.deepOrange,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text('Best',
+                                  style: TextStyle(
+                                      fontSize: 9,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ]),
+                      ),
+                    )),
+                // ── Mid Morning Header ──
+                DropdownMenuItem<String>(
+                  value: '__header_mid__',
+                  enabled: false,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border(
+                          bottom: BorderSide(color: Colors.orange.shade200)),
+                    ),
+                    child: Row(children: [
+                      const Text('☀️', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text('Mid-Morning  •  Also Very Good',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade800)),
+                    ]),
+                  ),
+                ),
+                // ── Mid Morning Slots ──
+                ..._midMorningSlots.map((t) => DropdownMenuItem<String>(
+                      value: t,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Row(children: [
+                          const Icon(Icons.access_time,
+                              size: 14, color: _primary),
+                          const SizedBox(width: 8),
+                          Text(t,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500)),
+                        ]),
+                      ),
+                    )),
+              ],
+              onChanged: (v) {
+                if (v == null || v.startsWith('__header')) return;
+                setState(() => _selectedTime = v);
+              },
+            ),
+          ),
         ),
+        const SizedBox(height: 10),
+        // Selected time display pill
+        Row(children: [
+          const Icon(Icons.check_circle_rounded, color: _primary, size: 16),
+          const SizedBox(width: 6),
+          Text('Selected: $_selectedTime',
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _primary)),
+        ]),
       ])),
 
       const SizedBox(height: 32),
@@ -737,6 +836,31 @@ class _HomamBookingPageState extends State<HomamBookingPage>
       ),
     ]),
   );
+
+  // ── Time legend badge helper ──────────────────────────────────
+  Widget _timeLegendBadge(String emoji, String label, Color color) =>
+      Flexible(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: color.withValues(alpha: 0.25)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(emoji, style: const TextStyle(fontSize: 12)),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: color,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ]),
+        ),
+      );
 
   // ══════════════════════════════════════════════════════════════
   // STEP 4 — PRIEST
