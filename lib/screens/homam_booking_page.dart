@@ -54,7 +54,6 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 3));
   String   _selectedTime = '04:30 AM';
 
-  // Early Morning + Mid-Morning slots only
   final List<String> _earlyMorningSlots = [
     '04:30 AM', '05:00 AM', '05:30 AM', '06:00 AM',
     '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM',
@@ -130,9 +129,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
         });
       }
     } catch (_) {
-      if (mounted) {
-        setState(() => _loadingTemples = false);
-      }
+      if (mounted) setState(() => _loadingTemples = false);
     }
   }
 
@@ -155,9 +152,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
         });
       }
     } catch (_) {
-      if (mounted) {
-        setState(() => _loadingPriests = false);
-      }
+      if (mounted) setState(() => _loadingPriests = false);
     }
   }
 
@@ -276,28 +271,26 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           child: Row(children: [
             GestureDetector(
               onTap: done ? () => _goToStep(i) : null,
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  width:  active ? 32 : 24,
-                  height: active ? 32 : 24,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: active
-                        ? Colors.white
-                        : done
-                            ? Colors.white.withValues(alpha: 0.9)
-                            : Colors.white.withValues(alpha: 0.3),
-                  ),
-                  child: Center(
-                    child: done
-                        ? const Icon(Icons.check, size: 13, color: Color(0xFFE65C00))
-                        : Icon(_stepIcons[i],
-                            size:  active ? 16 : 12,
-                            color: active ? _accent : Colors.white),
-                  ),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width:  active ? 32 : 24,
+                height: active ? 32 : 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: active
+                      ? Colors.white
+                      : done
+                          ? Colors.white.withValues(alpha: 0.9)
+                          : Colors.white.withValues(alpha: 0.3),
                 ),
-              ]),
+                child: Center(
+                  child: done
+                      ? const Icon(Icons.check, size: 13, color: Color(0xFFE65C00))
+                      : Icon(_stepIcons[i],
+                          size:  active ? 16 : 12,
+                          color: active ? _accent : Colors.white),
+                ),
+              ),
             ),
             if (i < 5)
               Expanded(
@@ -337,8 +330,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   Widget _buildVenueStep() => SingleChildScrollView(
     padding: const EdgeInsets.all(20),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _stepHeading('Where to perform the Homam?',
-          'Choose your preferred venue'),
+      _stepHeading('Where to perform the Homam?', 'Choose your preferred venue'),
       const SizedBox(height: 24),
       _venueCard(
         type: 'home', emoji: '🏠', title: 'At My Home',
@@ -399,13 +391,9 @@ class _HomamBookingPageState extends State<HomamBookingPage>
       _nextButton(
         label: 'Continue to Details',
         onTap: () {
-          if (_venueType.isEmpty) {
-            _snack('Please select a venue');
-            return;
-          }
+          if (_venueType.isEmpty) { _snack('Please select a venue'); return; }
           if (_venueType == 'temple' && _selectedTemple == null) {
-            _snack('Please select a temple');
-            return;
+            _snack('Please select a temple'); return;
           }
           _goToStep(1);
         },
@@ -433,19 +421,16 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           const SizedBox(height: 12),
           _field('Mobile Number *', _phoneCtrl, Icons.phone_outlined,
               keyboardType: TextInputType.phone,
-              validator: (v) =>
-                  v!.trim().length < 10 ? 'Enter valid number' : null),
+              validator: (v) => v!.trim().length < 10 ? 'Enter valid number' : null),
           const SizedBox(height: 12),
           _field('Email *', _emailCtrl, Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
-              validator: (v) =>
-                  !v!.contains('@') ? 'Enter valid email' : null),
+              validator: (v) => !v!.contains('@') ? 'Enter valid email' : null),
           if (_venueType == 'home') ...[
             const SizedBox(height: 12),
             _field('Home Address *', _addressCtrl, Icons.location_on_outlined,
                 maxLines: 3,
-                validator: (v) =>
-                    v!.trim().isEmpty ? 'Enter your address' : null),
+                validator: (v) => v!.trim().isEmpty ? 'Enter your address' : null),
           ],
         ])),
         const SizedBox(height: 14),
@@ -456,8 +441,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           const SizedBox(height: 12),
           _field('Nakshatra', _nakshatraCtrl, Icons.star_outline),
           const SizedBox(height: 12),
-          _field('Special Requests', _specialNoteCtrl,
-              Icons.note_outlined, maxLines: 3),
+          _field('Special Requests', _specialNoteCtrl, Icons.note_outlined, maxLines: 3),
         ])),
         const SizedBox(height: 32),
         _nextButton(
@@ -477,8 +461,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   Widget _buildHomamStep() => SingleChildScrollView(
     padding: const EdgeInsets.all(20),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _stepHeading('Select Homam Type',
-          'Choose the homam for your ceremony'),
+      _stepHeading('Select Homam Type', 'Choose the homam for your ceremony'),
       const SizedBox(height: 20),
       _venueBadge(),
       const SizedBox(height: 20),
@@ -493,16 +476,14 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _selectedHomam,
-              hint: const Text('Choose Homam Type',
-                  style: TextStyle(color: Colors.grey)),
+              hint: const Text('Choose Homam Type', style: TextStyle(color: Colors.grey)),
               isExpanded: true,
               icon: const Icon(Icons.keyboard_arrow_down, color: _primary),
               items: _homamInfo.keys
                   .map((h) => DropdownMenuItem(
                         value: h,
                         child: Row(children: [
-                          Text(_homamInfo[h]!['emoji']!,
-                              style: const TextStyle(fontSize: 20)),
+                          Text(_homamInfo[h]!['emoji']!, style: const TextStyle(fontSize: 20)),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
@@ -510,13 +491,12 @@ class _HomamBookingPageState extends State<HomamBookingPage>
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(h,
+                                    overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13)),
+                                        fontWeight: FontWeight.w600, fontSize: 13)),
                                 Text(
                                     '₹${(_homamInfo[h]!['price']! as double).toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                        fontSize: 11, color: _primary)),
+                                    style: const TextStyle(fontSize: 11, color: _primary)),
                               ],
                             ),
                           ),
@@ -543,30 +523,21 @@ class _HomamBookingPageState extends State<HomamBookingPage>
                   style: const TextStyle(fontSize: 40)),
               const SizedBox(width: 16),
               Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(_selectedHomam!,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16)),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 4),
                   Text(_homamInfo[_selectedHomam]!['desc']!,
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade700)),
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _primary,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+                        color: _primary, borderRadius: BorderRadius.circular(20)),
                     child: Text(
                       '₹${(_homamInfo[_selectedHomam]!['price']! as double).toStringAsFixed(0)}',
                       style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14),
+                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ),
                 ]),
@@ -579,10 +550,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
       _nextButton(
         label: 'Continue to Date & Time',
         onTap: () {
-          if (_selectedHomam == null) {
-            _snack('Please select a homam type');
-            return;
-          }
+          if (_selectedHomam == null) { _snack('Please select a homam type'); return; }
           _goToStep(3);
         },
       ),
@@ -595,11 +563,9 @@ class _HomamBookingPageState extends State<HomamBookingPage>
   Widget _buildDateTimeStep() => SingleChildScrollView(
     padding: const EdgeInsets.all(20),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _stepHeading('Choose Date & Time',
-          'Select an auspicious date for your homam'),
+      _stepHeading('Choose Date & Time', 'Select an auspicious date for your homam'),
       const SizedBox(height: 20),
 
-      // ── Date Card ─────────────────────────────────────────────
       _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _sectionLabel('📅 Select Date'),
         const SizedBox(height: 14),
@@ -629,22 +595,17 @@ class _HomamBookingPageState extends State<HomamBookingPage>
                     boxShadow: selected
                         ? [BoxShadow(
                             color: _primary.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3))]
+                            blurRadius: 8, offset: const Offset(0, 3))]
                         : [],
                   ),
-                  child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Text(dayName,
                         style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 11, fontWeight: FontWeight.w600,
                             color: selected ? Colors.white70 : Colors.grey)),
                     Text('${date.day}',
                         style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 22, fontWeight: FontWeight.bold,
                             color: selected ? Colors.white : Colors.black87)),
                     Text(_monthShort(date.month),
                         style: TextStyle(
@@ -666,8 +627,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
               lastDate: DateTime.now().add(const Duration(days: 365)),
               builder: (ctx, child) => Theme(
                 data: Theme.of(ctx).copyWith(
-                    colorScheme:
-                        const ColorScheme.light(primary: _primary)),
+                    colorScheme: const ColorScheme.light(primary: _primary)),
                 child: child!,
               ),
             );
@@ -680,19 +640,16 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           ),
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: _primary),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         ),
       ])),
 
       const SizedBox(height: 14),
 
-      // ── Time Card (Dropdown with grouped headers) ─────────────
       _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _sectionLabel('⏰ Select Time'),
         const SizedBox(height: 6),
-        // Legend row
         Row(children: [
           _timeLegendBadge('🌅', 'Early Morning (4:30–8:00 AM)', Colors.deepOrange),
           const SizedBox(width: 8),
@@ -715,93 +672,72 @@ class _HomamBookingPageState extends State<HomamBookingPage>
               isExpanded: true,
               icon: const Icon(Icons.keyboard_arrow_down, color: _primary),
               items: [
-                // ── Early Morning Header ──
                 DropdownMenuItem<String>(
                   value: '__header_early__',
                   enabled: false,
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     decoration: BoxDecoration(
-                      border: Border(
-                          bottom: BorderSide(color: Colors.orange.shade200)),
-                    ),
+                        border: Border(bottom: BorderSide(color: Colors.orange.shade200))),
                     child: Row(children: [
                       const Text('🌅', style: TextStyle(fontSize: 14)),
                       const SizedBox(width: 6),
                       Text('Early Morning  •  Most Powerful',
                           style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 12, fontWeight: FontWeight.bold,
                               color: Colors.deepOrange.shade700)),
                     ]),
                   ),
                 ),
-                // ── Early Morning Slots ──
                 ..._earlyMorningSlots.map((t) => DropdownMenuItem<String>(
                       value: t,
                       child: Padding(
                         padding: const EdgeInsets.only(left: 8),
                         child: Row(children: [
-                          const Icon(Icons.access_time,
-                              size: 14, color: _primary),
+                          const Icon(Icons.access_time, size: 14, color: _primary),
                           const SizedBox(width: 8),
-                          Text(t,
-                              style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500)),
+                          Text(t, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                           if (t == '04:30 AM' || t == '05:00 AM') ...[
                             const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.deepOrange,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
+                                  color: Colors.deepOrange,
+                                  borderRadius: BorderRadius.circular(4)),
                               child: const Text('Best',
                                   style: TextStyle(
-                                      fontSize: 9,
-                                      color: Colors.white,
+                                      fontSize: 9, color: Colors.white,
                                       fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ]),
                       ),
                     )),
-                // ── Mid Morning Header ──
                 DropdownMenuItem<String>(
                   value: '__header_mid__',
                   enabled: false,
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     decoration: BoxDecoration(
-                      border: Border(
-                          bottom: BorderSide(color: Colors.orange.shade200)),
-                    ),
+                        border: Border(bottom: BorderSide(color: Colors.orange.shade200))),
                     child: Row(children: [
                       const Text('☀️', style: TextStyle(fontSize: 14)),
                       const SizedBox(width: 6),
                       Text('Mid-Morning  •  Also Very Good',
                           style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 12, fontWeight: FontWeight.bold,
                               color: Colors.orange.shade800)),
                     ]),
                   ),
                 ),
-                // ── Mid Morning Slots ──
                 ..._midMorningSlots.map((t) => DropdownMenuItem<String>(
                       value: t,
                       child: Padding(
                         padding: const EdgeInsets.only(left: 8),
                         child: Row(children: [
-                          const Icon(Icons.access_time,
-                              size: 14, color: _primary),
+                          const Icon(Icons.access_time, size: 14, color: _primary),
                           const SizedBox(width: 8),
-                          Text(t,
-                              style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500)),
+                          Text(t, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                         ]),
                       ),
                     )),
@@ -814,87 +750,72 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           ),
         ),
         const SizedBox(height: 10),
-        // Selected time display pill
         Row(children: [
           const Icon(Icons.check_circle_rounded, color: _primary, size: 16),
           const SizedBox(width: 6),
           Text('Selected: $_selectedTime',
               style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: _primary)),
+                  fontSize: 13, fontWeight: FontWeight.w600, color: _primary)),
         ]),
       ])),
 
       const SizedBox(height: 32),
       _nextButton(
         label: 'Find Available Pandits',
-        onTap: () {
-          _loadPriests();
-          _goToStep(4);
-        },
+        onTap: () { _loadPriests(); _goToStep(4); },
       ),
     ]),
   );
 
-  // ── Time legend badge helper ──────────────────────────────────
-  Widget _timeLegendBadge(String emoji, String label, Color color) =>
-      Flexible(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: color.withValues(alpha: 0.25)),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(emoji, style: const TextStyle(fontSize: 12)),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 10,
-                      color: color,
-                      fontWeight: FontWeight.w600)),
-            ),
-          ]),
+  Widget _timeLegendBadge(String emoji, String label, Color color) => Flexible(
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(emoji, style: const TextStyle(fontSize: 12)),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 10, color: color, fontWeight: FontWeight.w600)),
         ),
-      );
+      ]),
+    ),
+  );
 
   // ══════════════════════════════════════════════════════════════
-  // STEP 4 — PRIEST
+  // STEP 4 — PRIEST  ✅ DROPDOWN + OVERFLOW FIXED
   // ══════════════════════════════════════════════════════════════
   Widget _buildPriestStep() => SingleChildScrollView(
     padding: const EdgeInsets.all(20),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _stepHeading('Select Pandit',
-          'Choose an experienced pandit for your homam'),
+      _stepHeading('Select Pandit', 'Choose an experienced pandit for your homam'),
       const SizedBox(height: 20),
 
-      // Summary chips
+      // ── Summary chips ─────────────────────────────────────────
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(children: [
           _infoBadge(
-              _venueType == 'home'
-                  ? '🏠 Home'
-                  : '🛕 ${_selectedTemple?.name ?? "Temple"}',
+              _venueType == 'home' ? '🏠 Home' : '🛕 ${_selectedTemple?.name ?? "Temple"}',
               Colors.orange),
           const SizedBox(width: 8),
-          _infoBadge(
-              '${_homamInfo[_selectedHomam]!['emoji']} $_selectedHomam',
+          _infoBadge('${_homamInfo[_selectedHomam]!['emoji']} $_selectedHomam',
               Colors.deepOrange),
           const SizedBox(width: 8),
-          _infoBadge(
-              '📅 ${_selectedDate.day}/${_selectedDate.month}',
-              Colors.teal),
+          _infoBadge('📅 ${_selectedDate.day}/${_selectedDate.month}', Colors.teal),
           const SizedBox(width: 8),
           _infoBadge('⏰ $_selectedTime', Colors.indigo),
         ]),
       ),
       const SizedBox(height: 20),
 
+      // ── Loading ───────────────────────────────────────────────
       if (_loadingPriests)
         _card(child: const Padding(
           padding: EdgeInsets.symmetric(vertical: 30),
@@ -905,6 +826,8 @@ class _HomamBookingPageState extends State<HomamBookingPage>
                 style: TextStyle(color: Colors.grey)),
           ]),
         ))
+
+      // ── Empty state ───────────────────────────────────────────
       else if (_priests.isEmpty)
         _card(child: Padding(
           padding: const EdgeInsets.all(16),
@@ -914,189 +837,182 @@ class _HomamBookingPageState extends State<HomamBookingPage>
             const Text('No specific pandits found',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            Text(
-                'We will assign an expert pandit for your $_selectedHomam.',
+            Text('We will assign an expert pandit for your $_selectedHomam.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 12, color: Colors.grey.shade600)),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
             const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: _loadPriests,
               icon: const Icon(Icons.refresh, size: 16),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
-                  backgroundColor: _primary,
-                  foregroundColor: Colors.white),
+                  backgroundColor: _primary, foregroundColor: Colors.white),
             ),
           ]),
         ))
+
+      // ── Pandit Dropdown ───────────────────────────────────────
       else ...[
         Text('${_priests.length} pandits available',
             style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
         const SizedBox(height: 12),
-        ..._priests.map((p) {
-          final priest   = Map<String, dynamic>.from(p as Map);
-          final selected = _selectedPriest?['_id'] == priest['_id'];
-          final langs    = (priest['languages'] as List?)?.join(', ') ?? '';
-          final specs    = (priest['specializations'] as List?) ?? [];
-          return GestureDetector(
-            onTap: () => setState(() => _selectedPriest = priest),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: selected
-                    ? const Color(0xFFFFF3E0)
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color:
-                        selected ? _primary : Colors.grey.shade200,
-                    width: selected ? 2 : 1),
-                boxShadow: [
-                  BoxShadow(
-                      color: selected
-                          ? _primary.withValues(alpha: 0.15)
-                          : Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3))
-                ],
-              ),
-              child: Row(children: [
-                Container(
-                  width: 54, height: 54,
-                  decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: selected
-                          ? _primary
-                          : Colors.orange.shade100),
-                  child: Center(
-                    child: Text(
-                      (priest['name'] as String? ?? '?').isNotEmpty
-                          ? (priest['name'] as String)[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color:
-                              selected ? Colors.white : _primary),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Row(children: [
-                      Text(priest['name'] ?? '',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: selected
-                                  ? _primary
-                                  : Colors.black87)),
-                      if (selected) ...[
-                        const SizedBox(width: 6),
+
+        _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _sectionLabel('🧑‍⚕️ Choose Pandit'),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: _primary, width: 1.5),
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.orange.shade50,
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedPriest?['_id'] as String?,
+                isExpanded: true,
+                hint: const Text('Select a pandit',
+                    style: TextStyle(color: Colors.grey)),
+                icon: const Icon(Icons.keyboard_arrow_down, color: _primary),
+
+                // ── Closed state: compact single-line (NO overflow) ──
+                selectedItemBuilder: (_) => _priests.map((p) {
+                  final pr = Map<String, dynamic>.from(p as Map);
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: Row(children: [
+                      _priestAvatar(pr, size: 28, selected: true),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          pr['name'] ?? '',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: _primary),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.star_rounded, color: Colors.amber, size: 13),
+                        const SizedBox(width: 2),
+                        Text('${pr['rating'] ?? 0}',
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold)),
+                      ]),
+                    ]),
+                  );
+                }).toList(),
+
+                // ── Open state: rich card per pandit ─────────────
+                items: _priests.map((p) {
+                  final pr  = Map<String, dynamic>.from(p as Map);
+                  final id  = pr['_id'] as String? ?? '';
+                  final langs = (pr['languages'] as List?)?.join(', ') ?? '';
+                  final specs = (pr['specializations'] as List?) ?? [];
+                  return DropdownMenuItem<String>(
+                    value: id,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(children: [
+                        _priestAvatar(pr, size: 44, selected: false),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                            Text(pr['name'] ?? '',
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14)),
+                            const SizedBox(height: 3),
+                            Row(children: [
+                              const Icon(Icons.work_outline, size: 11, color: Colors.grey),
+                              const SizedBox(width: 3),
+                              Text('${pr['experience'] ?? 0} yrs',
+                                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.location_on_outlined,
+                                  size: 11, color: Colors.grey),
+                              const SizedBox(width: 2),
+                              Flexible(
+                                child: Text(pr['location'] ?? '',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 11, color: Colors.grey)),
+                              ),
+                            ]),
+                            if (langs.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text('🗣 $langs',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Colors.grey)),
+                            ],
+                            if (specs.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 4, runSpacing: 2,
+                                children: specs.take(2).map((s) => Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: _primary.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(s.toString(),
+                                          style: const TextStyle(
+                                              fontSize: 9, color: _primary,
+                                              fontWeight: FontWeight.w600)),
+                                    )).toList(),
+                              ),
+                            ],
+                          ]),
+                        ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                              horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
-                              color: _primary,
-                              borderRadius:
-                                  BorderRadius.circular(6)),
-                          child: const Text('Selected',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold)),
+                            color: Colors.amber.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.amber.shade200),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.star_rounded,
+                                color: Colors.amber, size: 13),
+                            const SizedBox(width: 2),
+                            Text('${pr['rating'] ?? 0}',
+                                style: const TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.bold)),
+                          ]),
                         ),
-                      ],
-                    ]),
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      const Icon(Icons.work_outline,
-                          size: 12, color: Colors.grey),
-                      const SizedBox(width: 3),
-                      Text('${priest['experience'] ?? 0} yrs',
-                          style: const TextStyle(
-                              fontSize: 11, color: Colors.grey)),
-                      const SizedBox(width: 10),
-                      const Icon(Icons.location_on_outlined,
-                          size: 12, color: Colors.grey),
-                      const SizedBox(width: 3),
-                      Text(priest['location'] ?? '',
-                          style: const TextStyle(
-                              fontSize: 11, color: Colors.grey)),
-                    ]),
-                    if (langs.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text('🗣 $langs',
-                          style: const TextStyle(
-                              fontSize: 11, color: Colors.grey)),
-                    ],
-                    if (specs.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 4,
-                        runSpacing: 4,
-                        children: specs
-                            .take(2)
-                            .map((s) => Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(
-                                      color: _primary
-                                          .withValues(alpha: 0.1),
-                                      borderRadius:
-                                          BorderRadius.circular(4)),
-                                  child: Text(s.toString(),
-                                      style: const TextStyle(
-                                          fontSize: 9,
-                                          color: _primary,
-                                          fontWeight:
-                                              FontWeight.w600)),
-                                ))
-                            .toList(),
-                      ),
-                    ],
-                  ]),
-                ),
-                const SizedBox(width: 8),
-                Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: Colors.amber.shade200)),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.star_rounded,
-                          color: Colors.amber, size: 14),
-                      const SizedBox(width: 2),
-                      Text('${priest['rating'] ?? 0}',
-                          style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold)),
-                    ]),
-                  ),
-                  const SizedBox(height: 8),
-                  Icon(
-                      selected
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
-                      color: selected ? _primary : Colors.grey,
-                      size: 22),
-                ]),
-              ]),
+                      ]),
+                    ),
+                  );
+                }).toList(),
+
+                onChanged: (id) {
+                  if (id == null) return;
+                  final match = _priests.firstWhere(
+                      (p) => (p as Map)['_id'] == id, orElse: () => null);
+                  if (match != null) {
+                    setState(() =>
+                        _selectedPriest = Map<String, dynamic>.from(match as Map));
+                  }
+                },
+              ),
             ),
-          );
-        }),
+          ),
+        ])),
+
+        // ── Selected pandit detail card ───────────────────────
+        if (_selectedPriest != null) ...[
+          const SizedBox(height: 14),
+          _buildSelectedPriestCard(_selectedPriest!),
+        ],
       ],
 
       const SizedBox(height: 32),
@@ -1104,8 +1020,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
         label: 'Continue to Payment',
         onTap: () {
           if (_priests.isNotEmpty && _selectedPriest == null) {
-            _snack('Please select a pandit');
-            return;
+            _snack('Please select a pandit'); return;
           }
           _goToStep(5);
         },
@@ -1113,27 +1028,146 @@ class _HomamBookingPageState extends State<HomamBookingPage>
     ]),
   );
 
+  // ── Reusable priest avatar ────────────────────────────────────
+  Widget _priestAvatar(Map<String, dynamic> pr,
+      {required double size, required bool selected}) {
+    final name = pr['name'] as String? ?? '?';
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: selected ? _primary : Colors.orange.shade100),
+      child: Center(
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : '?',
+          style: TextStyle(
+              fontSize: size * 0.42,
+              fontWeight: FontWeight.bold,
+              color: selected ? Colors.white : _primary),
+        ),
+      ),
+    );
+  }
+
+  // ── Selected pandit detail card (overflow-safe) ───────────────
+  Widget _buildSelectedPriestCard(Map<String, dynamic> pr) {
+    final langs = (pr['languages'] as List?)?.join(', ') ?? '';
+    final specs = (pr['specializations'] as List?) ?? [];
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _primary, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+              color: _primary.withValues(alpha: 0.12),
+              blurRadius: 10, offset: const Offset(0, 3))
+        ],
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _priestAvatar(pr, size: 54, selected: true),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // ✅ Name + badge in a Row with Expanded — no overflow
+            Row(children: [
+              Expanded(
+                child: Text(pr['name'] ?? '',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 15, color: _primary)),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                    color: _primary, borderRadius: BorderRadius.circular(6)),
+                child: const Text('✓ Selected',
+                    style: TextStyle(
+                        color: Colors.white, fontSize: 10,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ]),
+            const SizedBox(height: 5),
+            Row(children: [
+              const Icon(Icons.work_outline, size: 13, color: Colors.grey),
+              const SizedBox(width: 3),
+              Text('${pr['experience'] ?? 0} yrs',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(width: 10),
+              const Icon(Icons.location_on_outlined, size: 13, color: Colors.grey),
+              const SizedBox(width: 3),
+              Flexible(
+                child: Text(pr['location'] ?? '',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              ),
+            ]),
+            if (langs.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text('🗣 $langs',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ],
+            if (specs.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 5, runSpacing: 4,
+                children: specs.take(3).map((s) => Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(s.toString(),
+                          style: const TextStyle(
+                              fontSize: 10, color: _primary,
+                              fontWeight: FontWeight.w600)),
+                    )).toList(),
+              ),
+            ],
+            const SizedBox(height: 6),
+            Text('Will contact you 24 hrs before the homam 🙏',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          ]),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber.shade200)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.star_rounded, color: Colors.amber, size: 15),
+            const SizedBox(width: 2),
+            Text('${pr['rating'] ?? 0}',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+          ]),
+        ),
+      ]),
+    );
+  }
+
   // ══════════════════════════════════════════════════════════════
   // STEP 5 — PAYMENT
   // ══════════════════════════════════════════════════════════════
   Widget _buildPaymentStep() {
-    final price =
-        _homamInfo[_selectedHomam]!['price']! as double;
+    final price = _homamInfo[_selectedHomam]!['price']! as double;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _stepHeading(
-            'Booking Summary', 'Review your booking before payment'),
+        _stepHeading('Booking Summary', 'Review your booking before payment'),
         const SizedBox(height: 20),
 
         _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [
-                Colors.orange.shade50,
-                Colors.deepOrange.shade50
-              ]),
+              gradient: LinearGradient(
+                  colors: [Colors.orange.shade50, Colors.deepOrange.shade50]),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(children: [
@@ -1141,16 +1175,12 @@ class _HomamBookingPageState extends State<HomamBookingPage>
                   style: const TextStyle(fontSize: 36)),
               const SizedBox(width: 14),
               Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(_selectedHomam!,
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 17)),
                   Text(_homamInfo[_selectedHomam]!['desc']!,
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade700)),
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
                 ]),
               ),
             ]),
@@ -1165,14 +1195,11 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           _summaryRow('📅 Date',
               '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'),
           _summaryRow('⏰ Time', _selectedTime),
-          _summaryRow('🧑‍⚕️ Pandit',
-              _selectedPriest?['name'] ?? 'To be assigned'),
-          if (_gotraCtrl.text.isNotEmpty) ...[
+          _summaryRow('🧑‍⚕️ Pandit', _selectedPriest?['name'] ?? 'To be assigned'),
+          if (_gotraCtrl.text.isNotEmpty)
             _summaryRow('🌿 Gotra', _gotraCtrl.text),
-          ],
-          if (_nakshatraCtrl.text.isNotEmpty) ...[
+          if (_nakshatraCtrl.text.isNotEmpty)
             _summaryRow('⭐ Nakshatra', _nakshatraCtrl.text),
-          ],
           const SizedBox(height: 12),
           const Divider(),
           const SizedBox(height: 12),
@@ -1180,21 +1207,15 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           _priceRow('Samagri & Prasadam', 'Included'),
           _priceRow('Pandit Dakshina', 'Included'),
           const Divider(height: 20),
-          Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const Text('Total Amount',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 17)),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
             Text('₹${price.toStringAsFixed(0)}',
                 style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                    color: _primary)),
+                    fontWeight: FontWeight.bold, fontSize: 22, color: _primary)),
           ]),
           const SizedBox(height: 8),
-          const Text(
-              '✅ Includes all materials, dakshina & prasadam',
+          const Text('✅ Includes all materials, dakshina & prasadam',
               style: TextStyle(fontSize: 11, color: Colors.grey)),
         ])),
 
@@ -1202,53 +1223,27 @@ class _HomamBookingPageState extends State<HomamBookingPage>
 
         if (_selectedPriest != null)
           _card(child: Row(children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _primary.withValues(alpha: 0.1)),
-              child: Center(
-                child: Text(
-                  (_selectedPriest!['name'] as String? ?? '?')
-                          .isNotEmpty
-                      ? (_selectedPriest!['name'] as String)[0]
-                          .toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: _primary),
-                ),
-              ),
-            ),
+            _priestAvatar(_selectedPriest!, size: 44, selected: true),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(_selectedPriest!['name'] ?? '',
-                    style:
-                        const TextStyle(fontWeight: FontWeight.bold)),
-                Text(
-                    'Will contact you 24 hrs before the homam 🙏',
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade600)),
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('Will contact you 24 hrs before the homam 🙏',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
               ]),
             ),
-            Column(children: [
-              const Icon(Icons.star_rounded,
-                  color: Colors.amber, size: 16),
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
               Text('${_selectedPriest!['rating'] ?? 0}',
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.bold)),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
             ]),
           ])),
 
         const SizedBox(height: 28),
         _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: _primary))
+            ? const Center(child: CircularProgressIndicator(color: _primary))
             : Container(
                 width: double.infinity,
                 height: 56,
@@ -1259,8 +1254,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
                   boxShadow: [
                     BoxShadow(
                         color: _primary.withValues(alpha: 0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4))
+                        blurRadius: 12, offset: const Offset(0, 4))
                   ],
                 ),
                 child: ElevatedButton(
@@ -1280,8 +1274,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
               ),
         const SizedBox(height: 10),
         const Center(
-            child: Text(
-                '🔒 Secure payment via Razorpay • UPI • Cards',
+            child: Text('🔒 Secure payment via Razorpay • UPI • Cards',
                 style: TextStyle(fontSize: 11, color: Colors.grey))),
         const SizedBox(height: 40),
       ]),
@@ -1375,19 +1368,16 @@ class _HomamBookingPageState extends State<HomamBookingPage>
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.check_circle_rounded,
-                size: 72, color: Colors.green),
+            const Icon(Icons.check_circle_rounded, size: 72, color: Colors.green),
             const SizedBox(height: 12),
             const Text('Homam Booked! 🙏',
-                style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             _summaryRow('Homam',  _selectedHomam ?? ''),
             _summaryRow('Date',
                 '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'),
             _summaryRow('Time',   _selectedTime),
-            _summaryRow('Pandit',
-                _selectedPriest?['name'] ?? 'To be assigned'),
+            _summaryRow('Pandit', _selectedPriest?['name'] ?? 'To be assigned'),
             _summaryRow('Amount',
                 '₹${(_homamInfo[_selectedHomam]!['price']! as double).toStringAsFixed(0)}'),
             const Divider(height: 20),
@@ -1395,8 +1385,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
                 'Payment ID: ${paymentId.length > 20 ? '${paymentId.substring(0, 20)}...' : paymentId}',
                 style: const TextStyle(fontSize: 11, color: Colors.grey)),
             const SizedBox(height: 8),
-            const Text(
-                'Your pandit will contact you 24 hrs before the homam 🙏',
+            const Text('Your pandit will contact you 24 hrs before the homam 🙏',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: Colors.grey)),
             const SizedBox(height: 20),
@@ -1427,12 +1416,9 @@ class _HomamBookingPageState extends State<HomamBookingPage>
     children: [
       Text(title,
           style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: _darkBg)),
+              fontSize: 20, fontWeight: FontWeight.bold, color: _darkBg)),
       const SizedBox(height: 4),
-      Text(sub,
-          style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+      Text(sub, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
     ],
   );
 
@@ -1445,15 +1431,14 @@ class _HomamBookingPageState extends State<HomamBookingPage>
       boxShadow: [
         BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 3))
+            blurRadius: 10, offset: const Offset(0, 3))
       ],
     ),
     child: child,
   );
 
-  Widget _sectionLabel(String label) => Text(label,
-      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15));
+  Widget _sectionLabel(String label) =>
+      Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15));
 
   Widget _venueBadge() => Container(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -1467,13 +1452,9 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           style: const TextStyle(fontSize: 14)),
       const SizedBox(width: 6),
       Text(
-        _venueType == 'home'
-            ? 'At My Home'
-            : _selectedTemple?.name ?? 'Temple',
+        _venueType == 'home' ? 'At My Home' : _selectedTemple?.name ?? 'Temple',
         style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.deepOrange),
+            fontSize: 13, fontWeight: FontWeight.w600, color: Colors.deepOrange),
       ),
       const SizedBox(width: 8),
       GestureDetector(
@@ -1491,8 +1472,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
       border: Border.all(color: color.withValues(alpha: 0.3)),
     ),
     child: Text(text,
-        style: TextStyle(
-            fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+        style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
   );
 
   Widget _venueCard({
@@ -1506,9 +1486,7 @@ class _HomamBookingPageState extends State<HomamBookingPage>
     return GestureDetector(
       onTap: () {
         setState(() => _venueType = type);
-        if (type == 'temple' && _temples.isEmpty) {
-          _loadTemples();
-        }
+        if (type == 'temple' && _temples.isEmpty) _loadTemples();
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -1517,15 +1495,13 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           color: sel ? const Color(0xFFFFF3E0) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: sel ? _primary : Colors.grey.shade200,
-              width: sel ? 2 : 1),
+              color: sel ? _primary : Colors.grey.shade200, width: sel ? 2 : 1),
           boxShadow: [
             BoxShadow(
                 color: sel
                     ? _primary.withValues(alpha: 0.15)
                     : Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 3))
+                blurRadius: 8, offset: const Offset(0, 3))
           ],
         ),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1549,41 +1525,31 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           Container(
             width: 50, height: 50,
             decoration: BoxDecoration(
-                color: sel
-                    ? _primary.withValues(alpha: 0.15)
-                    : Colors.grey.shade100,
+                color: sel ? _primary.withValues(alpha: 0.15) : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(12)),
-            child: Center(
-                child: Text(emoji,
-                    style: const TextStyle(fontSize: 26))),
+            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 26))),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title,
                   style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 15, fontWeight: FontWeight.bold,
                       color: sel ? _primary : Colors.black87)),
               const SizedBox(height: 3),
               Text(subtitle,
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.grey.shade600)),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
               const SizedBox(height: 8),
               ...points.map((pt) => Padding(
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Row(children: [
                   Icon(Icons.check_circle,
-                      size: 13,
-                      color: sel ? _primary : Colors.grey),
+                      size: 13, color: sel ? _primary : Colors.grey),
                   const SizedBox(width: 5),
                   Text(pt,
                       style: TextStyle(
                           fontSize: 11,
-                          color:
-                              sel ? Colors.black87 : Colors.grey)),
+                          color: sel ? Colors.black87 : Colors.grey)),
                 ]),
               )),
             ]),
@@ -1609,51 +1575,38 @@ class _HomamBookingPageState extends State<HomamBookingPage>
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, color: _primary, size: 20),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: _primary, width: 1.5)),
-          contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12, vertical: 12),
+              borderSide: const BorderSide(color: _primary, width: 1.5)),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
       );
 
   Widget _summaryRow(String label, String value) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 5),
-    child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-      Text(label,
-          style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
       Flexible(
         child: Text(value,
             textAlign: TextAlign.end,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w600)),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
       ),
     ]),
   );
 
   Widget _priceRow(String label, String value) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-      Text(label,
-          style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
       Text(value,
-          style: const TextStyle(
-              fontSize: 13, fontWeight: FontWeight.w600)),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
     ]),
   );
 
-  Widget _nextButton({
-    required String label,
-    required VoidCallback onTap,
-  }) =>
+  Widget _nextButton({required String label, required VoidCallback onTap}) =>
       SizedBox(
         width: double.infinity,
         height: 52,
@@ -1664,12 +1617,10 @@ class _HomamBookingPageState extends State<HomamBookingPage>
             foregroundColor: Colors.white,
             elevation: 4,
             shadowColor: _primary.withValues(alpha: 0.4),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
           child: Text(label,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, fontSize: 15)),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         ),
       );
 
