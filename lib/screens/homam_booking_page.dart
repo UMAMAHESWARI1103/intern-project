@@ -851,168 +851,150 @@ class _HomamBookingPageState extends State<HomamBookingPage>
           ]),
         ))
 
-      // ── Pandit Dropdown ───────────────────────────────────────
+      // ── Pandit Selectable List ────────────────────────────────
       else ...[
         Text('${_priests.length} pandits available',
             style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
         const SizedBox(height: 12),
 
-        _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _sectionLabel('🧑‍⚕️ Choose Pandit'),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: _primary, width: 1.5),
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.orange.shade50,
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedPriest?['_id'] as String?,
-                isExpanded: true,
-                hint: const Text('Select a pandit',
-                    style: TextStyle(color: Colors.grey)),
-                icon: const Icon(Icons.keyboard_arrow_down, color: _primary),
+        // Render each pandit as a tappable card — no DropdownMenuItem height issues
+        ..._priests.map((p) {
+          final pr       = Map<String, dynamic>.from(p as Map);
+          final id       = pr['_id'] as String? ?? '';
+          final selected = _selectedPriest?['_id'] == id;
+          final langs    = (pr['languages'] as List?)?.join(', ') ?? '';
+          final specs    = (pr['specializations'] as List?) ?? [];
 
-                // ── Closed state: compact single-line (NO overflow) ──
-                selectedItemBuilder: (_) => _priests.map((p) {
-                  final pr = Map<String, dynamic>.from(p as Map);
-                  return Align(
-                    alignment: Alignment.centerLeft,
-                    child: Row(children: [
-                      _priestAvatar(pr, size: 28, selected: true),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          pr['name'] ?? '',
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                              color: _primary),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.star_rounded, color: Colors.amber, size: 13),
-                        const SizedBox(width: 2),
-                        Text('${pr['rating'] ?? 0}',
-                            style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.bold)),
-                      ]),
-                    ]),
-                  );
-                }).toList(),
-
-                // ── Open state: rich card per pandit ─────────────
-                items: _priests.map((p) {
-                  final pr  = Map<String, dynamic>.from(p as Map);
-                  final id  = pr['_id'] as String? ?? '';
-                  final langs = (pr['languages'] as List?)?.join(', ') ?? '';
-                  final specs = (pr['specializations'] as List?) ?? [];
-                  return DropdownMenuItem<String>(
-                    value: id,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(children: [
-                        _priestAvatar(pr, size: 44, selected: false),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                            Text(pr['name'] ?? '',
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 14)),
-                            const SizedBox(height: 3),
-                            Row(children: [
-                              const Icon(Icons.work_outline, size: 11, color: Colors.grey),
-                              const SizedBox(width: 3),
-                              Text('${pr['experience'] ?? 0} yrs',
-                                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                              const SizedBox(width: 8),
-                              const Icon(Icons.location_on_outlined,
-                                  size: 11, color: Colors.grey),
-                              const SizedBox(width: 2),
-                              Flexible(
-                                child: Text(pr['location'] ?? '',
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontSize: 11, color: Colors.grey)),
-                              ),
-                            ]),
-                            if (langs.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text('🗣 $langs',
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      fontSize: 11, color: Colors.grey)),
-                            ],
-                            if (specs.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Wrap(
-                                spacing: 4, runSpacing: 2,
-                                children: specs.take(2).map((s) => Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 1),
-                                      decoration: BoxDecoration(
-                                        color: _primary.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(s.toString(),
-                                          style: const TextStyle(
-                                              fontSize: 9, color: _primary,
-                                              fontWeight: FontWeight.w600)),
-                                    )).toList(),
-                              ),
-                            ],
-                          ]),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.amber.shade200),
-                          ),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.star_rounded,
-                                color: Colors.amber, size: 13),
-                            const SizedBox(width: 2),
-                            Text('${pr['rating'] ?? 0}',
-                                style: const TextStyle(
-                                    fontSize: 11, fontWeight: FontWeight.bold)),
-                          ]),
-                        ),
-                      ]),
-                    ),
-                  );
-                }).toList(),
-
-                onChanged: (id) {
-                  if (id == null) return;
-                  final match = _priests.firstWhere(
-                      (p) => (p as Map)['_id'] == id, orElse: () => null);
-                  if (match != null) {
-                    setState(() =>
-                        _selectedPriest = Map<String, dynamic>.from(match as Map));
-                  }
-                },
+          return GestureDetector(
+            onTap: () => setState(() => _selectedPriest = pr),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: selected ? const Color(0xFFFFF3E0) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: selected ? _primary : Colors.grey.shade200,
+                    width: selected ? 2 : 1),
+                boxShadow: [
+                  BoxShadow(
+                      color: selected
+                          ? _primary.withValues(alpha: 0.15)
+                          : Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3))
+                ],
               ),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _priestAvatar(pr, size: 48, selected: selected),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    // Name + Selected badge
+                    Row(children: [
+                      Expanded(
+                        child: Text(pr['name'] ?? '',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: selected ? _primary : Colors.black87)),
+                      ),
+                      if (selected)
+                        Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                              color: _primary,
+                              borderRadius: BorderRadius.circular(6)),
+                          child: const Text('✓ Selected',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                    ]),
+                    const SizedBox(height: 4),
+                    // Exp + Location
+                    Row(children: [
+                      const Icon(Icons.work_outline, size: 12, color: Colors.grey),
+                      const SizedBox(width: 3),
+                      Text('${pr['experience'] ?? 0} yrs',
+                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      const SizedBox(width: 10),
+                      const Icon(Icons.location_on_outlined,
+                          size: 12, color: Colors.grey),
+                      const SizedBox(width: 3),
+                      Flexible(
+                        child: Text(pr['location'] ?? '',
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      ),
+                    ]),
+                    // Languages
+                    if (langs.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text('🗣 $langs',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                    // Specialization tags
+                    if (specs.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 4, runSpacing: 4,
+                        children: specs.take(2).map((s) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(s.toString(),
+                                  style: const TextStyle(
+                                      fontSize: 9,
+                                      color: _primary,
+                                      fontWeight: FontWeight.w600)),
+                            )).toList(),
+                      ),
+                    ],
+                  ]),
+                ),
+                const SizedBox(width: 8),
+                // Rating + radio
+                Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.shade200)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.star_rounded,
+                          color: Colors.amber, size: 14),
+                      const SizedBox(width: 2),
+                      Text('${pr['rating'] ?? 0}',
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold)),
+                    ]),
+                  ),
+                  const SizedBox(height: 8),
+                  Icon(
+                      selected
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: selected ? _primary : Colors.grey,
+                      size: 22),
+                ]),
+              ]),
             ),
-          ),
-        ])),
-
-        // ── Selected pandit detail card ───────────────────────
-        if (_selectedPriest != null) ...[
-          const SizedBox(height: 14),
-          _buildSelectedPriestCard(_selectedPriest!),
-        ],
+          );
+        }),
       ],
 
       const SizedBox(height: 32),
@@ -1046,108 +1028,6 @@ class _HomamBookingPageState extends State<HomamBookingPage>
               color: selected ? Colors.white : _primary),
         ),
       ),
-    );
-  }
-
-  // ── Selected pandit detail card (overflow-safe) ───────────────
-  Widget _buildSelectedPriestCard(Map<String, dynamic> pr) {
-    final langs = (pr['languages'] as List?)?.join(', ') ?? '';
-    final specs = (pr['specializations'] as List?) ?? [];
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF3E0),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _primary, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-              color: _primary.withValues(alpha: 0.12),
-              blurRadius: 10, offset: const Offset(0, 3))
-        ],
-      ),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _priestAvatar(pr, size: 54, selected: true),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // ✅ Name + badge in a Row with Expanded — no overflow
-            Row(children: [
-              Expanded(
-                child: Text(pr['name'] ?? '',
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 15, color: _primary)),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                    color: _primary, borderRadius: BorderRadius.circular(6)),
-                child: const Text('✓ Selected',
-                    style: TextStyle(
-                        color: Colors.white, fontSize: 10,
-                        fontWeight: FontWeight.bold)),
-              ),
-            ]),
-            const SizedBox(height: 5),
-            Row(children: [
-              const Icon(Icons.work_outline, size: 13, color: Colors.grey),
-              const SizedBox(width: 3),
-              Text('${pr['experience'] ?? 0} yrs',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(width: 10),
-              const Icon(Icons.location_on_outlined, size: 13, color: Colors.grey),
-              const SizedBox(width: 3),
-              Flexible(
-                child: Text(pr['location'] ?? '',
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ),
-            ]),
-            if (langs.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text('🗣 $langs',
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
-            if (specs.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 5, runSpacing: 4,
-                children: specs.take(3).map((s) => Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Text(s.toString(),
-                          style: const TextStyle(
-                              fontSize: 10, color: _primary,
-                              fontWeight: FontWeight.w600)),
-                    )).toList(),
-              ),
-            ],
-            const SizedBox(height: 6),
-            Text('Will contact you 24 hrs before the homam 🙏',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-          ]),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-          decoration: BoxDecoration(
-              color: Colors.amber.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.amber.shade200)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.star_rounded, color: Colors.amber, size: 15),
-            const SizedBox(width: 2),
-            Text('${pr['rating'] ?? 0}',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-          ]),
-        ),
-      ]),
     );
   }
 
