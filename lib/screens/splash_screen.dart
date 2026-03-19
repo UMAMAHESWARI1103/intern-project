@@ -98,7 +98,7 @@ class _SplashScreenPageState extends State<SplashScreenPage>
             child: FadeTransition(
               opacity: _fadeAnimation,
               child: Image.asset(
-                'assets/images/temples.png', // <-- add the image to your assets
+                'assets/images/temple.png', // <-- add the image to your assets
                 fit: BoxFit.fitWidth,
                 alignment: Alignment.bottomCenter,
               ),
