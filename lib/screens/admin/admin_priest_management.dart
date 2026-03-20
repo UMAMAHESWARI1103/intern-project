@@ -411,13 +411,13 @@ class _AdminPriestManagementPageState
                   icon: Icon(
                     isAvail ? Icons.toggle_on : Icons.toggle_off,
                     size: 18,
-                    color: isAvail ? Colors.green : Colors.grey,
+                    color: isAvail ? Colors.red : Colors.green,
                   ),
                   label: Text(
                     isAvail ? 'Mark Unavailable' : 'Mark Available',
                     style: TextStyle(
                       fontSize: 12,
-                      color: isAvail ? Colors.green : Colors.grey,
+                      color: isAvail ? Colors.red : Colors.green,
                     ),
                   ),
                 ),
@@ -595,12 +595,11 @@ class _AdminAddPriestPageState extends State<AdminAddPriestPage> {
                     ],
                   ),
                 ),
-                // ✅ Fixed
-Switch(
-  value: _isAvailable,
-  activeThumbColor: Colors.green,  // ← changed
-  onChanged: (v) => setState(() => _isAvailable = v),
-),
+                Switch(
+                  value: _isAvailable,
+                  activeThumbColor: Colors.green,
+                  onChanged: (v) => setState(() => _isAvailable = v),
+                ),
               ]),
             ),
             const SizedBox(height: 16),
