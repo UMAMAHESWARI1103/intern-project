@@ -86,19 +86,19 @@ String _ph(String bg, String text) =>
 final List<Product> _hardcodedProducts = [
   Product(id: 'p1', name: 'Rose Garland', category: 'Pooja Items & Flowers',
       price: 49, originalPrice: 70, imageUrl: _ph('C2185B', 'Rose Garland'),
-      description: 'Fresh rose garland for deity decoration. Made with hand-picked roses, ideal for daily pooja and temple offerings.',
+      description: 'Fresh rose garland for deity decoration.',
       rating: 4.8, reviews: 124, isBestseller: true, tags: ['Fresh', 'Daily Pooja']),
   Product(id: 'p2', name: 'Marigold Flowers 500g', category: 'Pooja Items & Flowers',
       price: 30, originalPrice: 45, imageUrl: _ph('F57F17', 'Marigold'),
-      description: 'Fresh marigold flowers 500g. Auspicious and widely used in Hindu rituals.',
+      description: 'Fresh marigold flowers 500g.',
       rating: 4.7, reviews: 98, tags: ['Fresh', 'Festival']),
   Product(id: 'p3', name: 'Camphor Tablets 100g', category: 'Pooja Items & Flowers',
       price: 55, originalPrice: 65, imageUrl: _ph('2E7D32', 'Camphor'),
-      description: 'Pure camphor tablets 100g for aarti and purification rituals.',
+      description: 'Pure camphor tablets 100g for aarti.',
       rating: 4.9, reviews: 210, isBestseller: true, tags: ['Pure', 'Aarti']),
   Product(id: 'p4', name: 'Premium Agarbatti Set', category: 'Pooja Items & Flowers',
       price: 120, originalPrice: 180, imageUrl: _ph('6A1B9A', 'Agarbatti'),
-      description: 'Premium agarbatti set with 6 fragrances. 120 sticks total.',
+      description: 'Premium agarbatti set with 6 fragrances.',
       rating: 4.6, reviews: 176, tags: ['Fragrant', 'Set of 6']),
   Product(id: 'p5', name: 'Brass Diya Set of 4', category: 'Pooja Items & Flowers',
       price: 299, originalPrice: 399, imageUrl: _ph('FF6F00', 'Brass Diya'),
@@ -106,11 +106,11 @@ final List<Product> _hardcodedProducts = [
       rating: 4.8, reviews: 89, tags: ['Brass', 'Diwali']),
   Product(id: 'p6', name: 'Tulsi Mala (108 Beads)', category: 'Pooja Items & Flowers',
       price: 199, originalPrice: 250, imageUrl: _ph('388E3C', 'Tulsi Mala'),
-      description: 'Authentic Tulsi mala with 108 beads for japa meditation.',
+      description: 'Authentic Tulsi mala with 108 beads.',
       rating: 4.9, reviews: 312, isBestseller: true, tags: ['Japa', 'Meditation']),
   Product(id: 'b1', name: 'Bhagavad Gita', category: 'Religious Books & CDs',
       price: 199, originalPrice: 249, imageUrl: _ph('1565C0', 'Bhagavad Gita'),
-      description: 'Complete Bhagavad Gita with Sanskrit slokas and English commentary.',
+      description: 'Complete Bhagavad Gita with Sanskrit slokas.',
       rating: 4.9, reviews: 412, isBestseller: true, tags: ['Sanskrit', 'Commentary']),
   Product(id: 'b2', name: 'Ramayana Illustrated', category: 'Religious Books & CDs',
       price: 349, originalPrice: 450, imageUrl: _ph('880E4F', 'Ramayana'),
@@ -118,44 +118,44 @@ final List<Product> _hardcodedProducts = [
       rating: 4.8, reviews: 287, tags: ['Illustrated', 'Tamil & English']),
   Product(id: 'b4', name: 'Carnatic Devotional CD', category: 'Religious Books & CDs',
       price: 149, originalPrice: 199, imageUrl: _ph('283593', 'Carnatic CD'),
-      description: 'Classic Carnatic devotional music CD. 12 tracks, 74 minutes.',
+      description: 'Classic Carnatic devotional music CD.',
       rating: 4.9, reviews: 330, isBestseller: true, tags: ['MS Subbulakshmi', 'Classic']),
   Product(id: 'i1', name: 'Ganesha Brass Idol 6"', category: 'Idols & Statues',
       price: 799, originalPrice: 1100, imageUrl: _ph('E65100', 'Ganesha Idol'),
-      description: 'Hand-crafted brass Ganesha idol, 6 inches tall.',
-      rating: 4.9, reviews: 523, isBestseller: true, tags: ['Brass', '6 inch', 'Handcrafted']),
+      description: 'Hand-crafted brass Ganesha idol, 6 inches.',
+      rating: 4.9, reviews: 523, isBestseller: true, tags: ['Brass', '6 inch']),
   Product(id: 'i2', name: 'Lakshmi Silver Idol 4"', category: 'Idols & Statues',
       price: 1499, originalPrice: 1999, imageUrl: _ph('37474F', 'Lakshmi Idol'),
       description: 'Pure silver-plated Lakshmi idol, 4 inches.',
       rating: 4.8, reviews: 267, tags: ['Silver Plated', 'Gift Box']),
   Product(id: 'i4', name: 'Krishna Flute Idol 5"', category: 'Idols & Statues',
       price: 649, originalPrice: 850, imageUrl: _ph('1B5E20', 'Krishna Idol'),
-      description: 'Marble-finish Krishna idol with flute, 5 inches.',
-      rating: 4.7, reviews: 314, isBestseller: true, tags: ['Marble Finish', 'Hand-painted']),
+      description: 'Marble-finish Krishna idol with flute.',
+      rating: 4.7, reviews: 314, isBestseller: true, tags: ['Marble Finish']),
   Product(id: 'o1', name: 'Tirupati Ladoo (Pack 4)', category: 'Prasadam / Ootee',
       price: 250, originalPrice: 250, imageUrl: _ph('F57F17', 'Tirupati Ladoo'),
-      description: 'Authentic Tirupati Venkateswara temple ladoo. Pack of 4.',
+      description: 'Authentic Tirupati Venkateswara temple ladoo.',
       rating: 5.0, reviews: 876, isBestseller: true, tags: ['Authentic', 'Tirupati']),
   Product(id: 'o6', name: 'Sacred Vibhuti Pouch', category: 'Prasadam / Ootee',
       price: 75, originalPrice: 100, imageUrl: _ph('4E342E', 'Vibhuti'),
       description: 'Sacred vibhuti from Thiruvannamalai. 50g.',
-      rating: 4.9, reviews: 345, isBestseller: true, tags: ['Thiruvannamalai', 'Sacred']),
+      rating: 4.9, reviews: 345, isBestseller: true, tags: ['Thiruvannamalai']),
   Product(id: 'd1', name: "Men's Dhoti & Angavastram", category: 'Devotee Dresses',
       price: 599, originalPrice: 850, imageUrl: _ph('455A64', 'Dhoti Set'),
-      description: 'Pure cotton white dhoti with gold border. Traditional temple attire.',
-      rating: 4.8, reviews: 324, isBestseller: true, tags: ['Pure Cotton', 'Temple Wear']),
+      description: 'Pure cotton white dhoti with gold border.',
+      rating: 4.8, reviews: 324, isBestseller: true, tags: ['Pure Cotton']),
   Product(id: 'd2', name: "Women's Silk Saree (Temple)", category: 'Devotee Dresses',
       price: 1299, originalPrice: 1800, imageUrl: _ph('AD1457', 'Silk Saree'),
-      description: 'Traditional Kanchipuram-style silk saree for temple visits.',
-      rating: 4.9, reviews: 567, isBestseller: true, tags: ['Silk', 'Kanchipuram Style']),
+      description: 'Traditional Kanchipuram-style silk saree.',
+      rating: 4.9, reviews: 567, isBestseller: true, tags: ['Silk']),
   Product(id: 'd5', name: "Men's Veshti (Premium)", category: 'Devotee Dresses',
       price: 799, originalPrice: 1100, imageUrl: _ph('212121', 'Veshti'),
-      description: 'Premium Coimbatore cotton veshti with double gold border.',
-      rating: 4.9, reviews: 412, isBestseller: true, tags: ['Coimbatore Cotton', 'Premium']),
+      description: 'Premium Coimbatore cotton veshti.',
+      rating: 4.9, reviews: 412, isBestseller: true, tags: ['Coimbatore Cotton']),
   Product(id: 'd8', name: 'Rudraksha Bracelet', category: 'Devotee Dresses',
       price: 349, originalPrice: 500, imageUrl: _ph('4E342E', 'Rudraksha'),
-      description: 'Authentic 5-mukhi rudraksha bracelet with silver capping.',
-      rating: 4.9, reviews: 523, isBestseller: true, tags: ['Rudraksha', 'Certified']),
+      description: 'Authentic 5-mukhi rudraksha bracelet.',
+      rating: 4.9, reviews: 523, isBestseller: true, tags: ['Rudraksha']),
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -256,13 +256,11 @@ class ProductImage extends StatelessWidget {
               const SizedBox(height: 4),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  fallbackLabel,
-                  style: const TextStyle(fontSize: 9, color: Colors.brown),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: Text(fallbackLabel,
+                    style: const TextStyle(fontSize: 9, color: Colors.brown),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
               ),
             ],
           ],
@@ -309,9 +307,7 @@ class _EcommercePageState extends State<EcommercePage> {
           .where((p) => p['isActive'] as bool? ?? true)
           .map((p) => Product.fromJson(p))
           .toList();
-
       final merged = [...dbProducts, ..._hardcodedProducts];
-
       if (mounted) {
         setState(() {
           _allProducts       = merged;
@@ -412,7 +408,6 @@ class _EcommercePageState extends State<EcommercePage> {
       IconButton(
         icon: const Icon(Icons.refresh, color: Colors.white),
         onPressed: _loadProducts,
-        tooltip: 'Refresh products',
       ),
       Stack(children: [
         IconButton(
@@ -429,8 +424,7 @@ class _EcommercePageState extends State<EcommercePage> {
               child: Center(
                 child: Text('${_cart.itemCount}',
                     style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
+                        color: Colors.white, fontSize: 11,
                         fontWeight: FontWeight.bold)),
               ),
             ),
@@ -527,7 +521,8 @@ class _EcommercePageState extends State<EcommercePage> {
             Icon(Icons.cloud_done, size: 11, color: Colors.green),
             SizedBox(width: 4),
             Text('Live', style: TextStyle(
-                fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                fontSize: 10, color: Colors.green,
+                fontWeight: FontWeight.bold)),
           ]),
         ),
       Text('${_filtered.length} products',
@@ -539,8 +534,7 @@ class _EcommercePageState extends State<EcommercePage> {
         value: _sortBy,
         underline: const SizedBox(),
         style: const TextStyle(
-            fontSize: 13,
-            color: Colors.black87,
+            fontSize: 13, color: Colors.black87,
             fontWeight: FontWeight.w600),
         items: [
           'Popular', 'Top Rated', 'Price: Low to High',
@@ -580,14 +574,22 @@ class _EcommercePageState extends State<EcommercePage> {
       child: GridView.builder(
         padding: const EdgeInsets.all(12),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, crossAxisSpacing: 12,
-          mainAxisSpacing: 12, childAspectRatio: 0.62,
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          // ✅ Increased height to fit Buy Now button
+          childAspectRatio: 0.55,
         ),
         itemCount: products.length,
         itemBuilder: (_, i) => _ProductCard(
           product: products[i],
           cart: _cart,
           onTap: () => _openProductDetail(products[i]),
+          // ✅ Pass navigator context for Buy Now
+          onBuyNow: () {
+            _cart.addToCart(products[i]);
+            _openCart();
+          },
         ),
       ),
     );
@@ -602,15 +604,20 @@ class _EcommercePageState extends State<EcommercePage> {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PRODUCT CARD
+// PRODUCT CARD — ✅ Added Buy Now button
 // ═══════════════════════════════════════════════════════════════
 class _ProductCard extends StatelessWidget {
-  const _ProductCard(
-      {required this.product, required this.cart, required this.onTap});
+  const _ProductCard({
+    required this.product,
+    required this.cart,
+    required this.onTap,
+    required this.onBuyNow, // ✅ NEW
+  });
 
   final Product product;
   final CartProvider cart;
   final VoidCallback onTap;
+  final VoidCallback onBuyNow; // ✅ NEW
   static const Color _primary = Color(0xFFFF9933);
 
   @override
@@ -629,6 +636,7 @@ class _ProductCard extends StatelessWidget {
           ],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // ── Image ──
           Stack(children: [
             ClipRRect(
               borderRadius:
@@ -646,7 +654,8 @@ class _ProductCard extends StatelessWidget {
               Positioned(
                 top: 8, left: 8,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                       color: Colors.deepOrange,
                       borderRadius: BorderRadius.circular(6)),
@@ -661,7 +670,8 @@ class _ProductCard extends StatelessWidget {
               Positioned(
                 top: 8, right: 8,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
                       color: Colors.green,
                       borderRadius: BorderRadius.circular(6)),
@@ -684,6 +694,8 @@ class _ProductCard extends StatelessWidget {
                 ),
               ),
           ]),
+
+          // ── Details ──
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(9, 8, 9, 9),
@@ -691,11 +703,14 @@ class _ProductCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Name
                   Text(product.name,
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 12),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis),
+
+                  // Rating
                   Row(children: [
                     const Icon(Icons.star, color: Colors.amber, size: 12),
                     const SizedBox(width: 2),
@@ -710,6 +725,8 @@ class _ProductCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis),
                     ),
                   ]),
+
+                  // Price
                   Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                     Text('₹${product.price.toStringAsFixed(0)}',
                         style: const TextStyle(
@@ -729,9 +746,11 @@ class _ProductCard extends StatelessWidget {
                       ),
                     ],
                   ]),
+
+                  // ✅ Add to Cart button
                   SizedBox(
                     width: double.infinity,
-                    height: 32,
+                    height: 30,
                     child: ElevatedButton(
                       onPressed: () {
                         cart.addToCart(product);
@@ -750,6 +769,26 @@ class _ProductCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8)),
                       ),
                       child: const Text('Add to Cart',
+                          style: TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+
+                  // ✅ NEW: Buy Now button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 30,
+                    child: OutlinedButton(
+                      onPressed: onBuyNow,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _primary,
+                        side: const BorderSide(
+                            color: Color(0xFFFF9933), width: 1.5),
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text('Buy Now',
                           style: TextStyle(
                               fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
@@ -783,7 +822,8 @@ class ProductDetailPage extends StatelessWidget {
         backgroundColor: _primary,
         foregroundColor: Colors.white,
         title: Text(product.name,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            style: const TextStyle(
+                fontSize: 16, fontWeight: FontWeight.bold)),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -798,7 +838,8 @@ class ProductDetailPage extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 Expanded(
                     child: Text(product.name,
@@ -895,7 +936,8 @@ class ProductDetailPage extends StatelessWidget {
               const Divider(),
               const SizedBox(height: 14),
               const Text('About this product',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               Text(product.description,
                   style: const TextStyle(
@@ -906,12 +948,14 @@ class ProductDetailPage extends StatelessWidget {
               _infoRow(Icons.local_shipping_outlined,
                   'Free delivery on orders above ₹499'),
               const SizedBox(height: 10),
-              _infoRow(Icons.verified_outlined,
-                  'Genuine temple-sourced products'),
+              _infoRow(
+                  Icons.verified_outlined, 'Genuine temple-sourced products'),
               const SizedBox(height: 10),
-              _infoRow(Icons.autorenew_outlined, 'Easy 7-day return policy'),
+              _infoRow(
+                  Icons.autorenew_outlined, 'Easy 7-day return policy'),
               const SizedBox(height: 10),
-              _infoRow(Icons.support_agent_outlined, '24/7 customer support'),
+              _infoRow(
+                  Icons.support_agent_outlined, '24/7 customer support'),
               const SizedBox(height: 30),
             ]),
           ),
@@ -925,7 +969,8 @@ class ProductDetailPage extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: () {
                   cart.addToCart(product);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
                     content: Text('Added to cart 🛒'),
                     backgroundColor: Color(0xFFFF9933),
                     behavior: SnackBarBehavior.floating,
@@ -937,7 +982,8 @@ class ProductDetailPage extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _primary,
-                  side: const BorderSide(color: Color(0xFFFF9933), width: 1.5),
+                  side: const BorderSide(
+                      color: Color(0xFFFF9933), width: 1.5),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -949,8 +995,10 @@ class ProductDetailPage extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () {
                   cart.addToCart(product);
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => CartPage(cart: cart)));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => CartPage(cart: cart)));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primary,
@@ -975,7 +1023,8 @@ class ProductDetailPage extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
             child: Text(text,
-                style: const TextStyle(fontSize: 13, color: Colors.black87))),
+                style: const TextStyle(
+                    fontSize: 13, color: Colors.black87))),
       ]);
 }
 
@@ -1020,7 +1069,8 @@ class CartPage extends StatelessWidget {
 
   Widget _buildEmptyCart(BuildContext context) => Center(
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.shopping_cart_outlined, size: 100, color: Colors.grey),
+      const Icon(Icons.shopping_cart_outlined,
+          size: 100, color: Colors.grey),
       const SizedBox(height: 20),
       const Text('Your cart is empty',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -1033,7 +1083,8 @@ class CartPage extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: _primary,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12)),
         ),
@@ -1052,7 +1103,8 @@ class CartPage extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
           BoxShadow(
               color: Colors.black.withValues(alpha: 0.08), blurRadius: 12)
@@ -1075,7 +1127,8 @@ class CartPage extends StatelessWidget {
             padding: const EdgeInsets.only(top: 6),
             child: Text(
                 'Add ₹${(499 - subtotal).toStringAsFixed(0)} more for FREE delivery',
-                style: const TextStyle(color: Colors.orange, fontSize: 12)),
+                style: const TextStyle(
+                    color: Colors.orange, fontSize: 12)),
           ),
         const SizedBox(height: 16),
         SizedBox(
@@ -1084,8 +1137,8 @@ class CartPage extends StatelessWidget {
             onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (_) =>
-                        CheckoutPage(cart: cart, grandTotal: grandTotal))),
+                    builder: (_) => CheckoutPage(
+                        cart: cart, grandTotal: grandTotal))),
             icon: const Icon(Icons.payment, color: Colors.white),
             label: Text(
                 'Proceed to Checkout ₹${grandTotal.toStringAsFixed(0)}',
@@ -1111,14 +1164,16 @@ class CartPage extends StatelessWidget {
         Text(label,
             style: TextStyle(
                 fontSize: 14,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                fontWeight:
+                    isBold ? FontWeight.bold : FontWeight.normal,
                 color: Colors.black87)),
         Flexible(
           child: Text(value,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                   fontSize: 14,
-                  fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+                  fontWeight:
+                      isBold ? FontWeight.bold : FontWeight.w600,
                   color: valueColor ?? Colors.black87)),
         ),
       ]);
@@ -1157,7 +1212,9 @@ class _CartItemCard extends StatelessWidget {
         ),
         const SizedBox(width: 14),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             Text(item.product.name,
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 14),
@@ -1175,15 +1232,17 @@ class _CartItemCard extends StatelessWidget {
                 width: 36,
                 height: 28,
                 decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFFF9933)),
+                    border:
+                        Border.all(color: const Color(0xFFFF9933)),
                     borderRadius: BorderRadius.circular(6)),
                 child: Center(
                     child: Text('${item.quantity}',
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14))),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14))),
               ),
-              _qtyBtn(Icons.add,
-                  () => cart.incrementQty(item.product.id)),
+              _qtyBtn(
+                  Icons.add, () => cart.incrementQty(item.product.id)),
               const Spacer(),
               Text(
                   '₹${(item.product.price * item.quantity).toStringAsFixed(0)}',
@@ -1219,7 +1278,7 @@ class _CartItemCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CHECKOUT PAGE — Razorpay + MongoDB
+// CHECKOUT PAGE
 // ═══════════════════════════════════════════════════════════════
 class CheckoutPage extends StatefulWidget {
   const CheckoutPage(
@@ -1287,12 +1346,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _paying = true);
 
-    // Snapshot cart items before payment
     _orderItemsSnapshot = widget.cart.items.map((item) => {
       'productId': item.product.id,
-      'name':      item.product.name,      // ✅ 'name' matches schema
+      'name':      item.product.name,
       'price':     item.product.price,
-      'quantity':  item.quantity,           // ✅ 'quantity' matches schema
+      'quantity':  item.quantity,
     }).toList();
 
     try {
@@ -1306,52 +1364,32 @@ class _CheckoutPageState extends State<CheckoutPage> {
           'contact': _phoneController.text.trim(),
           'email':   _emailController.text.trim(),
         },
-        'notes': {
-          'address': _addressController.text.trim(),
-          'city':    _cityController.text.trim(),
-          'pincode': _pincodeController.text.trim(),
-        },
         'theme': {'color': '#FF9933'},
         'retry': {'enabled': true, 'max_count': 1},
       });
     } catch (e) {
       setState(() => _paying = false);
-      _showSnack('Failed to initialize payment. Please try again.',
-          isError: true);
+      _showSnack('Failed to initialize payment.', isError: true);
     }
   }
 
-  // ✅ FIXED: all field names now match the Order schema in orders.js
   void _onPaymentSuccess(PaymentSuccessResponse response) async {
     final orderData = {
-      // User info
-      'userName':        _nameController.text.trim(),
-      'userPhone':       _phoneController.text.trim(),
-      'userEmail':       _emailController.text.trim(),
-
-      // ✅ Combine address fields into deliveryAddress
+      'userName':          _nameController.text.trim(),
+      'userPhone':         _phoneController.text.trim(),
+      'userEmail':         _emailController.text.trim(),
       'deliveryAddress':
           '${_addressController.text.trim()}, ${_cityController.text.trim()} - ${_pincodeController.text.trim()}',
-
-      // ✅ Items — field names match schema: 'name', 'quantity'
-      'items': _orderItemsSnapshot,
-
-      // ✅ 'totalAmount' matches schema — was 'grandTotal' before (WRONG)
-      'totalAmount': widget.grandTotal,
-
-      // ✅ 'razorpayPaymentId' matches schema — was 'paymentId' before (WRONG)
+      'items':             _orderItemsSnapshot,
+      'totalAmount':       widget.grandTotal,
       'razorpayPaymentId': response.paymentId  ?? '',
       'razorpayOrderId':   response.orderId    ?? '',
       'razorpaySignature': response.signature  ?? '',
-
-      'paymentStatus': 'paid',
-
-      // ✅ 'status' matches schema — was 'orderStatus' before (WRONG)
-      'status': 'confirmed',
+      'paymentStatus':     'paid',
+      'status':            'confirmed',
     };
 
     try {
-      // ✅ Use loadToken() not getToken() — ensures token is loaded from storage
       final token = await ApiService.loadToken();
       final res = await http.post(
         Uri.parse('${ApiService.baseUrl}/orders'),
@@ -1361,7 +1399,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         },
         body: jsonEncode(orderData),
       );
-      debugPrint('✅ Order saved: ${res.statusCode} ${res.body}');
+      debugPrint('✅ Order saved: ${res.statusCode}');
     } catch (e) {
       debugPrint('❌ Order save error: $e');
     }
@@ -1399,19 +1437,23 @@ class _CheckoutPageState extends State<CheckoutPage> {
       context: context,
       barrierDismissible: false,
       builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(28),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
+          child:
+              Column(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.check_circle_rounded,
                 size: 80, color: Colors.green),
             const SizedBox(height: 16),
             const Text('Order Placed! 🙏',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(
                 'Payment ID: ${paymentId.length > 10 ? paymentId.substring(0, 10) : paymentId}...',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(
+                    fontSize: 12, color: Colors.grey.shade600),
                 textAlign: TextAlign.center),
             const SizedBox(height: 12),
             const Text(
@@ -1457,13 +1499,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // ── Order Summary ──
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             _sectionCard(
                 title: '📦 Order Summary',
                 child: Column(children: [
                   ...widget.cart.items.map((item) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 6),
                         child: Row(children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
@@ -1498,12 +1542,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       )),
                   const Divider(),
                   Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment:
+                          MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Grand Total',
                             style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16)),
-                        Text('₹${widget.grandTotal.toStringAsFixed(0)}',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16)),
+                        Text(
+                            '₹${widget.grandTotal.toStringAsFixed(0)}',
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 18,
@@ -1511,8 +1558,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       ]),
                 ])),
             const SizedBox(height: 16),
-
-            // ── Delivery Details ──
             _sectionCard(
                 title: '🏠 Delivery Details',
                 child: Column(children: [
@@ -1526,8 +1571,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       Icons.phone_outlined,
                       keyboardType: TextInputType.phone,
                       validator: (v) {
-                        if (v!.trim().isEmpty) return 'Enter mobile number';
-                        if (v.trim().length < 10) return 'Enter 10-digit number';
+                        if (v!.trim().isEmpty) return 'Enter mobile';
+                        if (v.trim().length < 10) return '10-digit number';
                         return null;
                       }),
                   const SizedBox(height: 12),
@@ -1536,9 +1581,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) {
                         if (v!.trim().isEmpty) return 'Enter email';
-                        if (!v.contains('@') || !v.contains('.')) {
-                          return 'Enter valid email';
-                        }
+                        if (!v.contains('@')) return 'Valid email required';
                         return null;
                       }),
                   const SizedBox(height: 12),
@@ -1546,15 +1589,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       Icons.location_on_outlined,
                       maxLines: 3,
                       validator: (v) => v!.trim().isEmpty
-                          ? 'Enter delivery address'
+                          ? 'Enter address'
                           : null),
                   const SizedBox(height: 12),
                   Row(children: [
                     Expanded(
                         child: _field('City', _cityController,
                             Icons.location_city_outlined,
-                            validator: (v) =>
-                                v!.trim().isEmpty ? 'Required' : null)),
+                            validator: (v) => v!.trim().isEmpty
+                                ? 'Required'
+                                : null)),
                     const SizedBox(width: 12),
                     Expanded(
                         child: _field('Pincode', _pincodeController,
@@ -1562,57 +1606,41 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             keyboardType: TextInputType.number,
                             validator: (v) {
                               if (v!.trim().isEmpty) return 'Required';
-                              if (v.trim().length != 6) return '6-digit pincode';
+                              if (v.trim().length != 6) return '6 digits';
                               return null;
                             })),
                   ]),
                 ])),
             const SizedBox(height: 16),
-
-            // ── Payment Info ──
             _sectionCard(
                 title: '💳 Payment',
-                child: Column(children: [
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF3E0),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: _primary.withValues(alpha: 0.4)),
-                    ),
-                    child: const Row(children: [
-                      Icon(Icons.lock, color: Color(0xFFFF9933), size: 24),
-                      SizedBox(width: 10),
-                      Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            Text('Secure Payment via Razorpay',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13)),
-                            SizedBox(height: 4),
-                            Text('UPI • Cards • Net Banking • Wallets',
-                                style: TextStyle(
-                                    fontSize: 12, color: Colors.grey)),
-                          ])),
-                    ]),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3E0),
+                    borderRadius: BorderRadius.circular(12),
+                    border:
+                        Border.all(color: _primary.withValues(alpha: 0.4)),
                   ),
-                  const SizedBox(height: 12),
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    _payChip(Icons.credit_card, 'Card'),
-                    const SizedBox(width: 8),
-                    _payChip(Icons.phone_android, 'UPI'),
-                    const SizedBox(width: 8),
-                    _payChip(Icons.account_balance, 'Net Banking'),
-                    const SizedBox(width: 8),
-                    _payChip(Icons.account_balance_wallet, 'Wallet'),
+                  child: const Row(children: [
+                    Icon(Icons.lock, color: Color(0xFFFF9933), size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          Text('Secure Payment via Razorpay',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13)),
+                          SizedBox(height: 4),
+                          Text('UPI • Cards • Net Banking • Wallets',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey)),
+                        ])),
                   ]),
-                ])),
+                )),
             const SizedBox(height: 24),
-
-            // ── Pay Button ──
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -1626,8 +1654,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ),
                 child: _paying
                     ? const SizedBox(
-                        width: 24,
-                        height: 24,
+                        width: 24, height: 24,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2.5))
                     : Text(
@@ -1649,7 +1676,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget _sectionCard({required String title, required Widget child}) =>
+  Widget _sectionCard(
+          {required String title, required Widget child}) =>
       Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
@@ -1658,16 +1686,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8)
           ],
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 14),
-          child,
-        ]),
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 14),
+              child,
+            ]),
       );
 
   Widget _field(
@@ -1695,21 +1726,5 @@ class _CheckoutPageState extends State<CheckoutPage> {
           contentPadding: const EdgeInsets.symmetric(
               horizontal: 12, vertical: 12),
         ),
-      );
-
-  Widget _payChip(IconData icon, String label) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 18, color: const Color(0xFFFF9933)),
-          const SizedBox(height: 2),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 9, fontWeight: FontWeight.w600)),
-        ]),
       );
 }

@@ -21,10 +21,8 @@ class _ProfilePageState extends State<ProfilePage>
   List<Map<String, dynamic>> _eventRegistrations = [];
   bool _bookingsLoading = true;
 
-  // ── ORDERS ──────────────────────────────────
   List<Map<String, dynamic>> _orders        = [];
   bool                       _ordersLoading = true;
-  // ────────────────────────────────────────────
 
   static const _primary = Color(0xFFFF9933);
 
@@ -34,7 +32,7 @@ class _ProfilePageState extends State<ProfilePage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this); // was 2, now 3
+    _tabController = TabController(length: 3, vsync: this);
     _loadUserData();
   }
 
@@ -102,7 +100,6 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
-  // ── Load orders ──────────────────────────────
   Future<void> _loadOrders() async {
     setState(() => _ordersLoading = true);
     try {
@@ -116,30 +113,95 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
-  Future<void> _cancelOrder(String orderId) async {
-    try {
-      await ApiService.cancelOrder(orderId);
-      if (!mounted) return;
+  // ✅ FIXED: properly extract _id and handle all error cases
+  Future<void> _cancelOrder(Map<String, dynamic> order) async {
+    // ✅ Extract orderId correctly from the order map
+    final orderId = order['_id']?.toString() ?? '';
+
+    if (orderId.isEmpty) {
+      _showSnack('Cannot cancel: order ID not found', isError: true);
+      return;
+    }
+
+    // ✅ Confirm dialog before cancelling
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Cancel Order'),
+        content: const Text('Are you sure you want to cancel this order?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes, Cancel',
+                style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // ✅ Show loading indicator while cancelling
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Order cancelled successfully'),
+          content: Row(children: [
+            SizedBox(width: 18, height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white)),
+            SizedBox(width: 12),
+            Text('Cancelling order...'),
+          ]),
+          duration: Duration(seconds: 10),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.green,
-        ),
-      );
-      _loadOrders();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to cancel order: $e'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
         ),
       );
     }
+
+    try {
+      final success = await ApiService.cancelOrder(
+        orderId,
+        reason: 'Cancelled by user',
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      if (success) {
+        _showSnack('Order cancelled successfully ✅');
+        // ✅ Update the order status locally immediately
+        setState(() {
+          final idx = _orders.indexWhere((o) => o['_id']?.toString() == orderId);
+          if (idx != -1) {
+            _orders[idx] = {..._orders[idx], 'status': 'cancelled'};
+          }
+        });
+        // ✅ Also reload from server to get fresh data
+        _loadOrders();
+      } else {
+        _showSnack('Failed to cancel order. Please try again.', isError: true);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      _showSnack('Error: ${e.toString()}', isError: true);
+    }
   }
-  // ────────────────────────────────────────────
+
+  void _showSnack(String msg, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: isError ? Colors.red : Colors.green,
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 3),
+    ));
+  }
 
   Future<void> _logout() async {
     ApiService.clearToken();
@@ -1271,7 +1333,7 @@ legal@godsconnect.app
   }
 
   // ════════════════════════════════════════════
-  //  ORDERS TAB  (NEW)
+  //  ORDERS TAB
   // ════════════════════════════════════════════
   Widget _buildOrdersTab(BuildContext context) {
     if (_ordersLoading) {
@@ -1285,7 +1347,7 @@ legal@godsconnect.app
           const Text('No orders yet',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text('Your ecommerce orders will appear here',
+          Text('Your store orders will appear here',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[600], fontSize: 13)),
           const SizedBox(height: 20),
@@ -1314,11 +1376,15 @@ legal@godsconnect.app
   }
 
   Widget _buildOrderCard(Map<String, dynamic> order) {
-    final orderId  = order['_id']?.toString() ?? '';
-    final status   = (order['status'] ?? 'pending') as String;
-    final total    = order['totalAmount'] ?? order['total'] ?? 0;
-    final items    = order['items'] as List? ?? [];
+    // ✅ Safely extract orderId
+    final orderId     = order['_id']?.toString() ?? '';
+    final status      = (order['status'] ?? 'pending') as String;
+    final total       = order['totalAmount'] ?? order['total'] ?? 0;
+    final items       = order['items'] as List? ?? [];
     final statusColor = _orderStatusColor(status);
+
+    // ✅ Only show cancel button for pending or confirmed
+    final canCancel = status == 'pending' || status == 'confirmed';
 
     String fmtDate = '';
     final raw = order['createdAt'];
@@ -1328,8 +1394,6 @@ legal@godsconnect.app
         fmtDate = '${dt.day}/${dt.month}/${dt.year}';
       } catch (_) { fmtDate = raw.toString(); }
     }
-
-    final canCancel = status == 'pending' || status == 'confirmed';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -1343,7 +1407,7 @@ legal@godsconnect.app
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Header row
+          // Header
           Row(children: [
             Container(
               padding: const EdgeInsets.all(10),
@@ -1355,13 +1419,15 @@ legal@godsconnect.app
             const SizedBox(width: 12),
             Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Order #${orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(
+                'Order #${orderId.length > 8 ? orderId.substring(orderId.length - 8).toUpperCase() : orderId.toUpperCase()}',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
               if (fmtDate.isNotEmpty)
                 Text(fmtDate,
                     style: TextStyle(fontSize: 12, color: Colors.grey[600])),
             ])),
+            // ✅ Status badge
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
@@ -1373,7 +1439,7 @@ legal@godsconnect.app
             ),
           ]),
 
-          // Items list
+          // Items
           if (items.isNotEmpty) ...[
             const SizedBox(height: 10),
             const Divider(height: 1),
@@ -1397,42 +1463,23 @@ legal@godsconnect.app
             }),
           ],
 
-          // Footer: total + cancel button
           const SizedBox(height: 10),
           const Divider(height: 1),
           const SizedBox(height: 10),
+
+          // Footer
           Row(children: [
             Text('Total: ₹$total',
                 style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16, color: _primary)),
             const Spacer(),
+            // ✅ Cancel button only when cancellable
             if (canCancel)
               SizedBox(
                 height: 34,
                 child: ElevatedButton(
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text('Cancel Order'),
-                        content: const Text(
-                            'Are you sure you want to cancel this order?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('No'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Yes, Cancel',
-                                style: TextStyle(color: Colors.red)),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirm == true) _cancelOrder(orderId);
-                  },
+                  onPressed: () => _cancelOrder(order),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
@@ -1441,8 +1488,39 @@ legal@godsconnect.app
                         borderRadius: BorderRadius.circular(8)),
                   ),
                   child: const Text('Cancel Order',
-                      style: TextStyle(fontSize: 12)),
+                      style: TextStyle(fontSize: 12,
+                          fontWeight: FontWeight.bold)),
                 ),
+              ),
+            // ✅ Show cancelled badge when already cancelled
+            if (status == 'cancelled')
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                ),
+                child: const Text('Cancelled',
+                    style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
+              ),
+            // ✅ Show delivered badge
+            if (status == 'delivered')
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                ),
+                child: const Text('Delivered ✓',
+                    style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
               ),
           ]),
         ]),
@@ -1456,13 +1534,10 @@ legal@godsconnect.app
       case 'shipped':    return Colors.blue;
       case 'delivered':  return Colors.teal;
       case 'cancelled':  return Colors.red;
-      default:           return Colors.orange; // pending
+      default:           return Colors.orange;
     }
   }
 
-  // ════════════════════════════════════════════
-  //  HELPERS
-  // ════════════════════════════════════════════
   String _fmtRaw(dynamic raw) {
     if (raw == null) return '';
     try {
@@ -1513,7 +1588,6 @@ legal@godsconnect.app
   );
 }
 
-// ── Helper class for detail rows ─────────────────────────────────────────────
 class _DetailRow {
   final IconData icon;
   final String   label;
