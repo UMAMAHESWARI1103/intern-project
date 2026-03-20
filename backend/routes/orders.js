@@ -1,137 +1,169 @@
 // backend/routes/orders.js
-// Handles ecommerce orders from GodsConnect Store
-const express  = require('express');
-const router   = express.Router();
+const express = require('express');
+const router = express.Router();
 const mongoose = require('mongoose');
-const jwt      = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// OPTIONAL AUTH
-// ─────────────────────────────────────────────────────────────────────────────
-function optionalAuth(req, res, next) {
+// ─── AUTH MIDDLEWARE ──────────────────────────────────────────────────────────
+const auth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ success: false, message: 'No token' });
   try {
-    const header = req.headers['authorization'] || '';
-    const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
-    if (token) req.user = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-  } catch (_) {}
-  next();
-}
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ success: false, message: 'Invalid token' });
+  }
+};
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ORDER SCHEMA
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── ORDER SCHEMA ─────────────────────────────────────────────────────────────
 const orderSchema = new mongoose.Schema({
-  userId:            { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  userName:          { type: String, required: true },
-  userEmail:         { type: String, required: true },
-  userPhone:         { type: String, default: '' },
-  deliveryAddress:   { type: String, default: '' },
-  city:              { type: String, default: '' },
-  pincode:           { type: String, default: '' },
-  items:             { type: Array,  default: [] },
-  totalAmount:       { type: Number, default: 0 },
-  grandTotal:        { type: Number, default: 0 },
+  userId:          { type: String, required: true },
+  userName:        { type: String, default: '' },
+  userEmail:       { type: String, default: '' },
+  userPhone:       { type: String, default: '' },
+  deliveryAddress: { type: String, default: '' },
+  items: [{
+    productId: { type: String },
+    name:      { type: String },
+    price:     { type: Number },
+    quantity:  { type: Number },
+    imageUrl:  { type: String, default: '' },
+  }],
+  totalAmount:       { type: Number, required: true },
   razorpayPaymentId: { type: String, default: '' },
   razorpayOrderId:   { type: String, default: '' },
   razorpaySignature: { type: String, default: '' },
-  paymentStatus:     { type: String, default: 'paid',      enum: ['pending','paid','failed'] },
-  status:            { type: String, default: 'confirmed', enum: ['pending','confirmed','shipped','delivered','cancelled'] },
-  trackingId:        { type: String, default: '' },
-  bookingType:       { type: String, default: 'ecommerce' },
+  paymentStatus: {
+    type: String,
+    enum: ['paid', 'pending', 'failed'],
+    default: 'pending',
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
+    default: 'pending',
+  },
+  cancelReason: { type: String, default: '' },
 }, { timestamps: true });
 
-const Order = mongoose.models.Order || mongoose.model('Order', orderSchema);
+const Order = mongoose.models.Order || mongoose.model('Order', orderSchema, 'orders');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/orders  — save order after Razorpay payment success
-// ─────────────────────────────────────────────────────────────────────────────
-router.post('/', optionalAuth, async (req, res) => {
+// ─── CREATE ORDER ─────────────────────────────────────────────────────────────
+router.post('/', auth, async (req, res) => {
   try {
-    const userId    = req.user?._id || req.user?.id || null;
-    const userEmail = req.user?.email || req.body.userEmail;
-
-    if (!userEmail) {
-      return res.status(400).json({ success: false, message: 'userEmail is required' });
-    }
-
     const order = new Order({
       ...req.body,
-      userId,
-      userEmail,
-      totalAmount: req.body.grandTotal || req.body.totalAmount || 0,
-      grandTotal:  req.body.grandTotal || req.body.totalAmount || 0,
+      userId: req.user.id || req.user._id,
     });
-
     await order.save();
-    console.log(`✅ Order saved: ${order._id} | email: ${userEmail} | total: ${order.totalAmount}`);
-    res.status(201).json({ success: true, message: 'Order placed successfully!', order });
+    res.json({ success: true, order });
   } catch (err) {
-    console.error('❌ Order save error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/orders/my-orders  — user's own orders
-// ─────────────────────────────────────────────────────────────────────────────
-router.get('/my-orders', optionalAuth, async (req, res) => {
+// ─── GET USER'S OWN ORDERS ────────────────────────────────────────────────────
+router.get('/my-orders', auth, async (req, res) => {
   try {
-    const userId    = req.user?._id || req.user?.id || null;
-    const userEmail = req.user?.email || req.query.email || null;
-
-    if (!userId && !userEmail) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
-    }
-
-    let query;
-    if (userId && userEmail) {
-      query = { $or: [{ userId }, { userEmail }] };
-    } else if (userId) {
-      query = { userId };
-    } else {
-      query = { userEmail };
-    }
-
-    const orders = await Order.find(query).sort({ createdAt: -1 }).lean();
+    const userId = req.user.id || req.user._id;
+    const orders = await Order.find({ userId }).sort({ createdAt: -1 });
     res.json({ success: true, orders });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/orders  — admin: all orders with optional filters
-// ─────────────────────────────────────────────────────────────────────────────
-router.get('/', optionalAuth, async (req, res) => {
+// ─── GET ALL ORDERS (ADMIN) — supports ?status= and ?search= ─────────────────
+router.get('/admin/all', auth, async (req, res) => {
   try {
     const { status, search } = req.query;
+
+    // Build filter
     const filter = {};
-    if (status && status !== 'all') filter.status = status;
-    if (search) {
+
+    // Filter by status (if provided and not 'all')
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+
+    // Filter by search — matches userName, userEmail, or _id
+    if (search && search.trim() !== '') {
+      const s = search.trim();
       filter.$or = [
-        { userName:          { $regex: search, $options: 'i' } },
-        { userEmail:         { $regex: search, $options: 'i' } },
-        { razorpayPaymentId: { $regex: search, $options: 'i' } },
-        { trackingId:        { $regex: search, $options: 'i' } },
+        { userName:  { $regex: s, $options: 'i' } },
+        { userEmail: { $regex: s, $options: 'i' } },
+        { userPhone: { $regex: s, $options: 'i' } },
+        // Match last 8 chars of order ID
+        ...(s.length >= 4
+          ? [{ $expr: { $regexMatch: { input: { $toString: '$_id' }, regex: s, options: 'i' } } }]
+          : []),
       ];
     }
-    const orders = await Order.find(filter).sort({ createdAt: -1 }).lean();
+
+    const orders = await Order.find(filter).sort({ createdAt: -1 });
     res.json({ success: true, orders });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH /api/orders/:id/status  — admin: update order status
-// ─────────────────────────────────────────────────────────────────────────────
-router.patch('/:id/status', async (req, res) => {
+// ─── GET SINGLE ORDER ─────────────────────────────────────────────────────────
+router.get('/:id', auth, async (req, res) => {
   try {
-    const { status, trackingId } = req.body;
-    const update = { status };
-    if (trackingId) update.trackingId = trackingId;
-    const order = await Order.findByIdAndUpdate(req.params.id, update, { new: true });
+    const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    res.json({ success: true, order });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── USER CANCEL ORDER ────────────────────────────────────────────────────────
+router.patch('/:id/cancel', auth, async (req, res) => {
+  try {
+    const userId = req.user.id || req.user._id;
+    const order  = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    if (order.userId.toString() !== userId.toString()) {
+      return res.status(403).json({ success: false, message: 'Not your order' });
+    }
+    if (['shipped', 'delivered', 'cancelled'].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot cancel order with status: ${order.status}`,
+      });
+    }
+
+    order.status       = 'cancelled';
+    order.cancelReason = req.body.reason || 'Cancelled by user';
+    await order.save();
+
+    res.json({ success: true, order });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── ADMIN UPDATE ORDER STATUS ────────────────────────────────────────────────
+router.patch('/:id/status', auth, async (req, res) => {
+  try {
+    const { status, cancelReason, trackingId } = req.body;
+    const update = { status };
+    if (cancelReason) update.cancelReason = cancelReason;
+    if (trackingId)   update.trackingId   = trackingId;
+
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      update,
+      { new: true },
+    );
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
     res.json({ success: true, order });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

@@ -19,7 +19,7 @@ class Product {
   final int reviews;
   final bool isBestseller;
   final List<String> tags;
-  final bool isFromDb; // true = loaded from MongoDB
+  final bool isFromDb;
 
   const Product({
     required this.id,
@@ -36,7 +36,6 @@ class Product {
     this.isFromDb = false,
   });
 
-  /// Create a Product from a MongoDB document
   factory Product.fromJson(Map<String, dynamic> json) => Product(
         id:            json['_id'] as String? ?? json['id'] as String? ?? '',
         name:          json['name'] as String? ?? '',
@@ -79,7 +78,7 @@ const List<Map<String, dynamic>> _categoryMeta = [
 ];
 
 // ═══════════════════════════════════════════════════════════════
-// HARDCODED FALLBACK PRODUCTS  (shown when DB returns empty)
+// HARDCODED FALLBACK PRODUCTS
 // ═══════════════════════════════════════════════════════════════
 String _ph(String bg, String text) =>
     'https://placehold.co/300x300/$bg/ffffff/png?text=${Uri.encodeComponent(text)}';
@@ -274,7 +273,7 @@ class ProductImage extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ECOMMERCE PAGE  — loads from DB, falls back to hardcoded
+// ECOMMERCE PAGE
 // ═══════════════════════════════════════════════════════════════
 class EcommercePage extends StatefulWidget {
   const EcommercePage({super.key});
@@ -292,7 +291,7 @@ class _EcommercePageState extends State<EcommercePage> {
   String _sortBy           = 'Popular';
   bool _isLoadingProducts  = true;
   List<Product> _allProducts = [];
-  bool _isDbSource         = false; // true when products came from DB
+  bool _isDbSource         = false;
 
   static const Color _primary = Color(0xFFFF9933);
 
@@ -303,34 +302,33 @@ class _EcommercePageState extends State<EcommercePage> {
   }
 
   Future<void> _loadProducts() async {
-  setState(() => _isLoadingProducts = true);
-  try {
-    final raw = await ApiService.getProducts();
-    final dbProducts = raw
-        .where((p) => p['isActive'] as bool? ?? true)
-        .map((p) => Product.fromJson(p))
-        .toList();
+    setState(() => _isLoadingProducts = true);
+    try {
+      final raw = await ApiService.getProducts();
+      final dbProducts = raw
+          .where((p) => p['isActive'] as bool? ?? true)
+          .map((p) => Product.fromJson(p))
+          .toList();
 
-    // ✅ MERGE: DB products first (with green badge), then hardcoded
-    final merged = [...dbProducts, ..._hardcodedProducts];
+      final merged = [...dbProducts, ..._hardcodedProducts];
 
-    if (mounted) {
-      setState(() {
-      _allProducts       = merged;
-      _isDbSource        = dbProducts.isNotEmpty;
-      _isLoadingProducts = false;
-    });
-    }
-  } catch (_) {
-    if (mounted) {
-      setState(() {
-      _allProducts       = _hardcodedProducts;
-      _isDbSource        = false;
-      _isLoadingProducts = false;
-    });
+      if (mounted) {
+        setState(() {
+          _allProducts       = merged;
+          _isDbSource        = dbProducts.isNotEmpty;
+          _isLoadingProducts = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _allProducts       = _hardcodedProducts;
+          _isDbSource        = false;
+          _isLoadingProducts = false;
+        });
+      }
     }
   }
-}
 
   List<Product> get _filtered {
     var list = _allProducts.where((p) {
@@ -478,8 +476,8 @@ class _EcommercePageState extends State<EcommercePage> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       itemCount: _categoryMeta.length,
       itemBuilder: (_, i) {
-        final cat    = _categoryMeta[i]['label'] as String;
-        final icon   = _categoryMeta[i]['icon'] as IconData;
+        final cat      = _categoryMeta[i]['label'] as String;
+        final icon     = _categoryMeta[i]['icon'] as IconData;
         final selected = _selectedCategory == cat;
         return GestureDetector(
           onTap: () => setState(() => _selectedCategory = cat),
@@ -516,7 +514,6 @@ class _EcommercePageState extends State<EcommercePage> {
     color: Colors.white,
     padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
     child: Row(children: [
-      // DB badge
       if (_isDbSource)
         Container(
           margin: const EdgeInsets.only(right: 8),
@@ -675,7 +672,6 @@ class _ProductCard extends StatelessWidget {
                           fontWeight: FontWeight.bold)),
                 ),
               ),
-            // DB badge on card
             if (product.isFromDb)
               Positioned(
                 bottom: 6, right: 6,
@@ -791,8 +787,7 @@ class ProductDetailPage extends StatelessWidget {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SizedBox(
             width: double.infinity,
             height: 260,
@@ -803,137 +798,122 @@ class ProductDetailPage extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Expanded(
-                        child: Text(product.name,
-                            style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold))),
-                    if (product.isBestseller)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                            color: Colors.deepOrange,
-                            borderRadius: BorderRadius.circular(10)),
-                        child: const Text('BESTSELLER',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                  ]),
-                  const SizedBox(height: 10),
-                  Row(children: [
-                    ...List.generate(
-                        5,
-                        (i) => Icon(
-                            i < product.rating.floor()
-                                ? Icons.star
-                                : Icons.star_border,
-                            color: Colors.amber,
-                            size: 20)),
-                    const SizedBox(width: 8),
-                    Text(
-                        '${product.rating} (${product.reviews} reviews)',
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(
+                    child: Text(product.name,
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold))),
+                if (product.isBestseller)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                        color: Colors.deepOrange,
+                        borderRadius: BorderRadius.circular(10)),
+                    child: const Text('BESTSELLER',
                         style: TextStyle(
-                            color: Colors.grey.shade600, fontSize: 14)),
-                  ]),
-                  const SizedBox(height: 14),
-                  Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('₹${product.price.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: _primary)),
-                        if (product.discountPercent > 0) ...[
-                          const SizedBox(width: 12),
-                          Text(
-                              '₹${product.originalPrice.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey.shade400,
-                                  decoration:
-                                      TextDecoration.lineThrough)),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                                color: Colors.green.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border:
-                                    Border.all(color: Colors.green)),
-                            child: Text(
-                                '${product.discountPercent}% OFF',
-                                style: const TextStyle(
-                                    color: Colors.green,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ]),
-                  const SizedBox(height: 6),
-                  const Text(
-                      'Inclusive of all taxes. Free delivery on orders above ₹499.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  const SizedBox(height: 20),
-                  if (product.tags.isNotEmpty) ...[
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: product.tags
-                          .map((tag) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF3E0),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: _primary.withValues(alpha: 0.4)),
-                                ),
-                                child: Text(tag,
-                                    style: const TextStyle(
-                                        fontSize: 12,
-                                        color: _primary,
-                                        fontWeight: FontWeight.w600)),
-                              ))
-                          .toList(),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                  const Divider(),
-                  const SizedBox(height: 14),
-                  const Text('About this product',
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                  ),
+              ]),
+              const SizedBox(height: 10),
+              Row(children: [
+                ...List.generate(
+                    5,
+                    (i) => Icon(
+                        i < product.rating.floor()
+                            ? Icons.star
+                            : Icons.star_border,
+                        color: Colors.amber,
+                        size: 20)),
+                const SizedBox(width: 8),
+                Text('${product.rating} (${product.reviews} reviews)',
+                    style: TextStyle(
+                        color: Colors.grey.shade600, fontSize: 14)),
+              ]),
+              const SizedBox(height: 14),
+              Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text('₹${product.price.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: _primary)),
+                if (product.discountPercent > 0) ...[
+                  const SizedBox(width: 12),
+                  Text('₹${product.originalPrice.toStringAsFixed(0)}',
                       style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  Text(product.description,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          height: 1.6,
-                          color: Colors.black87)),
-                  const SizedBox(height: 20),
-                  const Divider(),
-                  const SizedBox(height: 14),
-                  _infoRow(Icons.local_shipping_outlined,
-                      'Free delivery on orders above ₹499'),
-                  const SizedBox(height: 10),
-                  _infoRow(Icons.verified_outlined,
-                      'Genuine temple-sourced products'),
-                  const SizedBox(height: 10),
-                  _infoRow(Icons.autorenew_outlined,
-                      'Easy 7-day return policy'),
-                  const SizedBox(height: 10),
-                  _infoRow(
-                      Icons.support_agent_outlined, '24/7 customer support'),
-                  const SizedBox(height: 30),
-                ]),
+                          fontSize: 16,
+                          color: Colors.grey.shade400,
+                          decoration: TextDecoration.lineThrough)),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green)),
+                    child: Text('${product.discountPercent}% OFF',
+                        style: const TextStyle(
+                            color: Colors.green,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ]),
+              const SizedBox(height: 6),
+              const Text(
+                  'Inclusive of all taxes. Free delivery on orders above ₹499.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 20),
+              if (product.tags.isNotEmpty) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: product.tags
+                      .map((tag) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF3E0),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: _primary.withValues(alpha: 0.4)),
+                            ),
+                            child: Text(tag,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: _primary,
+                                    fontWeight: FontWeight.w600)),
+                          ))
+                      .toList(),
+                ),
+                const SizedBox(height: 20),
+              ],
+              const Divider(),
+              const SizedBox(height: 14),
+              const Text('About this product',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Text(product.description,
+                  style: const TextStyle(
+                      fontSize: 14, height: 1.6, color: Colors.black87)),
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 14),
+              _infoRow(Icons.local_shipping_outlined,
+                  'Free delivery on orders above ₹499'),
+              const SizedBox(height: 10),
+              _infoRow(Icons.verified_outlined,
+                  'Genuine temple-sourced products'),
+              const SizedBox(height: 10),
+              _infoRow(Icons.autorenew_outlined, 'Easy 7-day return policy'),
+              const SizedBox(height: 10),
+              _infoRow(Icons.support_agent_outlined, '24/7 customer support'),
+              const SizedBox(height: 30),
+            ]),
           ),
         ]),
       ),
@@ -957,8 +937,7 @@ class ProductDetailPage extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _primary,
-                  side:
-                      const BorderSide(color: Color(0xFFFF9933), width: 1.5),
+                  side: const BorderSide(color: Color(0xFFFF9933), width: 1.5),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -970,10 +949,8 @@ class ProductDetailPage extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () {
                   cart.addToCart(product);
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => CartPage(cart: cart)));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => CartPage(cart: cart)));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primary,
@@ -998,8 +975,7 @@ class ProductDetailPage extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
             child: Text(text,
-                style: const TextStyle(
-                    fontSize: 13, color: Colors.black87))),
+                style: const TextStyle(fontSize: 13, color: Colors.black87))),
       ]);
 }
 
@@ -1057,8 +1033,7 @@ class CartPage extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: _primary,
           foregroundColor: Colors.white,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12)),
         ),
@@ -1077,8 +1052,7 @@ class CartPage extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
           BoxShadow(
               color: Colors.black.withValues(alpha: 0.08), blurRadius: 12)
@@ -1088,11 +1062,8 @@ class CartPage extends StatelessWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         _summaryRow('Subtotal', '₹${subtotal.toStringAsFixed(0)}'),
         const SizedBox(height: 6),
-        _summaryRow(
-            'Delivery',
-            delivery == 0
-                ? 'FREE'
-                : '₹${delivery.toStringAsFixed(0)}',
+        _summaryRow('Delivery',
+            delivery == 0 ? 'FREE' : '₹${delivery.toStringAsFixed(0)}',
             valueColor: delivery == 0 ? Colors.green : null),
         const SizedBox(height: 6),
         _summaryRow('GST (5%)', '₹${gst.toStringAsFixed(0)}'),
@@ -1104,8 +1075,7 @@ class CartPage extends StatelessWidget {
             padding: const EdgeInsets.only(top: 6),
             child: Text(
                 'Add ₹${(499 - subtotal).toStringAsFixed(0)} more for FREE delivery',
-                style:
-                    const TextStyle(color: Colors.orange, fontSize: 12)),
+                style: const TextStyle(color: Colors.orange, fontSize: 12)),
           ),
         const SizedBox(height: 16),
         SizedBox(
@@ -1136,21 +1106,19 @@ class CartPage extends StatelessWidget {
   }
 
   Widget _summaryRow(String label, String value,
-      {bool isBold = false, Color? valueColor}) =>
+          {bool isBold = false, Color? valueColor}) =>
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Text(label,
             style: TextStyle(
                 fontSize: 14,
-                fontWeight:
-                    isBold ? FontWeight.bold : FontWeight.normal,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
                 color: Colors.black87)),
         Flexible(
           child: Text(value,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                   fontSize: 14,
-                  fontWeight:
-                      isBold ? FontWeight.bold : FontWeight.w600,
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
                   color: valueColor ?? Colors.black87)),
         ),
       ]);
@@ -1189,46 +1157,42 @@ class _CartItemCard extends StatelessWidget {
         ),
         const SizedBox(width: 14),
         Expanded(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.product.name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 14),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 4),
-                Text('₹${item.product.price.toStringAsFixed(0)} each',
-                    style: TextStyle(
-                        color: Colors.grey.shade600, fontSize: 12)),
-                const SizedBox(height: 8),
-                Row(children: [
-                  _qtyBtn(Icons.remove,
-                      () => cart.decrementQty(item.product.id)),
-                  Container(
-                    width: 36,
-                    height: 28,
-                    decoration: BoxDecoration(
-                        border: Border.all(
-                            color: const Color(0xFFFF9933)),
-                        borderRadius: BorderRadius.circular(6)),
-                    child: Center(
-                        child: Text('${item.quantity}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14))),
-                  ),
-                  _qtyBtn(Icons.add,
-                      () => cart.incrementQty(item.product.id)),
-                  const Spacer(),
-                  Text(
-                      '₹${(item.product.price * item.quantity).toStringAsFixed(0)}',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: Color(0xFFFF9933))),
-                ]),
-              ]),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(item.product.name,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 14),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 4),
+            Text('₹${item.product.price.toStringAsFixed(0)} each',
+                style: TextStyle(
+                    color: Colors.grey.shade600, fontSize: 12)),
+            const SizedBox(height: 8),
+            Row(children: [
+              _qtyBtn(Icons.remove,
+                  () => cart.decrementQty(item.product.id)),
+              Container(
+                width: 36,
+                height: 28,
+                decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFFF9933)),
+                    borderRadius: BorderRadius.circular(6)),
+                child: Center(
+                    child: Text('${item.quantity}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14))),
+              ),
+              _qtyBtn(Icons.add,
+                  () => cart.incrementQty(item.product.id)),
+              const Spacer(),
+              Text(
+                  '₹${(item.product.price * item.quantity).toStringAsFixed(0)}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Color(0xFFFF9933))),
+            ]),
+          ]),
         ),
         const SizedBox(width: 8),
         GestureDetector(
@@ -1288,7 +1252,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     super.initState();
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _onPaymentError);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR,   _onPaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
     _loadUserData();
   }
@@ -1323,13 +1287,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _paying = true);
 
+    // Snapshot cart items before payment
     _orderItemsSnapshot = widget.cart.items.map((item) => {
-      'productId':   item.product.id,
-      'productName': item.product.name,
-      'category':    item.product.category,
-      'price':       item.product.price,
-      'quantity':    item.quantity,
-      'subtotal':    item.product.price * item.quantity,
+      'productId': item.product.id,
+      'name':      item.product.name,      // ✅ 'name' matches schema
+      'price':     item.product.price,
+      'quantity':  item.quantity,           // ✅ 'quantity' matches schema
     }).toList();
 
     try {
@@ -1358,37 +1321,49 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
+  // ✅ FIXED: all field names now match the Order schema in orders.js
   void _onPaymentSuccess(PaymentSuccessResponse response) async {
     final orderData = {
+      // User info
       'userName':        _nameController.text.trim(),
       'userPhone':       _phoneController.text.trim(),
       'userEmail':       _emailController.text.trim(),
-      'deliveryAddress': _addressController.text.trim(),
-      'city':            _cityController.text.trim(),
-      'pincode':         _pincodeController.text.trim(),
-      'items':           _orderItemsSnapshot,
-      'grandTotal':      widget.grandTotal,
-      'paymentId':       response.paymentId ?? '',
-      'razorpayOrderId': response.orderId ?? '',
-      'signature':       response.signature ?? '',
-      'paymentStatus':   'paid',
-      'orderStatus':     'confirmed',
-      'bookingType':     'ecommerce',
-      'createdAt':       DateTime.now().toIso8601String(),
+
+      // ✅ Combine address fields into deliveryAddress
+      'deliveryAddress':
+          '${_addressController.text.trim()}, ${_cityController.text.trim()} - ${_pincodeController.text.trim()}',
+
+      // ✅ Items — field names match schema: 'name', 'quantity'
+      'items': _orderItemsSnapshot,
+
+      // ✅ 'totalAmount' matches schema — was 'grandTotal' before (WRONG)
+      'totalAmount': widget.grandTotal,
+
+      // ✅ 'razorpayPaymentId' matches schema — was 'paymentId' before (WRONG)
+      'razorpayPaymentId': response.paymentId  ?? '',
+      'razorpayOrderId':   response.orderId    ?? '',
+      'razorpaySignature': response.signature  ?? '',
+
+      'paymentStatus': 'paid',
+
+      // ✅ 'status' matches schema — was 'orderStatus' before (WRONG)
+      'status': 'confirmed',
     };
 
     try {
-      final token = ApiService.getToken();
-      await http.post(
+      // ✅ Use loadToken() not getToken() — ensures token is loaded from storage
+      final token = await ApiService.loadToken();
+      final res = await http.post(
         Uri.parse('${ApiService.baseUrl}/orders'),
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type':  'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
         },
         body: jsonEncode(orderData),
       );
+      debugPrint('✅ Order saved: ${res.statusCode} ${res.body}');
     } catch (e) {
-      debugPrint('Order save error (non-critical): $e');
+      debugPrint('❌ Order save error: $e');
     }
 
     widget.cart.clear();
@@ -1436,8 +1411,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             const SizedBox(height: 8),
             Text(
                 'Payment ID: ${paymentId.length > 10 ? paymentId.substring(0, 10) : paymentId}...',
-                style:
-                    TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 textAlign: TextAlign.center),
             const SizedBox(height: 12),
             const Text(
@@ -1483,15 +1457,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             // ── Order Summary ──
             _sectionCard(
                 title: '📦 Order Summary',
                 child: Column(children: [
                   ...widget.cart.items.map((item) => Padding(
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 6),
+                        padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Row(children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
@@ -1530,10 +1502,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       children: [
                         const Text('Grand Total',
                             style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16)),
-                        Text(
-                            '₹${widget.grandTotal.toStringAsFixed(0)}',
+                                fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text('₹${widget.grandTotal.toStringAsFixed(0)}',
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 18,
@@ -1583,9 +1553,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     Expanded(
                         child: _field('City', _cityController,
                             Icons.location_city_outlined,
-                            validator: (v) => v!.trim().isEmpty
-                                ? 'Required'
-                                : null)),
+                            validator: (v) =>
+                                v!.trim().isEmpty ? 'Required' : null)),
                     const SizedBox(width: 12),
                     Expanded(
                         child: _field('Pincode', _pincodeController,
@@ -1593,9 +1562,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             keyboardType: TextInputType.number,
                             validator: (v) {
                               if (v!.trim().isEmpty) return 'Required';
-                              if (v.trim().length != 6) {
-                                return '6-digit pincode';
-                              }
+                              if (v.trim().length != 6) return '6-digit pincode';
                               return null;
                             })),
                   ]),
@@ -1633,18 +1600,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     ]),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _payChip(Icons.credit_card, 'Card'),
-                        const SizedBox(width: 8),
-                        _payChip(Icons.phone_android, 'UPI'),
-                        const SizedBox(width: 8),
-                        _payChip(Icons.account_balance, 'Net Banking'),
-                        const SizedBox(width: 8),
-                        _payChip(
-                            Icons.account_balance_wallet, 'Wallet'),
-                      ]),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    _payChip(Icons.credit_card, 'Card'),
+                    const SizedBox(width: 8),
+                    _payChip(Icons.phone_android, 'UPI'),
+                    const SizedBox(width: 8),
+                    _payChip(Icons.account_balance, 'Net Banking'),
+                    const SizedBox(width: 8),
+                    _payChip(Icons.account_balance_wallet, 'Wallet'),
+                  ]),
                 ])),
             const SizedBox(height: 24),
 
@@ -1685,8 +1649,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget _sectionCard(
-      {required String title, required Widget child}) =>
+  Widget _sectionCard({required String title, required Widget child}) =>
       Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
@@ -1698,15 +1661,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)
           ],
         ),
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 14),
-              child,
-            ]),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 14),
+          child,
+        ]),
       );
 
   Widget _field(
@@ -1737,8 +1698,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       );
 
   Widget _payChip(IconData icon, String label) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
           color: Colors.grey.shade100,
           borderRadius: BorderRadius.circular(8),

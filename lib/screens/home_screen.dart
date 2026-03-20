@@ -63,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const List<Map<String, dynamic>> _menuItems = [
     {'icon': Icons.business,      'label': 'Facilities'},
     {'icon': Icons.rule,          'label': 'Do/Don\'t'},
-    {'icon': Icons.shopping_bag,  'label': 'E-commerce'},
+    {'icon': Icons.shopping_bag,  'label': 'Store'},
     {'icon': Icons.music_note,    'label': 'Bakthi Padal'},
     {'icon': Icons.settings,      'label': 'Settings'},
   ];
@@ -338,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 } else if (label == 'Do/Don\'t') {
                   Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const DosAndDontsPage()));
-                } else if (label == 'E-commerce') {
+                } else if (label == 'Store') {
                   Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const EcommercePage()));
                 } else if (label == 'Bakthi Padal') {

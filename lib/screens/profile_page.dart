@@ -21,6 +21,11 @@ class _ProfilePageState extends State<ProfilePage>
   List<Map<String, dynamic>> _eventRegistrations = [];
   bool _bookingsLoading = true;
 
+  // ── ORDERS ──────────────────────────────────
+  List<Map<String, dynamic>> _orders        = [];
+  bool                       _ordersLoading = true;
+  // ────────────────────────────────────────────
+
   static const _primary = Color(0xFFFF9933);
 
   static final RouteObserver<ModalRoute<void>> routeObserver =
@@ -29,7 +34,7 @@ class _ProfilePageState extends State<ProfilePage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this); // was 2, now 3
     _loadUserData();
   }
 
@@ -43,7 +48,10 @@ class _ProfilePageState extends State<ProfilePage>
   @override
   void didPopNext() {
     super.didPopNext();
-    if (_userData != null) _loadBookings();
+    if (_userData != null) {
+      _loadBookings();
+      _loadOrders();
+    }
   }
 
   @override
@@ -57,6 +65,7 @@ class _ProfilePageState extends State<ProfilePage>
     if (widget.userData != null) {
       setState(() { _userData = widget.userData; _isLoading = false; });
       _loadBookings();
+      _loadOrders();
       return;
     }
     final token = await ApiService.loadToken();
@@ -67,7 +76,10 @@ class _ProfilePageState extends State<ProfilePage>
     try {
       final data = await ApiService.getUserProfile();
       setState(() { _userData = data; _isLoading = false; });
-      if (data != null) _loadBookings();
+      if (data != null) {
+        _loadBookings();
+        _loadOrders();
+      }
     } catch (_) {
       setState(() { _userData = null; _isLoading = false; });
     }
@@ -89,6 +101,45 @@ class _ProfilePageState extends State<ProfilePage>
       setState(() => _bookingsLoading = false);
     }
   }
+
+  // ── Load orders ──────────────────────────────
+  Future<void> _loadOrders() async {
+    setState(() => _ordersLoading = true);
+    try {
+      final result = await ApiService.getUserOrders();
+      setState(() {
+        _orders        = result;
+        _ordersLoading = false;
+      });
+    } catch (_) {
+      setState(() => _ordersLoading = false);
+    }
+  }
+
+  Future<void> _cancelOrder(String orderId) async {
+    try {
+      await ApiService.cancelOrder(orderId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order cancelled successfully'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.green,
+        ),
+      );
+      _loadOrders();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to cancel order: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  // ────────────────────────────────────────────
 
   Future<void> _logout() async {
     ApiService.clearToken();
@@ -116,7 +167,6 @@ class _ProfilePageState extends State<ProfilePage>
 
     List<_DetailRow> rows = [];
 
-    // ✅ FIX: added curly braces to all if statements
     if ((data['userName'] ?? '').toString().isNotEmpty) {
       rows.add(_DetailRow(Icons.person, 'Name', data['userName'].toString()));
     }
@@ -126,10 +176,8 @@ class _ProfilePageState extends State<ProfilePage>
     if ((data['userPhone'] ?? '').toString().isNotEmpty) {
       rows.add(_DetailRow(Icons.phone, 'Phone', data['userPhone'].toString()));
     }
-    // ✅ FIX: added const
     rows.add(const _DetailRow(Icons.circle, '', ''));
 
-    // Type-specific
     switch (type) {
       case 'darshan':
         rows.addAll([
@@ -148,7 +196,6 @@ class _ProfilePageState extends State<ProfilePage>
           _DetailRow(Icons.access_time,           'Time Slot',  data['timeSlot']   ?? '—'),
           _DetailRow(Icons.person,                'Priest',     data['iyer']       ?? 'To be assigned'),
         ]);
-        // ✅ FIX: added curly braces
         if ((data['specialNote'] ?? '').toString().isNotEmpty) {
           rows.add(_DetailRow(Icons.note, 'Note', data['specialNote'].toString()));
         }
@@ -162,7 +209,6 @@ class _ProfilePageState extends State<ProfilePage>
           _DetailRow(Icons.access_time,    'Time Slot',    data['timeSlot']    ?? '—'),
           _DetailRow(Icons.people,         'Guests',       '${data['guestCount'] ?? 0}'),
         ]);
-        // ✅ FIX: added curly braces
         if ((data['specialNote'] ?? '').toString().isNotEmpty) {
           rows.add(_DetailRow(Icons.note, 'Note', data['specialNote'].toString()));
         }
@@ -186,9 +232,8 @@ class _ProfilePageState extends State<ProfilePage>
         break;
     }
 
-    rows.add(const _DetailRow(Icons.circle, '', '')); // ✅ FIX: added const
+    rows.add(const _DetailRow(Icons.circle, '', ''));
     rows.add(_DetailRow(Icons.calendar_today, 'Booked On', fmtDate(data['createdAt'])));
-    // ✅ FIX: added curly braces
     if ((data['razorpayPaymentId'] ?? '').toString().isNotEmpty) {
       rows.add(_DetailRow(Icons.payment, 'Payment ID', data['razorpayPaymentId'].toString()));
     }
@@ -210,7 +255,6 @@ class _ProfilePageState extends State<ProfilePage>
             controller: ctrl,
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
             children: [
-              // Handle
               Center(child: Container(
                 width: 40, height: 4,
                 decoration: BoxDecoration(
@@ -218,8 +262,6 @@ class _ProfilePageState extends State<ProfilePage>
                     borderRadius: BorderRadius.circular(2)),
               )),
               const SizedBox(height: 20),
-
-              // Header
               Row(children: [
                 Container(
                   padding: const EdgeInsets.all(14),
@@ -261,12 +303,9 @@ class _ProfilePageState extends State<ProfilePage>
                       style: TextStyle(fontSize: 11, color: Colors.grey)),
                 ]),
               ]),
-
               const SizedBox(height: 20),
               const Divider(),
               const SizedBox(height: 4),
-
-              // Detail rows
               ...rows.map((row) {
                 if (row.label.isEmpty) {
                   return const Padding(
@@ -295,10 +334,7 @@ class _ProfilePageState extends State<ProfilePage>
                   ),
                 );
               }),
-
               const SizedBox(height: 20),
-
-              // Copy payment ID
               if ((data['razorpayPaymentId'] ?? '').toString().isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -322,8 +358,6 @@ class _ProfilePageState extends State<ProfilePage>
                     ),
                   ),
                 ),
-
-              // Close
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
@@ -706,6 +740,7 @@ legal@godsconnect.app
             tabs: const [
               Tab(icon: Icon(Icons.person_outline), text: 'Profile'),
               Tab(icon: Icon(Icons.history),        text: 'Bookings'),
+              Tab(icon: Icon(Icons.shopping_bag_outlined), text: 'Orders'),
             ],
           ),
         ),
@@ -715,6 +750,7 @@ legal@godsconnect.app
             children: [
               _buildProfileTab(context, name, email, phone),
               _buildBookingsTab(context),
+              _buildOrdersTab(context),
             ],
           ),
         ),
@@ -1109,7 +1145,6 @@ legal@godsconnect.app
     ]),
   );
 
-  // ── TAPPABLE Booking Card ────────────────────────────────────────────────
   Widget _buildBookingCard(Map<String, dynamic> data) {
     final type   = (data['type'] ?? data['bookingType'] ?? 'booking') as String;
     final status = (data['status'] ?? 'confirmed') as String;
@@ -1235,6 +1270,199 @@ legal@godsconnect.app
     );
   }
 
+  // ════════════════════════════════════════════
+  //  ORDERS TAB  (NEW)
+  // ════════════════════════════════════════════
+  Widget _buildOrdersTab(BuildContext context) {
+    if (_ordersLoading) {
+      return const Center(child: CircularProgressIndicator(color: _primary));
+    }
+    if (_orders.isEmpty) {
+      return Center(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Text('🛍️', style: TextStyle(fontSize: 56)),
+          const SizedBox(height: 16),
+          const Text('No orders yet',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('Your ecommerce orders will appear here',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: _loadOrders,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Refresh'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primary, foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ]),
+      );
+    }
+    return RefreshIndicator(
+      color: _primary,
+      onRefresh: _loadOrders,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _orders.length,
+        itemBuilder: (_, i) => _buildOrderCard(_orders[i]),
+      ),
+    );
+  }
+
+  Widget _buildOrderCard(Map<String, dynamic> order) {
+    final orderId  = order['_id']?.toString() ?? '';
+    final status   = (order['status'] ?? 'pending') as String;
+    final total    = order['totalAmount'] ?? order['total'] ?? 0;
+    final items    = order['items'] as List? ?? [];
+    final statusColor = _orderStatusColor(status);
+
+    String fmtDate = '';
+    final raw = order['createdAt'];
+    if (raw != null) {
+      try {
+        final dt = DateTime.parse(raw.toString()).toLocal();
+        fmtDate = '${dt.day}/${dt.month}/${dt.year}';
+      } catch (_) { fmtDate = raw.toString(); }
+    }
+
+    final canCancel = status == 'pending' || status == 'confirmed';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Header row
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12)),
+              child: const Text('🛍️', style: TextStyle(fontSize: 22)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Order #${orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14)),
+              if (fmtDate.isNotEmpty)
+                Text(fmtDate,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            ])),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20)),
+              child: Text(status.toUpperCase(),
+                  style: TextStyle(fontSize: 10,
+                      fontWeight: FontWeight.bold, color: statusColor)),
+            ),
+          ]),
+
+          // Items list
+          if (items.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+            ...items.map((item) {
+              final name = item['name'] ?? item['productName'] ?? 'Item';
+              final qty  = item['qty'] ?? item['quantity'] ?? 1;
+              final price = item['price'] ?? 0;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(children: [
+                  const Icon(Icons.circle, size: 6, color: _primary),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('$name × $qty',
+                      style: const TextStyle(fontSize: 13))),
+                  Text('₹$price',
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                ]),
+              );
+            }),
+          ],
+
+          // Footer: total + cancel button
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+          Row(children: [
+            Text('Total: ₹$total',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16, color: _primary)),
+            const Spacer(),
+            if (canCancel)
+              SizedBox(
+                height: 34,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Cancel Order'),
+                        content: const Text(
+                            'Are you sure you want to cancel this order?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('No'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Yes, Cancel',
+                                style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) _cancelOrder(orderId);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Cancel Order',
+                      style: TextStyle(fontSize: 12)),
+                ),
+              ),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Color _orderStatusColor(String s) {
+    switch (s) {
+      case 'confirmed':  return Colors.green;
+      case 'shipped':    return Colors.blue;
+      case 'delivered':  return Colors.teal;
+      case 'cancelled':  return Colors.red;
+      default:           return Colors.orange; // pending
+    }
+  }
+
+  // ════════════════════════════════════════════
+  //  HELPERS
+  // ════════════════════════════════════════════
   String _fmtRaw(dynamic raw) {
     if (raw == null) return '';
     try {

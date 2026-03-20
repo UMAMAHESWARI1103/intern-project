@@ -49,7 +49,6 @@ class ApiService {
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode == 200 && data['token'] != null) {
       await saveToken(data['token'] as String);
-      // ✅ Save email for ML recommendations
       final prefs = await SharedPreferences.getInstance();
       final userEmail = (data['user']?['email'] ?? email).toString();
       if (userEmail.isNotEmpty) {
@@ -75,7 +74,6 @@ class ApiService {
     if ((response.statusCode == 200 || response.statusCode == 201) &&
         data['token'] != null) {
       await saveToken(data['token'] as String);
-      // ✅ Save email for ML recommendations
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('userEmail', email);
     }
@@ -99,6 +97,9 @@ class ApiService {
     if (response.statusCode == 200) return jsonDecode(response.body);
     return null;
   }
+
+  // alias used by profile_page.dart
+  static Future<Map<String, dynamic>?> getProfile() => getUserProfile();
 
   static Future<bool> updateUserProfile(Map<String, dynamic> data) async {
     final token = await loadToken();
@@ -462,44 +463,104 @@ class ApiService {
   }
 
   // ════════════════════════════════════════════
-  // ADMIN — ORDERS
+  // ORDERS — USER SIDE
   // ════════════════════════════════════════════
 
+  /// ✅ Get current user's own orders (shown in profile Orders tab)
+  static Future<List<Map<String, dynamic>>> getUserOrders() async {
+    try {
+      final token = await loadToken();
+      if (token == null) return [];
+      final response = await http.get(
+        Uri.parse('$baseUrl/orders/my-orders'),
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List raw = data is List ? data : (data['orders'] ?? []);
+        return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('getUserOrders error: $e');
+      return [];
+    }
+  }
+
+  /// ✅ User cancels their own order (only allowed when status is pending/confirmed)
+  static Future<bool> cancelOrder(String orderId, {String reason = 'Cancelled by user'}) async {
+    try {
+      final token = await loadToken();
+      final response = await http.patch(
+        Uri.parse('$baseUrl/orders/$orderId/cancel'),
+        headers: {
+          'Content-Type':  'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'reason': reason}),
+      );
+      final data = jsonDecode(response.body);
+      return data['success'] == true;
+    } catch (e) {
+      debugPrint('cancelOrder error: $e');
+      return false;
+    }
+  }
+
+  // ════════════════════════════════════════════
+  // ORDERS — ADMIN SIDE
+  // ════════════════════════════════════════════
+
+  /// ✅ Admin gets ALL orders
   static Future<List<Map<String, dynamic>>> getAdminOrders({
     String status = 'all',
     String search = '',
   }) async {
-    final token = await loadToken();
-    final uri = Uri.parse('$baseUrl/orders').replace(queryParameters: {
-      if (status != 'all')   'status': status,
-      if (search.isNotEmpty) 'search': search,
-    });
-    final response = await http.get(uri, headers: {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    });
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final List raw = data['orders'] ?? [];
-      return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    try {
+      final token = await loadToken();
+      final uri = Uri.parse('$baseUrl/orders/admin/all').replace(queryParameters: {
+        if (status != 'all')   'status': status,
+        if (search.isNotEmpty) 'search': search,
+      });
+      final response = await http.get(uri, headers: {
+        'Content-Type':  'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      });
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List raw = data is List ? data : (data['orders'] ?? []);
+        return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('getAdminOrders error: $e');
+      return [];
     }
-    return [];
   }
 
+  /// ✅ Admin updates order status (pending → confirmed → shipped → delivered / cancelled)
   static Future<bool> updateOrderStatus(String id, String status, {String? trackingId}) async {
-    final token = await loadToken();
-    final response = await http.patch(
-      Uri.parse('$baseUrl/orders/$id/status'),
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'status': status,
-        if (trackingId != null) 'trackingId': trackingId,
-      }),
-    );
-    return response.statusCode == 200;
+    try {
+      final token = await loadToken();
+      final response = await http.patch(
+        Uri.parse('$baseUrl/orders/$id/status'),
+        headers: {
+          'Content-Type':  'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'status': status,
+          if (trackingId != null) 'trackingId': trackingId,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('updateOrderStatus error: $e');
+      return false;
+    }
   }
 
   // ════════════════════════════════════════════
