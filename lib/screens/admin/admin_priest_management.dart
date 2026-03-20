@@ -80,6 +80,31 @@ class _AdminPriestManagementPageState
     }
   }
 
+  // ✅ NEW: Toggle availability on/off
+  Future<void> _toggleAvailability(Map<String, dynamic> priest) async {
+    final id = priest['_id']?.toString() ?? '';
+    final current = priest['isAvailable'] == true;
+    final newValue = !current;
+
+    // Optimistic UI update
+    setState(() {
+      priest['isAvailable'] = newValue;
+    });
+
+    try {
+      await ApiService.updatePriestAvailability(id, newValue);
+      _showSnack(newValue
+          ? '${priest['name']} is now Available ✅'
+          : '${priest['name']} marked as Unavailable ❌');
+    } catch (_) {
+      // Revert on failure
+      setState(() {
+        priest['isAvailable'] = current;
+      });
+      _showSnack('Failed to update availability');
+    }
+  }
+
   void _showSnack(String msg) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg)));
@@ -136,7 +161,29 @@ class _AdminPriestManagementPageState
             ),
           ),
 
-
+          // ✅ NEW: Summary count bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Row(children: [
+              _countBadge(
+                'Total',
+                _priests.length,
+                Colors.blue,
+              ),
+              const SizedBox(width: 10),
+              _countBadge(
+                'Available',
+                _priests.where((p) => p['isAvailable'] == true).length,
+                Colors.green,
+              ),
+              const SizedBox(width: 10),
+              _countBadge(
+                'Unavailable',
+                _priests.where((p) => p['isAvailable'] != true).length,
+                Colors.red,
+              ),
+            ]),
+          ),
 
           // ── List ────────────────────────────────────────────
           Expanded(
@@ -165,19 +212,46 @@ class _AdminPriestManagementPageState
     );
   }
 
-
+  // ✅ NEW: Count badge widget
+  Widget _countBadge(String label, int count, Color color) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Column(children: [
+            Text('$count',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: color)),
+            Text(label,
+                style: TextStyle(fontSize: 11, color: color)),
+          ]),
+        ),
+      );
 
   Widget _priestCard(Map<String, dynamic> p) {
     final specs    = (p['specializations'] as List?)?.join(', ') ?? '';
     final langs    = (p['languages'] as List?)?.join(', ') ?? '';
     final rating   = p['rating']?.toString() ?? '0';
     final exp      = p['experience']?.toString() ?? '0';
+    final isAvail  = p['isAvailable'] == true; // ✅
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
+        // ✅ Green border if available, grey if not
+        border: Border.all(
+          color: isAvail
+              ? Colors.green.withValues(alpha: 0.4)
+              : Colors.grey.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
               color: Colors.orange.withValues(alpha: 0.07),
@@ -213,13 +287,45 @@ class _AdminPriestManagementPageState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        p['name'] ?? 'Unknown',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: _textDark),
-                      ),
+                      // ✅ Name + availability badge in one row
+                      Row(children: [
+                        Expanded(
+                          child: Text(
+                            p['name'] ?? 'Unknown',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: _textDark),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isAvail
+                                ? Colors.green.shade50
+                                : Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isAvail
+                                  ? Colors.green.shade300
+                                  : Colors.red.shade300,
+                            ),
+                          ),
+                          child: Text(
+                            isAvail ? '✅ Available' : '❌ Unavailable',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: isAvail
+                                  ? Colors.green.shade700
+                                  : Colors.red.shade700,
+                            ),
+                          ),
+                        ),
+                      ]),
                       const SizedBox(height: 3),
                       Row(children: [
                         const Icon(Icons.location_on,
@@ -275,10 +381,12 @@ class _AdminPriestManagementPageState
                             const Icon(Icons.email,
                                 size: 12, color: Color(0xFF9E7A50)),
                             const SizedBox(width: 4),
-                            Text(p['email'].toString(),
-                                style: const TextStyle(
-                                    fontSize: 11, color: _textGrey),
-                                overflow: TextOverflow.ellipsis),
+                            Expanded(
+                              child: Text(p['email'].toString(),
+                                  style: const TextStyle(
+                                      fontSize: 11, color: _textGrey),
+                                  overflow: TextOverflow.ellipsis),
+                            ),
                           ]),
                         ),
                     ],
@@ -288,23 +396,46 @@ class _AdminPriestManagementPageState
             ),
           ),
 
-          // ── Delete button only ──────────────────────────────
+          // ✅ NEW: Toggle + Delete buttons row
           Container(
             decoration: BoxDecoration(
               color: Colors.grey.withValues(alpha: 0.04),
               borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(14)),
             ),
-            child: SizedBox(
-              width: double.infinity,
-              child: TextButton.icon(
-                onPressed: () => _delete(p),
-                icon: const Icon(Icons.delete_outline,
-                    size: 16, color: Colors.red),
-                label: const Text('Delete Priest',
-                    style: TextStyle(fontSize: 12, color: Colors.red)),
+            child: Row(children: [
+              // Toggle availability button
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: () => _toggleAvailability(p),
+                  icon: Icon(
+                    isAvail ? Icons.toggle_on : Icons.toggle_off,
+                    size: 18,
+                    color: isAvail ? Colors.green : Colors.grey,
+                  ),
+                  label: Text(
+                    isAvail ? 'Mark Unavailable' : 'Mark Available',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isAvail ? Colors.green : Colors.grey,
+                    ),
+                  ),
+                ),
               ),
-            ),
+              // Divider
+              Container(width: 1, height: 30,
+                  color: Colors.grey.withValues(alpha: 0.2)),
+              // Delete button
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: () => _delete(p),
+                  icon: const Icon(Icons.delete_outline,
+                      size: 16, color: Colors.red),
+                  label: const Text('Delete',
+                      style: TextStyle(fontSize: 12, color: Colors.red)),
+                ),
+              ),
+            ]),
           ),
         ],
       ),
@@ -350,6 +481,9 @@ class _AdminAddPriestPageState extends State<AdminAddPriestPage> {
   final List<String> _selectedLangs = [];
   bool _saving = false;
 
+  // ✅ NEW: Availability toggle — default true when adding
+  bool _isAvailable = true;
+
   @override
   void dispose() {
     for (final c in [_name, _email, _phone, _password, _location, _exp, _bio]) {
@@ -377,7 +511,7 @@ class _AdminAddPriestPageState extends State<AdminAddPriestPage> {
       'specializations': _selectedSpecs,
       'languages':       _selectedLangs,
       'isApproved':      true,
-      'isAvailable':     true,
+      'isAvailable':     _isAvailable, // ✅ sends the toggle value
     });
 
     setState(() => _saving = false);
@@ -419,6 +553,58 @@ class _AdminAddPriestPageState extends State<AdminAddPriestPage> {
             _field(_bio,      'Short Bio',           Icons.info_outline, maxLines: 3),
             const SizedBox(height: 16),
 
+            // ✅ NEW: Availability toggle section
+            _section('Availability'),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _isAvailable
+                      ? Colors.green.withValues(alpha: 0.4)
+                      : Colors.grey.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(children: [
+                Icon(
+                  _isAvailable ? Icons.check_circle : Icons.cancel,
+                  color: _isAvailable ? Colors.green : Colors.grey,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _isAvailable ? 'Available' : 'Unavailable',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: _isAvailable ? Colors.green : Colors.grey,
+                        ),
+                      ),
+                      Text(
+                        _isAvailable
+                            ? 'Priest will be visible to users'
+                            : 'Priest will be hidden from users',
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                // ✅ Fixed
+Switch(
+  value: _isAvailable,
+  activeThumbColor: Colors.green,  // ← changed
+  onChanged: (v) => setState(() => _isAvailable = v),
+),
+              ]),
+            ),
+            const SizedBox(height: 16),
+
             _section('Specializations'),
             _multiChip(_allSpecs, _selectedSpecs,
                 (v) => setState(() {
@@ -458,6 +644,7 @@ class _AdminAddPriestPageState extends State<AdminAddPriestPage> {
                             fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
+            const SizedBox(height: 40),
           ],
         ),
       ),

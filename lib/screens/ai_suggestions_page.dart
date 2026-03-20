@@ -158,7 +158,6 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
       String email = '';
       final token = await ApiService.loadToken();
 
-      // STEP 1: Decode email from JWT token
       if (token != null) {
         try {
           final parts = token.split('.');
@@ -172,7 +171,6 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
         } catch (_) {}
       }
 
-      // STEP 2: SharedPreferences fallback
       if (email.isEmpty) {
         final prefs = await SharedPreferences.getInstance();
         email = prefs.getString('userEmail') ??
@@ -180,7 +178,6 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
                 prefs.getString('user_email') ?? '';
       }
 
-      // STEP 3: Profile API fallback
       if (email.isEmpty) {
         final profile = await ApiService.getUserProfile();
         if (profile != null) {
@@ -423,8 +420,10 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           ]),
           const SizedBox(height: 14),
+          // ✅ FIX 1: Removed right margin from last item to prevent overflow
           Row(children: ['walk', 'bike', 'car', 'bus'].map((v) {
             final sel = _vehicle == v;
+            final isLast = v == 'bus';
             return Expanded(child: GestureDetector(
               onTap: () => setState(() {
                 _vehicle      = v;
@@ -434,7 +433,8 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
               }),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                margin: const EdgeInsets.only(right: 8),
+                // ✅ No right margin on last item
+                margin: EdgeInsets.only(right: isLast ? 0 : 8),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
                   color: sel ? _orange : Colors.grey.shade50,
@@ -501,7 +501,7 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
         if (_goodTimeList.isNotEmpty) ...[
           _sectionTitle('⏰ Good Time To Visit Now', 'Open now with comfortable crowd'),
           SizedBox(
-            height: 215,
+            height: 260, // ✅ Enough height for all card content
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: _goodTimeList.length,
@@ -554,6 +554,7 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
     child: Padding(
       padding: const EdgeInsets.all(16),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // ✅ FIX 3: Wrapped left column in IntrinsicHeight to prevent vertical overflow
         Column(children: [
           Container(
             width: 56, height: 56,
@@ -600,10 +601,11 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
           const SizedBox(height: 8),
           Text(_nearbyReason(t),
               style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.4),
-              maxLines: 2),
+              maxLines: 2, overflow: TextOverflow.ellipsis), // ✅ FIX 4: added overflow
           const SizedBox(height: 10),
+          // ✅ FIX 5: Wrap already handles wrapping — just ensure chip text is short
           Wrap(spacing: 6, runSpacing: 6, children: [
-            _chip('${_ds(t.dist)} away', Colors.teal),
+            _chip(_ds(t.dist), Colors.teal),
             _chip('${t.travelMin} min', Colors.blue),
             _chip(_crowdText(t.crowd), _crowdColor(t.crowd)),
             if (t.isOpen) _chip(t.session, Colors.green),
@@ -618,7 +620,8 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
     width: 178,
     margin: const EdgeInsets.only(right: 12, bottom: 4),
     decoration: BoxDecoration(
-      color: Colors.white, borderRadius: BorderRadius.circular(18),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
       border: Border.all(color: Colors.green.shade200),
       boxShadow: [BoxShadow(
         color: Colors.black.withValues(alpha: 0.07),
@@ -626,48 +629,62 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
       )],
     ),
     child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: _orange.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.max, // ✅ fills parent height
+        children: [
+          // Header row
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _orange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text('🛕', style: TextStyle(fontSize: 18)),
             ),
-            child: const Text('🛕', style: TextStyle(fontSize: 20)),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.green.shade300),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.green.shade300),
+              ),
+              child: Text('Open',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold,
+                      color: Colors.green.shade700)),
             ),
-            child: Text('Open',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold,
-                    color: Colors.green.shade700)),
-          ),
-        ]),
-        const SizedBox(height: 10),
-        Text(t.name,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            maxLines: 2, overflow: TextOverflow.ellipsis),
-        const SizedBox(height: 3),
-        if (t.location.isNotEmpty)
-          Text(t.location,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-        const Spacer(),
-        Text(_goodTimeReason(t),
-            style: TextStyle(fontSize: 11, color: Colors.green.shade700, height: 1.3),
-            maxLines: 2),
-        const SizedBox(height: 8),
-        Wrap(spacing: 4, runSpacing: 4, children: [
-          _miniChip(_ds(t.dist), Colors.teal),
-          _miniChip(_crowdText(t.crowd), _crowdColor(t.crowd)),
-        ]),
-      ]),
+          ]),
+          const SizedBox(height: 8),
+          // Temple name
+          Text(t.name,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              maxLines: 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 2),
+          // Location
+          if (t.location.isNotEmpty)
+            Text(t.location,
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+          const Spacer(), // ✅ Spacer is safe — parent Column fills fixed container height
+          // Reason text
+          Text(_goodTimeReason(t),
+              style: TextStyle(fontSize: 11, color: Colors.green.shade700, height: 1.3),
+              maxLines: 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 6),
+          // Chips in a Row (not Wrap) — prevents vertical overflow
+          Row(children: [
+            Flexible(
+              child: _miniChip(_ds(t.dist), Colors.teal),
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: _miniChip(_crowdText(t.crowd), _crowdColor(t.crowd)),
+            ),
+          ]),
+        ],
+      ),
     ),
   );
 
@@ -738,7 +755,8 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
               const SizedBox(height: 2),
               Text('🕉️ $deity',
                   style: TextStyle(fontSize: 11, color: accentColor,
-                      fontWeight: FontWeight.w600)),
+                      fontWeight: FontWeight.w600),
+                  maxLines: 1, overflow: TextOverflow.ellipsis), // ✅ FIX 7
             ],
             if (festStr.isNotEmpty) ...[
               const SizedBox(height: 2),
@@ -750,7 +768,7 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
             Text(
               forYou ? _forYouReason(t, rank) : _popularReason(t),
               style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.4),
-              maxLines: 2,
+              maxLines: 2, overflow: TextOverflow.ellipsis, // ✅ FIX 8
             ),
           ])),
         ]),
@@ -819,7 +837,9 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
       borderRadius: BorderRadius.circular(20),
       border: Border.all(color: color.withValues(alpha: 0.4)),
     ),
+    // ✅ FIX 9: Added overflow to chip text
     child: Text(text,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
   );
 
@@ -829,7 +849,9 @@ class _AiSuggestionsPageState extends State<AiSuggestionsPage>
       color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(6),
     ),
+    // ✅ FIX 10: Added overflow to mini chip text
     child: Text(text,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
   );
 }

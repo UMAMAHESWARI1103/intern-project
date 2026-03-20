@@ -13,21 +13,22 @@ app.use(cors());
 app.use(express.json());
 
 // ─── ROUTES ──────────────────────────────────────────────────────────────────
-app.use('/api/auth',      require('./routes/auth'));
-app.use('/api/temples',   require('./routes/temples'));
-app.use('/api/admin',     require('./routes/admin'));       // includes /api/admin/events & /api/admin/products
-app.use('/api/events',    require('./routes/events'));      // user-facing events
-app.use('/api/products',  require('./routes/products'));    // ✅ NEW: user-facing products
-app.use('/api/donations', require('./routes/donations'));
-app.use('/api/prayers',   require('./routes/prayers'));
-app.use('/api/payments',  require('./routes/payment'));
-app.use('/api/facilities', facilitiesRoutes);
-app.use('/api/bookings',  require('./routes/booking'));
-app.use('/api/users',     require('./routes/users'));
-app.use('/api/orders',    require('./routes/orders'));
-app.use('/api/recommendations', recommendations);
+app.use('/api/auth',          require('./routes/auth'));
+app.use('/api/temples',       require('./routes/temples'));
+app.use('/api/admin',         require('./routes/admin'));
+app.use('/api/events',        require('./routes/events'));
+app.use('/api/products',      require('./routes/products'));
+app.use('/api/donations',     require('./routes/donations'));
+app.use('/api/prayers',       require('./routes/prayers'));
+app.use('/api/payments',      require('./routes/payment'));
+app.use('/api/facilities',    facilitiesRoutes);
+app.use('/api/bookings',      require('./routes/booking'));
+app.use('/api/users',         require('./routes/users'));
+app.use('/api/orders',        require('./routes/orders'));
+app.use('/api/recommendations',    recommendations);
 app.use('/api/ml-recommendations', mlRec);
-app.use('/api/priests', priestRoutes);
+app.use('/api/priests',       priestRoutes); // ✅ user-facing: only available priests
+app.use('/api/admin/priests', priestRoutes); // ✅ admin-facing: all priests
 
 app.get('/', (req, res) => {
   res.json({ message: '🛕 GodsConnect Backend is running!' });

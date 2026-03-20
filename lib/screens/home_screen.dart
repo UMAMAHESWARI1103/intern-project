@@ -20,7 +20,7 @@ import '../screens/profile_page.dart';
 import '../screens/bakthi_padal.dart';
 import '../screens/settings.dart';
 import '../screens/ai_suggestions_page.dart';
-import '../screens/chatbot_page.dart'; // ← ADDED
+import '../screens/chatbot_page.dart';
 
 final List<Map<String, String>> _allQuotes = [
   {'quote': 'You have a right to perform your prescribed duties, but you are not entitled to the fruits of your actions.', 'author': 'Lord Krishna'},
@@ -237,7 +237,6 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: _buildAppBar(),
       drawer: _buildDrawer(),
       body: _buildBody(),
-      // ── ADDED: Chatbot floating button ──────────────────────────
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton.extended(
               onPressed: () => Navigator.push(
@@ -252,7 +251,6 @@ class _HomeScreenState extends State<HomeScreen> {
               elevation: 4,
             )
           : null,
-      // ────────────────────────────────────────────────────────────
       bottomNavigationBar: _buildBottomNav(),
     );
   }
@@ -274,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
       actions: [
         IconButton(
           icon: const Icon(Icons.auto_awesome, size: 22),
-          tooltip: 'AI Visit Planner',
+          tooltip: 'Smart Temple Locator', // ✅ CHANGED
           onPressed: _goToAIPage,
         ),
         if (widget.user != null)
@@ -433,7 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 14),
           const Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('✨ AI Visit Planner',
+              Text('✨ Smart Temple Locator', // ✅ CHANGED
                   style: TextStyle(
                       color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               SizedBox(height: 3),

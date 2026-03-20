@@ -3,10 +3,17 @@ const express = require('express');
 const router  = express.Router();
 const Priest  = require('../models/Priest');
 
-// GET all approved + available priests (optionally filter by homam type)
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/priests        → USER: only available priests
+// GET /api/admin/priests  → ADMIN: all priests (same route, different mount)
+// ─────────────────────────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const filter = {};
+    const isAdminRoute = req.baseUrl.includes('/admin');
+
+    // ✅ Admin sees ALL priests, users only see available ones
+    const filter = isAdminRoute ? {} : { isAvailable: true };
+
     const priests = await Priest.find(filter).sort({ rating: -1 });
     res.json({ success: true, priests });
   } catch (err) {
@@ -27,17 +34,36 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PUT update priest (availability, profile etc.)
+// POST — add new priest (admin only)
+router.post('/', async (req, res) => {
+  try {
+    const priest = new Priest({
+      ...req.body,
+      isApproved:  req.body.isApproved  ?? true,
+      isAvailable: req.body.isAvailable ?? true,
+    });
+    await priest.save();
+    res.status(201).json({ success: true, priest });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT — update priest profile
 router.put('/:id', async (req, res) => {
   try {
-    const priest = await Priest.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const priest = await Priest.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
     res.json({ success: true, priest });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// PATCH availability toggle
+// PATCH — toggle availability ✅
 router.patch('/:id/availability', async (req, res) => {
   try {
     const priest = await Priest.findByIdAndUpdate(
@@ -48,13 +74,14 @@ router.patch('/:id/availability', async (req, res) => {
     if (!priest) {
       return res.status(404).json({ success: false, message: 'Priest not found' });
     }
+    console.log(`✅ Priest ${priest.name} availability set to: ${priest.isAvailable}`);
     res.json({ success: true, priest });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// DELETE priest
+// DELETE — remove priest
 router.delete('/:id', async (req, res) => {
   try {
     await Priest.findByIdAndDelete(req.params.id);

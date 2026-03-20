@@ -33,14 +33,14 @@ class _MarriageBookingPageState extends State<MarriageBookingPage> {
   final Map<String, double> _ceremonyPrices = {
     'Full Wedding Ceremony':      25000,
     'Engagement Ceremony':        8000,
-    'Nichayathartham':            5000,
+    // ❌ Removed: 'Nichayathartham': 5000,
     'Nichayathartham + Wedding':  30000,
   };
 
   final Map<String, String> _ceremonyDesc = {
     'Full Wedding Ceremony':      'Complete Vedic wedding with all rituals',
     'Engagement Ceremony':        'Traditional ring ceremony with pooja',
-    'Nichayathartham':            'Auspicious fixing of marriage date',
+    // ❌ Removed: 'Nichayathartham': 'Auspicious fixing of marriage date',
     'Nichayathartham + Wedding':  'Combined engagement & wedding package',
   };
 
