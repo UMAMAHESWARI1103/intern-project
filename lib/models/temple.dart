@@ -57,12 +57,12 @@ class Temple {
     return distanceInMeters / 1000;
   }
 
-  /// Returns a human-friendly status string for the current time.
+  /// Returns a human-friendly status string for the current IST time.
   /// e.g.  "Open"  /  "Closed (Opens 4:30 PM)"  /  "Closed (Opens 6:00 AM)"
   String get currentSessionStatus {
     if (isOpen) return 'Open';
     // Determine which session opens next
-    final now = _currentHour();
+    final now     = _currentHour();
     final morning = _parseHour(openTime);
     final noon    = _parseHour(closeTime);
     final evening = _parseHour(reopenTime);
@@ -72,8 +72,9 @@ class Temple {
     return 'Closed';
   }
 
+  // ✅ Uses IST time
   double _currentHour() {
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
     return now.hour + now.minute / 60.0;
   }
 
@@ -92,6 +93,43 @@ class Temple {
     }
   }
 
+  // ✅ Calculate isOpen from actual IST time instead of trusting backend
+  static bool _calculateIsOpen(
+    String openTime,
+    String closeTime,
+    String reopenTime,
+    String finalCloseTime,
+  ) {
+    // Get current IST time
+    final now     = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+    final current = now.hour * 60 + now.minute;
+
+    int toMin(String t) {
+      try {
+        t = t.trim();
+        final isPM = t.toUpperCase().contains('PM');
+        final isAM = t.toUpperCase().contains('AM');
+        t = t.replaceAll(RegExp(r'[AaPpMm]'), '').trim();
+        final parts = t.split(':');
+        int h = int.tryParse(parts[0]) ?? 0;
+        int m = parts.length > 1 ? (int.tryParse(parts[1].trim()) ?? 0) : 0;
+        if (isPM && h != 12) h += 12;
+        if (isAM && h == 12) h = 0;
+        return h * 60 + m;
+      } catch (_) {
+        return 0;
+      }
+    }
+
+    final open1  = toMin(openTime);
+    final close1 = toMin(closeTime);
+    final open2  = toMin(reopenTime);
+    final close2 = toMin(finalCloseTime);
+
+    return (current >= open1 && current <= close1) ||
+           (current >= open2 && current <= close2);
+  }
+
   factory Temple.fromJson(Map<String, dynamic> json) {
     final openTime       = json['open_time']        ?? json['openTime']        ?? '6:00 AM';
     final closeTime      = json['close_time']       ?? json['closeTime']       ?? '12:00 PM';
@@ -100,12 +138,12 @@ class Temple {
 
     return Temple(
       id:             (json['_id'] ?? json['id'] ?? '').toString(),
-      name:           json['name']           ?? '',
-      location:       json['location']       ?? '',
-      deity:          json['deity']          ?? '',
-      description:    json['description']    ?? '',
-      icon:           json['icon']           ?? '🛕',
-      distance:       (json['distance']      ?? 0).toDouble(),
+      name:           json['name']        ?? '',
+      location:       json['location']    ?? '',
+      deity:          json['deity']       ?? '',
+      description:    json['description'] ?? '',
+      icon:           json['icon']        ?? '🛕',
+      distance:       (json['distance']   ?? 0).toDouble(),
       openTime:       openTime,
       closeTime:      closeTime,
       reopenTime:     reopenTime,
@@ -115,7 +153,10 @@ class Temple {
           ? List<String>.from(json['festivals'])
           : [],
       imageUrl: json['image_url'] ?? json['imageUrl'] ?? '',
-      isOpen:   json['is_open']   ?? json['isOpen']   ?? true,
+
+      // ✅ Calculate from actual IST time — ignores backend is_open value
+      isOpen: _calculateIsOpen(openTime, closeTime, reopenTime, finalCloseTime),
+
       lat: json['lat'] != null ? (json['lat']).toDouble() : null,
       lon: json['lon'] != null ? (json['lon']).toDouble() : null,
     );
