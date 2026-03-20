@@ -4,6 +4,59 @@ const mongoose = require('mongoose');
 const jwt      = require('jsonwebtoken');
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 🔍 DUPLICATE COLLECTION CHECKER — runs on startup
+// ─────────────────────────────────────────────────────────────────────────────
+async function checkDuplicateCollections() {
+  try {
+    const db = mongoose.connection.db;
+    const collections = await db.listCollections().toArray();
+    const names = collections.map(c => c.name);
+
+    console.log('\n📦 Collections in DB:', names);
+
+    const expectedCorrect = [
+      'darshanbookings',
+      'homambookings',
+      'marriagebookings',
+      'prasadamorders',
+    ];
+
+    const wrongNames = [
+      'darshanBookings',
+      'homamBookings',
+      'marriageBookings',
+      'prasadamOrders',
+    ];
+
+    console.log('\n🔍 Checking for duplicate/wrong collections...');
+
+    wrongNames.forEach(wrong => {
+      if (names.includes(wrong)) {
+        console.warn(`⚠️  WRONG COLLECTION FOUND: "${wrong}" — should be "${wrong.toLowerCase()}"`);
+        console.warn(`   ➡️  Run: db.${wrong}.drop() in MongoDB Shell`);
+      }
+    });
+
+    expectedCorrect.forEach(correct => {
+      if (names.includes(correct)) {
+        console.log(`✅ Correct collection exists: "${correct}"`);
+      } else {
+        console.log(`ℹ️  Collection not yet created: "${correct}" (will be created on first insert)`);
+      }
+    });
+
+    console.log(''); // empty line for readability
+  } catch (err) {
+    console.error('❌ Error checking collections:', err.message);
+  }
+}
+
+// Run checker when DB is ready
+mongoose.connection.once('open', () => {
+  checkDuplicateCollections();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // OPTIONAL AUTH
 // ─────────────────────────────────────────────────────────────────────────────
 function optionalAuth(req, res, next) {
@@ -20,7 +73,7 @@ function optionalAuth(req, res, next) {
 router.use(optionalAuth);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SCHEMAS
+// SCHEMAS — base fields shared across all booking types
 // ─────────────────────────────────────────────────────────────────────────────
 const baseFields = {
   userId:            { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
@@ -35,6 +88,11 @@ const baseFields = {
                        enum: ['pending','confirmed','completed','cancelled'] },
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MODELS
+// ✅ 3rd argument forces exact collection name — prevents duplicates
+// ─────────────────────────────────────────────────────────────────────────────
+
 const DarshanBooking = mongoose.models.DarshanBooking || mongoose.model(
   'DarshanBooking',
   new mongoose.Schema({
@@ -45,7 +103,8 @@ const DarshanBooking = mongoose.models.DarshanBooking || mongoose.model(
     date:            { type: String, default: '' },
     timeSlot:        { type: String, default: '' },
     numberOfPersons: { type: Number, default: 1 },
-  }, { timestamps: true })
+  }, { timestamps: true }),
+  'darshanbookings'   // ✅ forced collection name — no duplicates
 );
 
 const PrasadamOrder = mongoose.models.PrasadamOrder || mongoose.model(
@@ -54,7 +113,8 @@ const PrasadamOrder = mongoose.models.PrasadamOrder || mongoose.model(
     ...baseFields,
     templeName: { type: String, default: '' },
     items:      { type: Array,  default: [] },
-  }, { timestamps: true })
+  }, { timestamps: true }),
+  'prasadamorders'    // ✅ forced collection name — no duplicates
 );
 
 const HomamBooking = mongoose.models.HomamBooking || mongoose.model(
@@ -68,7 +128,8 @@ const HomamBooking = mongoose.models.HomamBooking || mongoose.model(
     timeSlot:    { type: String, default: '' },
     iyer:        { type: String, default: 'To be assigned' },
     specialNote: { type: String, default: '' },
-  }, { timestamps: true })
+  }, { timestamps: true }),
+  'homambookings'     // ✅ forced collection name — no duplicates
 );
 
 const MarriageBooking = mongoose.models.MarriageBooking || mongoose.model(
@@ -83,7 +144,8 @@ const MarriageBooking = mongoose.models.MarriageBooking || mongoose.model(
     timeSlot:    { type: String, default: '' },
     guestCount:  { type: Number, default: 0 },
     specialNote: { type: String, default: '' },
-  }, { timestamps: true })
+  }, { timestamps: true }),
+  'marriagebookings'  // ✅ forced collection name — no duplicates
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -108,11 +170,11 @@ router.post('/darshan', async (req, res) => {
       ...req.body,
       userId,
       userEmail,
-      totalAmount:     Number(req.body.totalAmount)     || 0,  // ✅ force Number
-      numberOfPersons: Number(req.body.numberOfPersons) || 1,  // ✅ force Number
+      totalAmount:     Number(req.body.totalAmount)     || 0,
+      numberOfPersons: Number(req.body.numberOfPersons) || 1,
     });
     await booking.save();
-    console.log(`✅ Darshan saved: ${booking._id} | userId: ${userId} | email: ${userEmail} | amount: ${booking.totalAmount}`);
+    console.log(`✅ Darshan saved to "darshanbookings": ${booking._id}`);
     res.status(201).json({ success: true, message: 'Darshan booking confirmed!', booking });
   } catch (err) {
     console.error('❌ Darshan error:', err.message);
@@ -130,10 +192,10 @@ router.post('/prasadam', async (req, res) => {
       ...req.body,
       userId,
       userEmail,
-      totalAmount: Number(req.body.totalAmount) || 0,  // ✅ force Number
+      totalAmount: Number(req.body.totalAmount) || 0,
     });
     await order.save();
-    console.log(`✅ Prasadam saved: ${order._id} | userId: ${userId} | amount: ${order.totalAmount}`);
+    console.log(`✅ Prasadam saved to "prasadamorders": ${order._id}`);
     res.status(201).json({ success: true, message: 'Prasadam order confirmed!', order });
   } catch (err) {
     console.error('❌ Prasadam error:', err.message);
@@ -151,10 +213,10 @@ router.post('/homam', async (req, res) => {
       ...req.body,
       userId,
       userEmail,
-      totalAmount: Number(req.body.totalAmount) || 0,  // ✅ force Number
+      totalAmount: Number(req.body.totalAmount) || 0,
     });
     await booking.save();
-    console.log(`✅ Homam saved: ${booking._id} | userId: ${userId} | email: ${userEmail} | amount: ${booking.totalAmount}`);
+    console.log(`✅ Homam saved to "homambookings": ${booking._id}`);
     res.status(201).json({ success: true, message: 'Homam booking confirmed!', booking });
   } catch (err) {
     console.error('❌ Homam error:', err.message);
@@ -172,11 +234,11 @@ router.post('/marriage', async (req, res) => {
       ...req.body,
       userId,
       userEmail,
-      totalAmount: Number(req.body.totalAmount) || 0,  // ✅ force Number
-      guestCount:  Number(req.body.guestCount)  || 0,  // ✅ force Number
+      totalAmount: Number(req.body.totalAmount) || 0,
+      guestCount:  Number(req.body.guestCount)  || 0,
     });
     await booking.save();
-    console.log(`✅ Marriage saved: ${booking._id} | userId: ${userId} | email: ${userEmail} | amount: ${booking.totalAmount}`);
+    console.log(`✅ Marriage saved to "marriagebookings": ${booking._id}`);
     res.status(201).json({ success: true, message: 'Marriage booking confirmed!', booking });
   } catch (err) {
     console.error('❌ Marriage error:', err.message);
