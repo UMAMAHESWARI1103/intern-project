@@ -30,6 +30,12 @@ class _AdminBookingManagementPageState
   void initState() {
     super.initState();
     _tab = TabController(length: 5, vsync: this);
+    // ✅ Reload orders when switching to Orders tab
+    _tab.addListener(() {
+      if (!_tab.indexIsChanging && _tab.index == 4) {
+        _loadOrders();
+      }
+    });
     _loadAll();
   }
 
@@ -62,10 +68,16 @@ class _AdminBookingManagementPageState
     }
   }
 
+  // ✅ Separate orders reload — always fetches fresh from server
+  Future<void> _loadOrders() async {
+    try {
+      final orders = await ApiService.getAdminOrders();
+      if (mounted) setState(() => _orders = orders);
+    } catch (_) {}
+  }
+
   Future<void> _updateOrderStatus(Map<String, dynamic> order) async {
-    final statuses = [
-      'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'
-    ];
+    final statuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
     final current = order['status']?.toString() ?? 'pending';
 
     final selected = await showDialog<String>(
@@ -78,33 +90,80 @@ class _AdminBookingManagementPageState
     );
 
     if (selected != null && selected != current) {
+      String? trackingId;
+      // ✅ Ask for tracking ID when marking as shipped
+      if (selected == 'shipped') {
+        trackingId = await _askTrackingId();
+      }
+
       final ok = await ApiService.updateOrderStatus(
-          order['_id'].toString(), selected);
-      if (ok) {
-        setState(() => order['status'] = selected);
-        _snack('Order status updated to $selected ✅');
+        order['_id'].toString(),
+        selected,
+        trackingId: trackingId,
+      );
+
+      if (ok && mounted) {
+        setState(() {
+          order['status'] = selected;
+          if (trackingId != null && trackingId.isNotEmpty) {
+            order['trackingId'] = trackingId;
+          }
+        });
+        _snack('Order updated to $selected ✅');
       } else {
-        _snack('Failed to update status');
+        _snack('Failed to update status ❌');
       }
     }
   }
 
+  Future<String?> _askTrackingId() async {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Enter Tracking ID'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(
+            hintText: 'e.g. DTDC123456789IN',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Skip'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Color _statusColor(String status) {
     switch (status) {
-      case 'delivered':   return Colors.green;
-      case 'paid':        return Colors.green;
-      case 'cancelled':   return Colors.red;
-      case 'failed':      return Colors.red;
-      case 'shipped':     return Colors.blue;
-      case 'processing':  return Colors.orange;
-      case 'confirmed':   return Colors.teal;
-      default:            return Colors.grey;
+      case 'delivered':  return Colors.green;
+      case 'paid':       return Colors.green;
+      case 'confirmed':  return Colors.teal;
+      case 'cancelled':  return Colors.red;
+      case 'failed':     return Colors.red;
+      case 'shipped':    return Colors.blue;
+      case 'processing': return Colors.orange;
+      case 'pending':    return Colors.orange;
+      default:           return Colors.grey;
     }
   }
 
-  void _snack(String msg) =>
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(msg)));
+  void _snack(String msg) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
 
   @override
   Widget build(BuildContext context) {
@@ -134,8 +193,7 @@ class _AdminBookingManagementPageState
         ),
       ),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFF9933)))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF9933)))
           : TabBarView(
               controller: _tab,
               children: [
@@ -152,10 +210,8 @@ class _AdminBookingManagementPageState
   // ── Booking List ─────────────────────────────────────────────────────────
   Widget _bookingList(List<Map<String, dynamic>> items, String type) {
     if (items.isEmpty) {
-      return Center(
-        child: Text('No $type bookings yet',
-            style: const TextStyle(color: Color(0xFF9E7A50))),
-      );
+      return Center(child: Text('No $type bookings yet',
+          style: const TextStyle(color: Color(0xFF9E7A50))));
     }
     return RefreshIndicator(
       color: _primary,
@@ -178,27 +234,18 @@ class _AdminBookingManagementPageState
         padding: const EdgeInsets.all(14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Expanded(
-              child: Text(b['userName'] ?? b['name'] ?? 'User',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 15)),
-            ),
+            Expanded(child: Text(b['userName'] ?? b['name'] ?? 'User',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
             _statusBadge(status.toString()),
           ]),
           const SizedBox(height: 6),
-          if (b['userEmail'] != null)
-            _row(Icons.email, b['userEmail'].toString()),
-          if (b['userPhone'] != null)
-            _row(Icons.phone, b['userPhone'].toString()),
-          if (b['templeName'] != null)
-            _row(Icons.temple_hindu, b['templeName'].toString()),
-          if (b['date'] != null)
-            _row(Icons.calendar_today, b['date'].toString()),
-          if (b['ceremony'] != null)
-            _row(Icons.celebration, b['ceremony'].toString()),
+          if (b['userEmail'] != null)   _row(Icons.email,          b['userEmail'].toString()),
+          if (b['userPhone'] != null)   _row(Icons.phone,          b['userPhone'].toString()),
+          if (b['templeName'] != null)  _row(Icons.temple_hindu,   b['templeName'].toString()),
+          if (b['date'] != null)        _row(Icons.calendar_today, b['date'].toString()),
+          if (b['ceremony'] != null)    _row(Icons.celebration,    b['ceremony'].toString()),
           if (b['amount'] != null || b['totalAmount'] != null)
-            _row(Icons.currency_rupee,
-                '₹${b['amount'] ?? b['totalAmount'] ?? 0}'),
+            _row(Icons.currency_rupee, '₹${b['amount'] ?? b['totalAmount'] ?? 0}'),
           if (b['razorpayPaymentId'] != null &&
               b['razorpayPaymentId'].toString().isNotEmpty)
             _row(Icons.receipt, b['razorpayPaymentId'].toString()),
@@ -210,105 +257,178 @@ class _AdminBookingManagementPageState
   // ── Orders List ──────────────────────────────────────────────────────────
   Widget _orderList(List<Map<String, dynamic>> orders) {
     if (orders.isEmpty) {
-      return const Center(
-        child: Text('No orders yet',
-            style: TextStyle(color: Color(0xFF9E7A50))),
-      );
+      return const Center(child: Text('No orders yet',
+          style: TextStyle(color: Color(0xFF9E7A50))));
     }
+
+    // ✅ Summary counts
+    final confirmed = orders.where((o) => o['status'] == 'confirmed').length;
+    final shipped   = orders.where((o) => o['status'] == 'shipped').length;
+    final delivered = orders.where((o) => o['status'] == 'delivered').length;
+    final cancelled = orders.where((o) => o['status'] == 'cancelled').length;
+
     return RefreshIndicator(
       color: _primary,
-      onRefresh: _loadAll,
-      child: ListView.builder(
+      onRefresh: _loadOrders,
+      child: ListView(
         padding: const EdgeInsets.all(16),
-        itemCount: orders.length,
-        itemBuilder: (_, i) => _orderCard(orders[i]),
+        children: [
+          // ✅ Summary chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              _summaryChip('Total',     '${orders.length}', Colors.blue),
+              const SizedBox(width: 8),
+              _summaryChip('Confirmed', '$confirmed',       Colors.teal),
+              const SizedBox(width: 8),
+              _summaryChip('Shipped',   '$shipped',         Colors.blue),
+              const SizedBox(width: 8),
+              _summaryChip('Delivered', '$delivered',       Colors.green),
+              const SizedBox(width: 8),
+              _summaryChip('Cancelled', '$cancelled',       Colors.red),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          ...orders.map((o) => _orderCard(o)),
+        ],
       ),
     );
   }
 
+  Widget _summaryChip(String label, String count, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: color.withValues(alpha: 0.3)),
+    ),
+    child: Column(children: [
+      Text(count, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color)),
+      Text(label,  style: TextStyle(fontSize: 10, color: color)),
+    ]),
+  );
+
   Widget _orderCard(Map<String, dynamic> order) {
     final status = order['status']?.toString() ?? 'pending';
     final items  = (order['items'] as List?) ?? [];
-    final total  = order['totalAmount'] ?? 0;
+    final total  = order['grandTotal'] ?? order['totalAmount'] ?? 0;
+
+    String fmtDate = '';
+    try {
+      final dt = DateTime.parse(order['createdAt'].toString()).toLocal();
+      fmtDate = '${dt.day}/${dt.month}/${dt.year}';
+    } catch (_) {}
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        // ✅ Red border for cancelled so admin can spot easily
+        side: status == 'cancelled'
+            ? const BorderSide(color: Colors.red, width: 1.5)
+            : BorderSide.none,
+      ),
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Header
           Row(children: [
-            Expanded(
-              child: Text(order['userName']?.toString() ?? 'User',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 15)),
-            ),
+            Expanded(child: Text(order['userName']?.toString() ?? 'User',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
             _statusBadge(status),
           ]),
           const SizedBox(height: 6),
+
           if (order['userEmail'] != null)
             _row(Icons.email, order['userEmail'].toString()),
-          if (order['userPhone'] != null)
+          if ((order['userPhone'] ?? '').toString().isNotEmpty)
             _row(Icons.phone, order['userPhone'].toString()),
-          if (order['deliveryAddress'] != null &&
-              order['deliveryAddress'].toString().isNotEmpty)
-            _row(Icons.location_on, order['deliveryAddress'].toString()),
+          if ((order['deliveryAddress'] ?? '').toString().isNotEmpty)
+            _row(Icons.location_on,
+                '${order['deliveryAddress']}, ${order['city'] ?? ''} - ${order['pincode'] ?? ''}'),
 
+          // ✅ FIXED: Items with correct field names
           if (items.isNotEmpty) ...[
             const SizedBox(height: 8),
-            const Text('Items:',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-            ...items.map((item) => Padding(
-              padding: const EdgeInsets.only(left: 8, top: 2),
-              child: Text(
-                '• ${item['name']} × ${item['quantity']}  ₹${item['price']}',
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xFF9E7A50)),
-              ),
-            )),
+            const Text('Items:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            ...items.map((item) {
+              final name  = item['productName'] ?? item['name'] ?? 'Item';
+              final qty   = item['quantity']    ?? item['qty']  ?? 1;
+              final price = item['subtotal']    ?? item['price'] ?? 0;
+              return Padding(
+                padding: const EdgeInsets.only(left: 8, top: 2),
+                child: Text('• $name × $qty  ₹$price',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF9E7A50))),
+              );
+            }),
           ],
 
           const SizedBox(height: 6),
           _row(Icons.currency_rupee, 'Total: ₹$total'),
 
-          if (order['cancelReason'] != null &&
-              order['cancelReason'].toString().isNotEmpty)
-            _row(Icons.info_outline, 'Reason: ${order['cancelReason']}'),
+          if ((order['trackingId'] ?? '').toString().isNotEmpty)
+            _row(Icons.local_shipping, 'Tracking: ${order['trackingId']}'),
+          if (fmtDate.isNotEmpty)
+            _row(Icons.calendar_today, 'Ordered: $fmtDate'),
+          if ((order['razorpayPaymentId'] ?? '').toString().isNotEmpty)
+            _row(Icons.receipt, 'Payment ID: ${order['razorpayPaymentId']}'),
 
           const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _primary,
-                side: const BorderSide(color: Color(0xFFFF9933)),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+
+          // ✅ Show update button only for active orders
+          if (status != 'delivered' && status != 'cancelled')
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _primary,
+                  side: const BorderSide(color: Color(0xFFFF9933)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.edit, size: 16),
+                label: Text('Update Status  (${status.toUpperCase()})'),
+                onPressed: () => _updateOrderStatus(order),
               ),
-              icon: const Icon(Icons.edit, size: 16),
-              label: Text('Update Status  (${status.toUpperCase()})'),
-              onPressed: () => _updateOrderStatus(order),
+            )
+          else
+            // ✅ Final status label for delivered/cancelled
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: _statusColor(status).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _statusColor(status).withValues(alpha: 0.4)),
+              ),
+              child: Center(
+                child: Text(
+                  status == 'cancelled'
+                      ? '❌ Cancelled by User'
+                      : '✅ Order Delivered',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: _statusColor(status),
+                  ),
+                ),
+              ),
             ),
-          ),
         ]),
       ),
     );
   }
 
   Widget _row(IconData icon, String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Row(children: [
-          Icon(icon, size: 14, color: const Color(0xFF9E7A50)),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(text,
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xFF9E7A50)),
-                overflow: TextOverflow.ellipsis),
-          ),
-        ]),
-      );
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(children: [
+      Icon(icon, size: 14, color: const Color(0xFF9E7A50)),
+      const SizedBox(width: 6),
+      Expanded(child: Text(text,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF9E7A50)),
+          overflow: TextOverflow.ellipsis)),
+    ]),
+  );
 
   Widget _statusBadge(String status) {
     final color = _statusColor(status);
@@ -319,19 +439,15 @@ class _AdminBookingManagementPageState
         border: Border.all(color: color.withValues(alpha: 0.5)),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(
-        status.toUpperCase(),
-        style: TextStyle(
-            fontSize: 10, fontWeight: FontWeight.bold, color: color),
-      ),
+      child: Text(status.toUpperCase(),
+          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
     );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  Status Picker Dialog — uses RadioGroup (Flutter 3.32+) instead of
-//  deprecated RadioListTile.groupValue / RadioListTile.onChanged
-// ═══════════════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────────────
+// Status Picker Dialog
+// ─────────────────────────────────────────────────────────────────────────────
 class _StatusPickerDialog extends StatefulWidget {
   final List<String> statuses;
   final String current;
@@ -362,39 +478,53 @@ class _StatusPickerDialogState extends State<_StatusPickerDialog> {
       title: const Text('Update Order Status'),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       content: SingleChildScrollView(
-        child: RadioGroup<String>(
-          groupValue: _selected,
-          onChanged: (v) {
-            if (v != null) setState(() => _selected = v);
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: widget.statuses.map((s) {
-              return InkWell(
-                onTap: () => setState(() => _selected = s),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(children: [
-                    Radio<String>(
-                      value: s,
-                      activeColor: const Color(0xFFFF9933),
-                    ),
-                    Text(
-                      s.toUpperCase(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: widget.statuses.map((s) {
+            final isSelected = s == _selected;
+            return InkWell(
+              onTap: () => setState(() => _selected = s),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? widget.statusColor(s).withValues(alpha: 0.1)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isSelected
+                        ? widget.statusColor(s)
+                        : Colors.grey.shade300,
+                    width: isSelected ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(children: [
+                  Icon(
+                    isSelected
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    color: isSelected
+                        ? widget.statusColor(s)
+                        : Colors.grey,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(s.toUpperCase(),
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: s == _selected
+                        fontWeight: isSelected
                             ? FontWeight.bold
                             : FontWeight.normal,
-                        color: widget.statusColor(s),
-                      ),
-                    ),
-                  ]),
-                ),
-              );
-            }).toList(),
-          ),
+                        color: isSelected
+                            ? widget.statusColor(s)
+                            : Colors.grey.shade700,
+                      )),
+                ]),
+              ),
+            );
+          }).toList(),
         ),
       ),
       actions: [
@@ -406,8 +536,7 @@ class _StatusPickerDialogState extends State<_StatusPickerDialog> {
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFFF9933),
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           onPressed: () => Navigator.pop(context, _selected),
           child: const Text('Update'),
