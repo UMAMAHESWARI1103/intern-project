@@ -3,19 +3,17 @@ const router   = express.Router();
 const Razorpay = require('razorpay');
 const crypto   = require('crypto');
 
-// ✅ FIX: Validate env keys at startup so you catch missing keys early
-const RAZORPAY_KEY_ID     = process.env.RAZORPAY_KEY_ID     || 'rzp_test_SJdyZblt9njE1Z';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_SECRET || 'YU77BoRuQliU8IMiXxLDT0fq';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
 if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-  console.error('❌ RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET is missing in .env');
+  throw new Error('Razorpay credentials are missing from environment variables');
 }
 
 const razorpay = new Razorpay({
-  key_id:     RAZORPAY_KEY_ID,
+  key_id: RAZORPAY_KEY_ID,
   key_secret: RAZORPAY_KEY_SECRET,
 });
-
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/payments/create-order
 //
